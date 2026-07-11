@@ -102,3 +102,19 @@ A continuación se muestran los diagramas explicativos del flujo de datos del ET
 ### 3. Flujo de Cifrado de Datos Sensibles (Secuencia)
 ![Flujo de Cifrado](etl/diagramas/Flujo%20de%20Cifrado%20de%20Datos%20Sensibles%20%28Secuencia%29.png)
 
+---
+
+## Diagramas del Backend
+
+A continuación se muestran los diagramas explicativos del funcionamiento del Backend:
+
+### 1. Arquitectura del Backend
+![Arquitectura del Backend](backend/diagramas/Arquitectura%20del%20Backend.png)
+
+### 2. Flujo de Autenticación JWT (Secuencia)
+![Autenticación JWT](backend/diagramas/Flujo%20de%20Autenticación%20JWT%20%28Secuencia%29.png)
+
+### 3. Flujo de Descifrado Seguro de Contraseñas (Secuencia)
+![Descifrado Seguro](backend/diagramas/Flujo%20de%20Descifrado%20Seguro%20de%20Contraseñas%20%28Secuencia%29.png)
+
+

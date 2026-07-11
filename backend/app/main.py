@@ -2,12 +2,23 @@
 Punto de entrada de la aplicación FastAPI – Tramex API.
 """
 
-from fastapi import FastAPI, Depends
+import logging
+import time
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.routers import master_tramex, global_entry, pasaportes, canada, auth
+
+# ---------------------------------------------------------------------------
+# Configuración del Logging
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("tramex_api")
 
 # ---------------------------------------------------------------------------
 # Instancia de la aplicación
@@ -18,6 +29,19 @@ app = FastAPI(
     description="API para la gestión de trámites de Tramex",
     version="1.0.0",
 )
+
+# Middleware de Logging de Peticiones
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    logger.info(
+        f"Client={request.client.host if request.client else 'unknown'} "
+        f"Method={request.method} Path={request.url.path} "
+        f"Status={response.status_code} Duration={duration:.4f}s"
+    )
+    return response
 
 # ---------------------------------------------------------------------------
 # Middleware CORS (abierto para desarrollo)
