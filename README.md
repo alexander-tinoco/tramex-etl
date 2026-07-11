@@ -34,6 +34,32 @@ Para ejecutar el ETL:
    python etl/etl_tramex.py raw-data/TRAMEX.xlsx
    ```
 
+### Backend (API)
+El backend es una API REST construida con **FastAPI** que reemplaza el flujo de trabajo basado en Excel. Se encuentra en la carpeta `/backend`.
+
+Para levantar el servidor de desarrollo:
+```bash
+cd backend
+source .venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+```
+
+- **API**: `http://localhost:8000`
+- **Documentación interactiva (Swagger)**: `http://localhost:8000/docs`
+- **Documentación alternativa (ReDoc)**: `http://localhost:8000/redoc`
+
+#### Endpoints disponibles
+
+| Recurso | Prefijo | Operaciones |
+|---|---|---|
+| Master Tramex | `/api/master-tramex` | GET, POST, PUT, DELETE |
+| Global Entry | `/api/global-entry` | GET, POST, PUT, DELETE |
+| Pasaportes | `/api/pasaportes` | GET, POST, PUT, DELETE |
+| Canadá | `/api/canada` | GET, POST, PUT, DELETE |
+
+> **Nota de seguridad**: Las contraseñas se cifran automáticamente con Fernet (AES) al crear o actualizar registros, y nunca se devuelven en las respuestas de la API.
+
+
 ## Diagramas del Proceso
 
 A continuación se muestran los diagramas explicativos del flujo de datos del ETL:
