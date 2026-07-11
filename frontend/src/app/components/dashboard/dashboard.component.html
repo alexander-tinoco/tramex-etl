@@ -52,157 +52,167 @@
     <!-- VISTAS CONTENEDOR -->
     <div class="views-container">
       <!-- VISTA: DASHBOARD -->
-      <div *ngIf="activeTab === 'dashboard'" class="view active">
-        <div class="grid-stats">
-          <div class="stat-card p-purple">
-            <div class="stat-icon"><i class="fa-solid fa-list-check"></i></div>
-            <div class="stat-info">
-              <h3>Master Tramex</h3>
-              <p class="stat-number">{{ counts['master_tramex'] }}</p>
+      @if (activeTab === 'dashboard') {
+        <div class="view active">
+          <div class="grid-stats">
+            <div class="stat-card p-purple">
+              <div class="stat-icon"><i class="fa-solid fa-list-check"></i></div>
+              <div class="stat-info">
+                <h3>Master Tramex</h3>
+                <p class="stat-number">{{ counts['master_tramex'] }}</p>
+              </div>
+            </div>
+            <div class="stat-card p-blue">
+              <div class="stat-icon"><i class="fa-solid fa-globe"></i></div>
+              <div class="stat-info">
+                <h3>Global Entry</h3>
+                <p class="stat-number">{{ counts['global_entry'] }}</p>
+              </div>
+            </div>
+            <div class="stat-card p-teal">
+              <div class="stat-icon"><i class="fa-solid fa-book-bookmark"></i></div>
+              <div class="stat-info">
+                <h3>Pasaportes</h3>
+                <p class="stat-number">{{ counts['pasaportes'] }}</p>
+              </div>
+            </div>
+            <div class="stat-card p-orange">
+              <div class="stat-icon"><i class="fa-solid fa-map"></i></div>
+              <div class="stat-info">
+                <h3>Canadá</h3>
+                <p class="stat-number">{{ counts['canada'] }}</p>
+              </div>
             </div>
           </div>
-          <div class="stat-card p-blue">
-            <div class="stat-icon"><i class="fa-solid fa-globe"></i></div>
-            <div class="stat-info">
-              <h3>Global Entry</h3>
-              <p class="stat-number">{{ counts['global_entry'] }}</p>
+          <div class="dashboard-banner">
+            <div class="banner-content">
+              <h2>Bienvenido al Sistema de Gestión Tramex</h2>
+              <p>Has reemplazado exitosamente el uso de archivos Excel por una solución centralizada y segura en PostgreSQL. Toda la información sensible como contraseñas de trámites se almacena cifrada en reposo y solo puede ser visualizada temporalmente por usuarios autenticados.</p>
             </div>
-          </div>
-          <div class="stat-card p-teal">
-            <div class="stat-icon"><i class="fa-solid fa-book-bookmark"></i></div>
-            <div class="stat-info">
-              <h3>Pasaportes</h3>
-              <p class="stat-number">{{ counts['pasaportes'] }}</p>
-            </div>
-          </div>
-          <div class="stat-card p-orange">
-            <div class="stat-icon"><i class="fa-solid fa-map"></i></div>
-            <div class="stat-info">
-              <h3>Canadá</h3>
-              <p class="stat-number">{{ counts['canada'] }}</p>
+            <div class="banner-ill">
+              <i class="fa-solid fa-shield-halved"></i>
             </div>
           </div>
         </div>
-
-        <div class="dashboard-banner">
-          <div class="banner-content">
-            <h2>Bienvenido al Sistema de Gestión Tramex</h2>
-            <p>Has reemplazado exitosamente el uso de archivos Excel por una solución centralizada y segura en PostgreSQL. Toda la información sensible como contraseñas de trámites se almacena cifrada en reposo y solo puede ser visualizada temporalmente por usuarios autenticados.</p>
-          </div>
-          <div class="banner-ill">
-            <i class="fa-solid fa-shield-halved"></i>
-          </div>
-        </div>
-      </div>
+      }
 
       <!-- VISTA: CRUD -->
-      <div *ngIf="activeTab !== 'dashboard'" class="view active">
-        <div class="crud-actions-bar">
-          <div class="search-box">
-            <i class="fa-magnifying-glass fa-solid"></i>
-            <input type="text" placeholder="Buscar por nombre..." [(ngModel)]="searchQuery" (input)="onSearch()">
+      @if (activeTab !== 'dashboard') {
+        <div class="view active">
+          <div class="crud-actions-bar">
+            <div class="search-box">
+              <i class="fa-magnifying-glass fa-solid"></i>
+              <input type="text" placeholder="Buscar por nombre..." [(ngModel)]="searchQuery" (input)="onSearch()">
+            </div>
+            <button class="btn-primary" (click)="openAddModal()">
+              <i class="fa-solid fa-plus"></i> <span>Agregar Registro</span>
+            </button>
           </div>
-          <button class="btn-primary" (click)="openAddModal()">
-            <i class="fa-solid fa-plus"></i> <span>Agregar Registro</span>
-          </button>
-        </div>
-
-        <!-- TABLA -->
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th *ngFor="let header of activeConfig.headers">{{ header }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngIf="loadingData">
-                <td [attr.colspan]="activeConfig.headers.length" class="text-center">
-                  <i class="fa-solid fa-spinner fa-spin"></i> Cargando información...
-                </td>
-              </tr>
-              <tr *ngIf="!loadingData && items.length === 0">
-                <td [attr.colspan]="activeConfig.headers.length" class="text-muted text-center">
-                  No se encontraron trámites registrados.
-                </td>
-              </tr>
-              <tr *ngFor="let item of items">
-                <ng-container [ngSwitch]="activeTab">
-                  <!-- Renderizar según el recurso activo -->
-                  <ng-container *ngSwitchCase="'master_tramex'">
-                    <td>{{ item.id }}</td>
-                    <td><strong>{{ item.nombre }}</strong></td>
-                    <td><span class="badge-mono">{{ item.id_solicitud || '-' }}</span></td>
-                    <td>{{ item.telefono || '-' }}</td>
-                    <td>{{ item.numero_pasaporte || '-' }}</td>
-                    <td>{{ item.tramite || '-' }}</td>
-                    <td>{{ item.cita || '-' }}</td>
-                    <td>{{ item.correo_electronico || '-' }}</td>
-                    <td>{{ formatDate(item.cargado_en) }}</td>
-                  </ng-container>
-                  <ng-container *ngSwitchCase="'global_entry'">
-                    <td>{{ item.id }}</td>
-                    <td><strong>{{ item.nombre }}</strong></td>
-                    <td>{{ item.apellido || '-' }}</td>
-                    <td>{{ item.correo_electronico || '-' }}</td>
-                    <td>{{ item.numero_pasaporte || '-' }}</td>
-                    <td>{{ formatDate(item.cargado_en) }}</td>
-                  </ng-container>
-                  <ng-container *ngSwitchCase="'pasaportes'">
-                    <td>{{ item.id }}</td>
-                    <td><strong>{{ item.nombre }}</strong></td>
-                    <td>{{ item.apellido || '-' }}</td>
-                    <td>{{ item.telefono || '-' }}</td>
-                    <td>{{ item.lugar_cita || '-' }}</td>
-                    <td>{{ item.fecha_cita || '-' }}</td>
-                    <td><span class="text-muted">{{ item.fecha_cita_original || '-' }}</span></td>
-                    <td>{{ formatDate(item.cargado_en) }}</td>
-                  </ng-container>
-                  <ng-container *ngSwitchCase="'canada'">
-                    <td>{{ item.id }}</td>
-                    <td><strong>{{ item.nombre }}</strong></td>
-                    <td>{{ item.cuenta_ircc || '-' }}</td>
-                    <td>{{ item.telefono || '-' }}</td>
-                    <td>{{ item.numero_pasaporte || '-' }}</td>
-                    <td>{{ formatDate(item.cargado_en) }}</td>
-                  </ng-container>
-                </ng-container>
-                
-                <!-- Acciones -->
-                <td>
-                  <div class="table-actions">
-                    <button *ngIf="hasPassword()" class="btn-icon text-secondary" (click)="viewPassword(item.id)" title="Ver Contraseña">
-                      <i class="fa-solid fa-key"></i>
-                    </button>
-                    <button class="btn-icon" (click)="openEditModal(item)" title="Editar">
-                      <i class="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    <button class="btn-icon danger" (click)="confirmDelete(item.id)" title="Eliminar">
-                      <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- PAGINACIÓN -->
-        <div class="pagination-bar">
-          <span class="pagination-info">Mostrando {{ getStartRange() }} a {{ getEndRange() }} de {{ totalRecords }} registros</span>
-          <div class="pagination-controls">
-            <button class="btn-icon" [disabled]="skip === 0" (click)="prevPage()"><i class="fa-solid fa-chevron-left"></i></button>
-            <button class="btn-icon" [disabled]="getEndRange() >= totalRecords" (click)="nextPage()"><i class="fa-solid fa-chevron-right"></i></button>
+          <!-- TABLA -->
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  @for (header of activeConfig.headers; track header) {
+                    <th>{{ header }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @if (loadingData) {
+                  <tr>
+                    <td [attr.colspan]="activeConfig.headers.length" class="text-center">
+                      <i class="fa-solid fa-spinner fa-spin"></i> Cargando información...
+                    </td>
+                  </tr>
+                }
+                @if (!loadingData && items.length === 0) {
+                  <tr>
+                    <td [attr.colspan]="activeConfig.headers.length" class="text-muted text-center">
+                      No se encontraron trámites registrados.
+                    </td>
+                  </tr>
+                }
+                @for (item of items; track item) {
+                  <tr>
+                    @switch (activeTab) {
+                      <!-- Renderizar según el recurso activo -->
+                      @case ('master_tramex') {
+                        <td>{{ item.id }}</td>
+                        <td><strong>{{ item.nombre }}</strong></td>
+                        <td><span class="badge-mono">{{ item.id_solicitud || '-' }}</span></td>
+                        <td>{{ item.telefono || '-' }}</td>
+                        <td>{{ item.numero_pasaporte || '-' }}</td>
+                        <td>{{ item.tramite || '-' }}</td>
+                        <td>{{ item.cita || '-' }}</td>
+                        <td>{{ item.correo_electronico || '-' }}</td>
+                        <td>{{ formatDate(item.cargado_en) }}</td>
+                      }
+                      @case ('global_entry') {
+                        <td>{{ item.id }}</td>
+                        <td><strong>{{ item.nombre }}</strong></td>
+                        <td>{{ item.apellido || '-' }}</td>
+                        <td>{{ item.correo_electronico || '-' }}</td>
+                        <td>{{ item.numero_pasaporte || '-' }}</td>
+                        <td>{{ formatDate(item.cargado_en) }}</td>
+                      }
+                      @case ('pasaportes') {
+                        <td>{{ item.id }}</td>
+                        <td><strong>{{ item.nombre }}</strong></td>
+                        <td>{{ item.apellido || '-' }}</td>
+                        <td>{{ item.telefono || '-' }}</td>
+                        <td>{{ item.lugar_cita || '-' }}</td>
+                        <td>{{ item.fecha_cita || '-' }}</td>
+                        <td><span class="text-muted">{{ item.fecha_cita_original || '-' }}</span></td>
+                        <td>{{ formatDate(item.cargado_en) }}</td>
+                      }
+                      @case ('canada') {
+                        <td>{{ item.id }}</td>
+                        <td><strong>{{ item.nombre }}</strong></td>
+                        <td>{{ item.cuenta_ircc || '-' }}</td>
+                        <td>{{ item.telefono || '-' }}</td>
+                        <td>{{ item.numero_pasaporte || '-' }}</td>
+                        <td>{{ formatDate(item.cargado_en) }}</td>
+                      }
+                    }
+                    <!-- Acciones -->
+                    <td>
+                      <div class="table-actions">
+                        @if (hasPassword()) {
+                          <button class="btn-icon text-secondary" (click)="viewPassword(item.id)" title="Ver Contraseña">
+                            <i class="fa-solid fa-key"></i>
+                          </button>
+                        }
+                        <button class="btn-icon" (click)="openEditModal(item)" title="Editar">
+                          <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button class="btn-icon danger" (click)="confirmDelete(item.id)" title="Eliminar">
+                          <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <!-- PAGINACIÓN -->
+          <div class="pagination-bar">
+            <span class="pagination-info">Mostrando {{ getStartRange() }} a {{ getEndRange() }} de {{ totalRecords }} registros</span>
+            <div class="pagination-controls">
+              <button class="btn-icon" [disabled]="skip === 0" (click)="prevPage()"><i class="fa-solid fa-chevron-left"></i></button>
+              <button class="btn-icon" [disabled]="getEndRange() >= totalRecords" (click)="nextPage()"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
           </div>
         </div>
-      </div>
+      }
     </div>
   </main>
 </div>
 
 <!-- =======================================================================
-     MODALES
-     ======================================================================= -->
+MODALES
+======================================================================= -->
 
 <!-- MODAL AGREGAR/EDITAR -->
 <div class="modal" [ngClass]="{'active': showRecordModal}">
@@ -213,22 +223,21 @@
     </div>
     <form (submit)="saveRecord($event)">
       <div class="modal-grid-fields">
-        <div *ngFor="let field of activeConfig.fields" class="form-group" [ngClass]="{'grid-col-2': field.grid}">
-          <label [for]="'f-' + field.name">{{ field.label }}</label>
-          
-          <ng-container *ngIf="field.type === 'password'; else standardField">
-            <div class="password-input-wrapper">
-              <input [type]="showModalPassword ? 'text' : 'password'" [id]="'f-' + field.name" [name]="field.name" [(ngModel)]="formValues[field.name]" [placeholder]="isEditing ? 'Dejar vacío para no cambiar' : 'Contraseña de la cuenta'">
-              <button type="button" class="btn-toggle-pwd" (click)="toggleModalPassword()">
-                <i class="fa-solid" [ngClass]="showModalPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
-              </button>
-            </div>
-          </ng-container>
-          
-          <ng-template #standardField>
-            <input [type]="field.type" [id]="'f-' + field.name" [name]="field.name" [(ngModel)]="formValues[field.name]" [required]="!!field.required">
-          </ng-template>
-        </div>
+        @for (field of activeConfig.fields; track field) {
+          <div class="form-group" [ngClass]="{'grid-col-2': field.grid}">
+            <label [for]="'f-' + field.name">{{ field.label }}</label>
+            @if (field.type === 'password') {
+              <div class="password-input-wrapper">
+                <input [type]="showModalPassword ? 'text' : 'password'" [id]="'f-' + field.name" [name]="field.name" [(ngModel)]="formValues[field.name]" [placeholder]="isEditing ? 'Dejar vacío para no cambiar' : 'Contraseña de la cuenta'">
+                <button type="button" class="btn-toggle-pwd" (click)="toggleModalPassword()">
+                  <i class="fa-solid" [ngClass]="showModalPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+                </button>
+              </div>
+            } @else {
+              <input [type]="field.type" [id]="'f-' + field.name" [name]="field.name" [(ngModel)]="formValues[field.name]" [required]="!!field.required">
+            }
+          </div>
+        }
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" (click)="closeModals()">Cancelar</button>
@@ -280,8 +289,10 @@
 
 <!-- NOTIFICACIONES (TOASTS) -->
 <div id="toast-container">
-  <div *ngFor="let toast of toasts" class="toast {{ toast.type }}">
-    <i class="fa-solid" [ngClass]="getToastIcon(toast.type)"></i>
-    <span>{{ toast.message }}</span>
-  </div>
+  @for (toast of toasts; track toast) {
+    <div class="toast {{ toast.type }}">
+      <i class="fa-solid" [ngClass]="getToastIcon(toast.type)"></i>
+      <span>{{ toast.message }}</span>
+    </div>
+  }
 </div>

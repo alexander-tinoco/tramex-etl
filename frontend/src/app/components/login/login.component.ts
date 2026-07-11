@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -13,17 +13,15 @@ import { AuthService } from '../../services/auth.service';
   styles: []
 })
 export class LoginComponent {
+  private api = inject(ApiService);
+  private auth = inject(AuthService);
+  private router = inject(Router);
+
   username = '';
   password = '';
   showPassword = false;
   errorMessage = '';
   loading = false;
-
-  constructor(
-    private api: ApiService,
-    private auth: AuthService,
-    private router: Router
-  ) {}
 
   togglePassword() {
     this.showPassword = !this.showPassword;

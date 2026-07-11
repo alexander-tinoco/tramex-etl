@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -83,6 +83,10 @@ const RESOURCE_CONFIGS: Record<string, ResourceConfig> = {
   styles: []
 })
 export class DashboardComponent implements OnInit {
+  private api = inject(ApiService);
+  private auth = inject(AuthService);
+  private router = inject(Router);
+
   activeTab = 'dashboard';
   pageTitle = 'Resumen del Sistema';
   dbConnected = false;
@@ -119,12 +123,6 @@ export class DashboardComponent implements OnInit {
   
   // Toasts
   toasts: {message: string, type: string}[] = [];
-
-  constructor(
-    private api: ApiService,
-    private auth: AuthService,
-    private router: Router
-  ) {}
 
   ngOnInit() {
     this.checkHealth();

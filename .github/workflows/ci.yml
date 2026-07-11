@@ -82,6 +82,16 @@ jobs:
           cd frontend
           npm ci
 
+      - name: Run Linter (ESLint)
+        run: |
+          cd frontend
+          npm run lint
+
+      - name: Run Unit Tests (Jasmine/Karma)
+        run: |
+          cd frontend
+          npx ng test --watch=false --browsers=ChromeHeadless
+
       - name: Build Angular Application
         run: |
           cd frontend

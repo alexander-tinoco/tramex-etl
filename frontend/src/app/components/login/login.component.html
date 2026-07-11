@@ -23,13 +23,21 @@
             </button>
           </div>
         </div>
-        <div *ngIf="errorMessage" class="alert error">
-          <i class="fa-solid fa-circle-exclamation"></i> <span>{{errorMessage}}</span>
-        </div>
+        @if (errorMessage) {
+          <div class="alert error">
+            <i class="fa-solid fa-circle-exclamation"></i> <span>{{errorMessage}}</span>
+          </div>
+        }
         <button type="submit" class="btn-primary btn-block" [disabled]="loading">
-          <span *ngIf="!loading">Ingresar</span>
-          <span *ngIf="loading"><i class="fa-solid fa-spinner fa-spin"></i> Cargando...</span>
-          <i *ngIf="!loading" class="fa-solid fa-arrow-right-to-bracket"></i>
+          @if (!loading) {
+            <span>Ingresar</span>
+          }
+          @if (loading) {
+            <span><i class="fa-solid fa-spinner fa-spin"></i> Cargando...</span>
+          }
+          @if (!loading) {
+            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+          }
         </button>
       </form>
     </div>
