@@ -44,6 +44,11 @@ class Settings(BaseSettings):
         validation_alias="ALLOWED_ORIGINS"
     )
 
+    sentry_dsn: str | None = Field(
+        default=None,
+        validation_alias="SENTRY_DSN"
+    )
+
 
 # Instanciar configuraciones validadas
 try:

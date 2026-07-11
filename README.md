@@ -52,32 +52,35 @@ uvicorn app.main:app --reload --port 8000
 
 | Recurso | Prefijo | Operaciones |
 |---|---|---|
-| Autenticación | `/api/auth/token` | POST (Público: requiere `username` y `password` en formato form-data) |
-| Master Tramex | `/api/master-tramex/` | GET, POST, PATCH, DELETE |
-| Global Entry | `/api/global-entry/` | GET, POST, PATCH, DELETE |
-| Pasaportes | `/api/pasaportes/` | GET, POST, PATCH, DELETE |
-| Canadá | `/api/canada/` | GET, POST, PATCH, DELETE |
+| Autenticación | `/api/v1/auth/token` | POST (Público: requiere `username` y `password` en formato form-data) |
+| Master Tramex | `/api/v1/master-tramex/` | GET, POST, PATCH, DELETE |
+| Global Entry | `/api/v1/global-entry/` | GET, POST, PATCH, DELETE |
+| Pasaportes | `/api/v1/pasaportes/` | GET, POST, PATCH, DELETE |
+| Canadá | `/api/v1/canada/` | GET, POST, PATCH, DELETE |
 
-> **Nota de contraseñas**: Para los recursos de **Master Tramex**, **Global Entry** y **Canadá**, la contraseña original se puede descifrar consumiendo el endpoint protected `GET {prefijo}/{id}/password`.
+> **Nota de contraseñas**: Para los recursos de **Master Tramex**, **Global Entry** y **Canadá**, la contraseña original se puede descifrar consumiendo el endpoint protegido `GET {prefijo}/{id}/password`.
 
 #### Autenticación y Seguridad
 
 La API se encuentra protegida con autenticación basada en tokens JWT.
-1. **Iniciar Sesión:** Envía una solicitud `POST /api/auth/token` con los campos `username` y `password` en el cuerpo del formulario (OAuth2 password request).
+1. **Iniciar Sesión:** Envía una solicitud `POST /api/v1/auth/token` con los campos `username` y `password` en el cuerpo del formulario (OAuth2 password request).
 2. **Consumo de Endpoints:** Adjunta el token recibido en la cabecera `Authorization` de cada solicitud:
    ```http
    Authorization: Bearer <access_token>
    ```
 
-Los parámetros de autenticación se configuran en el archivo `backend/.env` mediante:
+Los parámetros de la API se configuran en el archivo `backend/.env` mediante:
 * `API_SECRET_KEY`: Frase secreta utilizada para la firma de tokens JWT.
 * `API_USERNAME`: Usuario administrador (por defecto `admin`).
 * `API_PASSWORD`: Contraseña de administrador (por defecto `changeme`).
+* `SENTRY_DSN`: URL del DSN de Sentry para capturar excepciones en tiempo real (opcional).
+
+> **Monitoreo y Logging:** Los logs de la aplicación FastAPI se imprimen automáticamente en consola en formato estructurado JSON.
 
 > **Nota de endpoints `GET /`**: Todos los endpoints de listado (`GET`) soportan los siguientes parámetros de consulta (query params) opcionales:
-> * `buscar`: Filtra los registros cuyo campo `nombre` coincida parcialmente (búsqueda insensible a mayúsculas/minúsculas).
-> * `skip`: Número de registros a omitir (por defecto `0`).
-> * `limit`: Número máximo de registros a retornar (por defecto `100`).
+* `buscar`: Filtra los registros cuyo campo `nombre` coincida parcialmente (búsqueda insensible a mayúsculas/minúsculas).
+* `skip`: Número de registros a omitir (por defecto `0`).
+* `limit`: Número máximo de registros a retornar (por defecto `100`).
 
 > **Nota de seguridad de datos**: Las contraseñas se cifran automáticamente con Fernet (AES-128) en la base de datos al crear (POST) o actualizar parcialmente (PATCH) los registros, y nunca se devuelven en los listados generales.
 
@@ -110,12 +113,13 @@ El resultado se almacena en la carpeta `/frontend/dist/frontend/browser/`.
 ---
 
 ### CI/CD (GitHub Actions)
-El proyecto incluye un flujo de integración continua (CI) mediante **GitHub Actions** en `.github/workflows/ci.yml`.
+El proyecto incluye un flujo de integración continua y despliegue (CI/CD) mediante **GitHub Actions** en `.github/workflows/ci.yml`.
 
 Este flujo se dispara automáticamente en cada `push` o `pull_request` a las ramas `main` o `master` y realiza:
 1. **Pruebas del Backend**: Instala las dependencias y ejecuta el conjunto de tests con reporte de cobertura (`pytest --cov=app`).
 2. **Validación Sintáctica del ETL**: Valida que el script de python de ETL compile correctamente.
-3. **Compilación del Frontend**: Ejecuta el empaquetado de producción de Angular (`npm run build`) para garantizar que no existan errores de compilación de TypeScript o empaquetado antes del despliegue.
+3. **Validación del Frontend**: Ejecuta el formateador sintáctico (`eslint`), las pruebas unitarias de Karma (`ng test`) y el empaquetado de producción de Angular (`npm run build`).
+4. **Publicación en GHCR (CD)**: Si todas las validaciones anteriores pasan en la rama principal (`main` o `master`), el pipeline compila las imágenes Docker del Backend y del Frontend, registrándolas automáticamente en **GitHub Container Registry (GHCR)** bajo las etiquetas `:latest` y `:sha-<short-hash>`.
 
 
 ## Diagramas del Proceso
@@ -145,5 +149,23 @@ A continuación se muestran los diagramas explicativos del funcionamiento del Ba
 
 ### 3. Flujo de Descifrado Seguro de Contraseñas (Secuencia)
 ![Descifrado Seguro](backend/diagramas/Flujo%20de%20Descifrado%20Seguro%20de%20Contraseñas%20%28Secuencia%29.png)
+
+---
+
+## Diagramas del Frontend
+
+A continuación se muestran los diagramas explicativos del funcionamiento del Frontend:
+
+### 1. Árbol de Componentes y Flujo de Control
+![Árbol de Componentes](frontend/diagramas/Árbol%20de%20Componentes%20y%20Flujo%20de%20Control.png)
+
+### 2. Diagrama de Secuencia: Autenticación y Login
+![Autenticación y Login](frontend/diagramas/Diagrama%20de%20Secuencia:%20Autenticación%20y%20Login.png)
+
+### 3. Diagrama de Secuencia: Intercepción de Llamadas y Manejo del Token
+![Intercepción y Token](frontend/diagramas/Diagrama%20de%20Secuencia:%20Intercepción%20de%20Llamadas%20y%20Manejo%20del%20Token.png)
+
+### 4. Flujo de Datos en Operaciones CRUD del Dashboard
+![Flujo CRUD](frontend/diagramas/Flujo%20de%20Datos%20en%20Operaciones%20CRUD%20del%20Dashboard.png)
 
 

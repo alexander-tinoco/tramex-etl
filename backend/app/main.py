@@ -7,19 +7,25 @@ import time
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+import sentry_sdk
 
 from app.config import settings
 from app.database import get_db
 from app.routers import master_tramex, global_entry, pasaportes, canada, auth
+from app.logging_config import setup_logging
 
-# ---------------------------------------------------------------------------
-# Configuración del Logging
-# ---------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+# Inicializar logging estructurado JSON
+setup_logging()
 logger = logging.getLogger("tramex_api")
+
+# Inicializar Sentry si el DSN está configurado
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+    )
+    logger.info("Sentry initialized successfully.")
 
 # ---------------------------------------------------------------------------
 # Instancia de la aplicación
@@ -38,9 +44,14 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     duration = time.time() - start_time
     logger.info(
-        f"Client={request.client.host if request.client else 'unknown'} "
-        f"Method={request.method} Path={request.url.path} "
-        f"Status={response.status_code} Duration={duration:.4f}s"
+        f"Request processed: {request.method} {request.url.path} -> {response.status_code}",
+        extra={
+            "client": request.client.host if request.client else "unknown",
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration": round(duration, 4),
+        }
     )
     return response
 
