@@ -168,4 +168,14 @@ A continuación se muestran los diagramas explicativos del funcionamiento del Fr
 ### 4. Flujo de Datos en Operaciones CRUD del Dashboard
 ![Flujo CRUD](frontend/diagramas/Flujo%20de%20Datos%20en%20Operaciones%20CRUD%20del%20Dashboard.png)
 
+---
+
+### Vistas de la Interfaz del Usuario (Screenshots)
+
+#### Pantalla de Login (Sleek Dark Mode)
+![Pantalla de Login](frontend/diagramas/login_page_screenshot.jpg)
+
+#### Panel Principal (Dashboard de Trámites)
+![Dashboard Principal](frontend/diagramas/dashboard_page_screenshot.jpg)
+
 
