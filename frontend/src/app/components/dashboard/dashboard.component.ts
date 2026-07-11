@@ -23,7 +23,7 @@ interface ResourceConfig {
 const RESOURCE_CONFIGS: Record<string, ResourceConfig> = {
   master_tramex: {
     title: "Master Tramex",
-    endpoint: "/api/master-tramex/",
+    endpoint: "/master-tramex/",
     headers: ["ID", "Nombre", "ID Solicitud", "Teléfono", "Pasaporte", "Trámite", "Cita", "Correo", "Cargado En", "Acciones"],
     fields: [
       { name: "nombre", label: "Nombre Completo", type: "text", required: true, grid: true },
@@ -38,7 +38,7 @@ const RESOURCE_CONFIGS: Record<string, ResourceConfig> = {
   },
   global_entry: {
     title: "Global Entry",
-    endpoint: "/api/global-entry/",
+    endpoint: "/global-entry/",
     headers: ["ID", "Nombre", "Apellido", "Correo", "Pasaporte", "Cargado En", "Acciones"],
     fields: [
       { name: "nombre", label: "Nombre", type: "text", required: true },
@@ -50,7 +50,7 @@ const RESOURCE_CONFIGS: Record<string, ResourceConfig> = {
   },
   pasaportes: {
     title: "Pasaportes",
-    endpoint: "/api/pasaportes/",
+    endpoint: "/pasaportes/",
     headers: ["ID", "Nombre", "Apellido", "Teléfono", "Lugar Cita", "Fecha Cita", "Texto Original", "Cargado En", "Acciones"],
     fields: [
       { name: "nombre", label: "Nombre", type: "text", required: true },
@@ -63,7 +63,7 @@ const RESOURCE_CONFIGS: Record<string, ResourceConfig> = {
   },
   canada: {
     title: "Canadá",
-    endpoint: "/api/canada/",
+    endpoint: "/canada/",
     headers: ["ID", "Nombre", "Cuenta IRCC", "Teléfono", "Pasaporte", "Cargado En", "Acciones"],
     fields: [
       { name: "nombre", label: "Nombre Completo", type: "text", required: true, grid: true },

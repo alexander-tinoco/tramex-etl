@@ -17,6 +17,9 @@ FROM nginx:alpine
 # Copiar los archivos compilados del constructor de Angular al directorio raíz de Nginx
 COPY --from=builder /app/dist/frontend/browser /usr/share/nginx/html
 
+# Copiar la configuración personalizada de Nginx para el Reverse Proxy
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

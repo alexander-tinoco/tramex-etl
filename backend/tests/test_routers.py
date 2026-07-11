@@ -1,5 +1,5 @@
 # ===========================================================================
-# Tests de Integración – Tramex API
+# Tests de Integración – Tramex API (v1)
 # ===========================================================================
 # Los tests de routers usan el cliente de pruebas con auth y BD en memoria.
 # La respuesta de listado ahora tiene forma PaginatedResponse:
@@ -31,7 +31,7 @@ def test_health_db(client):
 def test_login_correcto(client):
     """Login con credenciales correctas (admin/changeme por defecto en tests)."""
     response = client.post(
-        "/api/auth/token",
+        "/api/v1/auth/token",
         data={"username": "admin", "password": "changeme"},
     )
     assert response.status_code == 200
@@ -42,7 +42,7 @@ def test_login_correcto(client):
 
 def test_login_incorrecto(client):
     response = client.post(
-        "/api/auth/token",
+        "/api/v1/auth/token",
         data={"username": "admin", "password": "wrong"},
     )
     assert response.status_code == 401
@@ -53,7 +53,7 @@ def test_endpoint_sin_token(client):
     from app.security import get_current_user
     # Eliminar el override de auth para este test
     del client.app.dependency_overrides[get_current_user]
-    response = client.get("/api/master-tramex/")
+    response = client.get("/api/v1/master-tramex/")
     assert response.status_code == 401
     # Restaurar el override para no afectar otros tests
     client.app.dependency_overrides[get_current_user] = lambda: "test_user"
@@ -75,7 +75,7 @@ def test_crud_master_tramex(client):
         "correo_electronico": "jorge@test.com",
         "contrasena": "SuperPassword123",
     }
-    response = client.post("/api/master-tramex/", json=payload)
+    response = client.post("/api/v1/master-tramex/", json=payload)
     assert response.status_code == 201
     res_data = response.json()
     assert res_data["nombre"] == "Jorge Monroy"
@@ -86,7 +86,7 @@ def test_crud_master_tramex(client):
     record_id = res_data["id"]
 
     # 2. GET List – respuesta paginada
-    response = client.get("/api/master-tramex/")
+    response = client.get("/api/v1/master-tramex/")
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 1
@@ -94,27 +94,27 @@ def test_crud_master_tramex(client):
     assert data["items"][0]["nombre"] == "Jorge Monroy"
 
     # 3. GET por ID
-    response = client.get(f"/api/master-tramex/{record_id}")
+    response = client.get(f"/api/v1/master-tramex/{record_id}")
     assert response.status_code == 200
     assert response.json()["nombre"] == "Jorge Monroy"
 
     # 4. GET buscar – filtro ILIKE
-    response = client.get("/api/master-tramex/?buscar=jorge")
+    response = client.get("/api/v1/master-tramex/?buscar=jorge")
     assert response.status_code == 200
     assert response.json()["total"] == 1
 
-    response = client.get("/api/master-tramex/?buscar=maria")
+    response = client.get("/api/v1/master-tramex/?buscar=maria")
     assert response.status_code == 200
     assert response.json()["total"] == 0
 
     # 5. GET password – descifrar contraseña
-    response = client.get(f"/api/master-tramex/{record_id}/password")
+    response = client.get(f"/api/v1/master-tramex/{record_id}/password")
     assert response.status_code == 200
     assert response.json()["contrasena"] == "SuperPassword123"
 
     # 6. PATCH – actualización parcial
     response = client.patch(
-        f"/api/master-tramex/{record_id}",
+        f"/api/v1/master-tramex/{record_id}",
         json={"nombre": "Jorge Ulices Monroy", "contrasena": "NuevoPassword987"},
     )
     assert response.status_code == 200
@@ -122,15 +122,15 @@ def test_crud_master_tramex(client):
     assert "contrasena" not in response.json()
 
     # Verificar que la nueva contraseña se descifra correctamente
-    response = client.get(f"/api/master-tramex/{record_id}/password")
+    response = client.get(f"/api/v1/master-tramex/{record_id}/password")
     assert response.json()["contrasena"] == "NuevoPassword987"
 
     # 7. DELETE
-    response = client.delete(f"/api/master-tramex/{record_id}")
+    response = client.delete(f"/api/v1/master-tramex/{record_id}")
     assert response.status_code == 204
 
     # 8. GET inexistente – confirmar eliminación
-    response = client.get(f"/api/master-tramex/{record_id}")
+    response = client.get(f"/api/v1/master-tramex/{record_id}")
     assert response.status_code == 404
 
 
@@ -146,7 +146,7 @@ def test_crud_global_entry(client):
         "numero_pasaporte": "PAS987",
         "contrasena": "globalSecret",
     }
-    response = client.post("/api/global-entry/", json=payload)
+    response = client.post("/api/v1/global-entry/", json=payload)
     assert response.status_code == 201
     res_data = response.json()
     assert res_data["nombre"] == "Ana"
@@ -154,18 +154,18 @@ def test_crud_global_entry(client):
 
     record_id = res_data["id"]
 
-    response = client.get("/api/global-entry/")
+    response = client.get("/api/v1/global-entry/")
     assert response.status_code == 200
     assert response.json()["total"] == 1
 
-    response = client.get(f"/api/global-entry/{record_id}/password")
+    response = client.get(f"/api/v1/global-entry/{record_id}/password")
     assert response.json()["contrasena"] == "globalSecret"
 
-    response = client.patch(f"/api/global-entry/{record_id}", json={"apellido": "Lopez Diaz"})
+    response = client.patch(f"/api/v1/global-entry/{record_id}", json={"apellido": "Lopez Diaz"})
     assert response.status_code == 200
     assert response.json()["apellido"] == "Lopez Diaz"
 
-    response = client.delete(f"/api/global-entry/{record_id}")
+    response = client.delete(f"/api/v1/global-entry/{record_id}")
     assert response.status_code == 204
 
 
@@ -181,7 +181,7 @@ def test_crud_pasaportes(client):
         "lugar_cita": "CDMX",
         "fecha_cita": "2026-08-15",
     }
-    response = client.post("/api/pasaportes/", json=payload)
+    response = client.post("/api/v1/pasaportes/", json=payload)
     assert response.status_code == 201
     res_data = response.json()
     assert res_data["nombre"] == "Carlos"
@@ -189,15 +189,15 @@ def test_crud_pasaportes(client):
 
     record_id = res_data["id"]
 
-    response = client.get("/api/pasaportes/")
+    response = client.get("/api/v1/pasaportes/")
     assert response.status_code == 200
     assert response.json()["total"] == 1
 
-    response = client.patch(f"/api/pasaportes/{record_id}", json={"fecha_cita": "2026-09-01"})
+    response = client.patch(f"/api/v1/pasaportes/{record_id}", json={"fecha_cita": "2026-09-01"})
     assert response.status_code == 200
     assert response.json()["fecha_cita"] == "2026-09-01"
 
-    response = client.delete(f"/api/pasaportes/{record_id}")
+    response = client.delete(f"/api/v1/pasaportes/{record_id}")
     assert response.status_code == 204
 
 
@@ -213,7 +213,7 @@ def test_crud_canada(client):
         "numero_pasaporte": "CAN1122",
         "contrasena": "canadaPass",
     }
-    response = client.post("/api/canada/", json=payload)
+    response = client.post("/api/v1/canada/", json=payload)
     assert response.status_code == 201
     res_data = response.json()
     assert res_data["nombre"] == "Maria"
@@ -221,16 +221,16 @@ def test_crud_canada(client):
 
     record_id = res_data["id"]
 
-    response = client.get("/api/canada/")
+    response = client.get("/api/v1/canada/")
     assert response.status_code == 200
     assert response.json()["total"] == 1
 
-    response = client.get(f"/api/canada/{record_id}/password")
+    response = client.get(f"/api/v1/canada/{record_id}/password")
     assert response.json()["contrasena"] == "canadaPass"
 
-    response = client.patch(f"/api/canada/{record_id}", json={"cuenta_ircc": "IRCC555"})
+    response = client.patch(f"/api/v1/canada/{record_id}", json={"cuenta_ircc": "IRCC555"})
     assert response.status_code == 200
     assert response.json()["cuenta_ircc"] == "IRCC555"
 
-    response = client.delete(f"/api/canada/{record_id}")
+    response = client.delete(f"/api/v1/canada/{record_id}")
     assert response.status_code == 204

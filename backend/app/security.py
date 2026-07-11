@@ -22,7 +22,7 @@ ACCESS_TOKEN_EXPIRE_HOURS: int = 24
 API_USERNAME: str = settings.api_username
 API_PASSWORD: str = settings.api_password
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 
 # ---------------------------------------------------------------------------

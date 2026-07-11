@@ -60,11 +60,11 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 
-app.include_router(auth.router,          prefix="/api/auth",          tags=["Auth"])
-app.include_router(master_tramex.router, prefix="/api/master-tramex", tags=["Master Tramex"])
-app.include_router(global_entry.router,  prefix="/api/global-entry",  tags=["Global Entry"])
-app.include_router(pasaportes.router,    prefix="/api/pasaportes",    tags=["Pasaportes"])
-app.include_router(canada.router,        prefix="/api/canada",        tags=["Canadá"])
+app.include_router(auth.router,          prefix="/api/v1/auth",          tags=["Auth"])
+app.include_router(master_tramex.router, prefix="/api/v1/master-tramex", tags=["Master Tramex"])
+app.include_router(global_entry.router,  prefix="/api/v1/global-entry",  tags=["Global Entry"])
+app.include_router(pasaportes.router,    prefix="/api/v1/pasaportes",    tags=["Pasaportes"])
+app.include_router(canada.router,        prefix="/api/v1/canada",        tags=["Canadá"])
 
 
 # ---------------------------------------------------------------------------

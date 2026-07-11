@@ -12,13 +12,14 @@ export class ApiService {
   private baseUrl = environment.apiUrl;
 
   login(bodyParams: URLSearchParams): Observable<any> {
-    return this.http.post(`${this.baseUrl}/api/auth/token`, bodyParams.toString(), {
+    return this.http.post(`${this.baseUrl}/auth/token`, bodyParams.toString(), {
       headers: new HttpHeaders({ 'Content-Type': 'application/x-www-form-urlencoded' })
     });
   }
 
   checkHealth(): Observable<any> {
-    return this.http.get(`${this.baseUrl}/health`);
+    const rootUrl = this.baseUrl.replace('/api/v1', '');
+    return this.http.get(`${rootUrl}/health`);
   }
 
   getList(endpoint: string, skip: number, limit: number, search?: string): Observable<any> {
