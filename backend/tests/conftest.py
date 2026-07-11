@@ -4,12 +4,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-# Asegurar que importemos desde app correctamente agregando el path si fuese necesario,
-# pero al correr pytest desde /backend, el working directory ya contiene 'app'.
 from app.database import Base, get_db
 from app.main import app
+from app.security import get_current_user
 
-# Base de datos en memoria para pruebas rápidas y aisladas
+# ---------------------------------------------------------------------------
+# Base de datos en memoria para pruebas aisladas
+# ---------------------------------------------------------------------------
+
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
 engine = create_engine(
@@ -19,9 +21,10 @@ engine = create_engine(
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 @pytest.fixture(name="session")
 def session_fixture():
-    # Crear la estructura de la base de datos limpia para cada test
+    """Crea las tablas antes de cada test y las elimina al terminar."""
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
@@ -30,16 +33,26 @@ def session_fixture():
     finally:
         db.close()
 
+
 @pytest.fixture(name="client")
 def client_fixture(session):
+    """
+    Cliente de pruebas con dos overrides:
+    - get_db  → sesión de SQLite en memoria
+    - get_current_user → usuario de prueba (bypass de JWT)
+    """
     def override_get_db():
         try:
             yield session
         finally:
             pass
 
-    # Reemplazar la dependencia de la base de datos real con la de pruebas
+    def override_get_current_user():
+        return "test_user"
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
     yield TestClient(app)
-    # Limpiar override después del test
-    del app.dependency_overrides[get_db]
+
+    app.dependency_overrides.clear()

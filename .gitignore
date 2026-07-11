@@ -6,3 +6,6 @@ __pycache__/
 venv/
 tramex.db
 *.log
+.coverage
+.pytest_cache/
+alembic/__pycache__/

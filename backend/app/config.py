@@ -28,7 +28,9 @@ for env_path in _env_candidates:
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     key, val = line.split("=", 1)
-                    os.environ[key.strip()] = val.strip().strip("'\"")
+                    key_clean = key.strip()
+                    if key_clean not in os.environ:
+                        os.environ[key_clean] = val.strip().strip("'\"")
         break
 
 # ---------------------------------------------------------------------------

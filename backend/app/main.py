@@ -2,10 +2,12 @@
 Punto de entrada de la aplicación FastAPI – Tramex API.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 
-from app.routers import master_tramex, global_entry, pasaportes, canada
+from app.database import get_db
+from app.routers import master_tramex, global_entry, pasaportes, canada, auth
 
 # ---------------------------------------------------------------------------
 # Instancia de la aplicación
@@ -33,17 +35,32 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 
+app.include_router(auth.router,          prefix="/api/auth",          tags=["Auth"])
 app.include_router(master_tramex.router, prefix="/api/master-tramex", tags=["Master Tramex"])
-app.include_router(global_entry.router, prefix="/api/global-entry", tags=["Global Entry"])
-app.include_router(pasaportes.router, prefix="/api/pasaportes", tags=["Pasaportes"])
-app.include_router(canada.router, prefix="/api/canada", tags=["Canadá"])
+app.include_router(global_entry.router,  prefix="/api/global-entry",  tags=["Global Entry"])
+app.include_router(pasaportes.router,    prefix="/api/pasaportes",    tags=["Pasaportes"])
+app.include_router(canada.router,        prefix="/api/canada",        tags=["Canadá"])
 
 
 # ---------------------------------------------------------------------------
-# Endpoint raíz
+# Health check
 # ---------------------------------------------------------------------------
 
-@app.get("/")
+@app.get("/", tags=["Health"])
 def root():
-    """Health-check / bienvenida."""
+    """Bienvenida – no requiere autenticación."""
     return {"status": "ok", "message": "Tramex API v1.0.0"}
+
+
+@app.get("/health", tags=["Health"])
+def health(db: Session = Depends(get_db)):
+    """
+    Health check extendido: verifica la conectividad con la base de datos.
+    Retorna HTTP 200 si la BD está disponible, HTTP 503 si no lo está.
+    """
+    try:
+        db.execute(__import__("sqlalchemy").text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception as exc:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail=f"Base de datos no disponible: {exc}")

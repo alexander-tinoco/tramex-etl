@@ -8,8 +8,23 @@ Convenciones:
 """
 
 from datetime import date, datetime
+from typing import Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
+
+T = TypeVar("T")
+
+
+# ---------------------------------------------------------------------------
+# Respuesta paginada genérica
+# ---------------------------------------------------------------------------
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """Envuelve cualquier lista con metadatos de paginación."""
+    total: int
+    skip: int
+    limit: int
+    items: list[T]
 
 
 # ===========================================================================
@@ -24,7 +39,7 @@ class MasterTramexBase(BaseModel):
     numero_pasaporte: str | None = None
     tramite: str | None = None
     cita: str | None = None
-    correo_electronico: str | None = None
+    correo_electronico: EmailStr | None = None
     contrasena: str | None = None  # Se cifra en el router antes de guardar
 
 
@@ -36,7 +51,7 @@ class MasterTramexUpdate(BaseModel):
     numero_pasaporte: str | None = None
     tramite: str | None = None
     cita: str | None = None
-    correo_electronico: str | None = None
+    correo_electronico: EmailStr | None = None
     contrasena: str | None = None
 
 
@@ -63,7 +78,7 @@ class GlobalEntryBase(BaseModel):
     """Esquema de creación para global_entry."""
     nombre: str
     apellido: str | None = None
-    correo_electronico: str | None = None
+    correo_electronico: EmailStr | None = None
     numero_pasaporte: str | None = None
     contrasena: str | None = None
 
@@ -72,7 +87,7 @@ class GlobalEntryUpdate(BaseModel):
     """Esquema de actualización parcial para global_entry."""
     nombre: str | None = None
     apellido: str | None = None
-    correo_electronico: str | None = None
+    correo_electronico: EmailStr | None = None
     numero_pasaporte: str | None = None
     contrasena: str | None = None
 
