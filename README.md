@@ -81,12 +81,41 @@ Los parámetros de autenticación se configuran en el archivo `backend/.env` med
 
 > **Nota de seguridad de datos**: Las contraseñas se cifran automáticamente con Fernet (AES-128) en la base de datos al crear (POST) o actualizar parcialmente (PATCH) los registros, y nunca se devuelven en los listados generales.
 
+### Frontend (Angular)
+La interfaz administrativa está desarrollada con **Angular 18** (arquitectura standalone). Se encuentra en la carpeta `/frontend`.
+
+#### Requisitos locales
+* Node.js >= 22.22.1
+* npm >= 9.0
+
+#### Levantar el servidor de desarrollo local
+1. Instala las dependencias de node:
+   ```bash
+   cd frontend
+   npm install
+   ```
+2. Levanta el servidor de Angular:
+   ```bash
+   npm run start
+   ```
+La aplicación abrirá por defecto en **`http://localhost:4200`** y cuenta con hot-reload para desarrollo en caliente.
+
+#### Compilación de producción
+Para generar los bundles optimizados y minificados de producción:
+```bash
+npm run build
+```
+El resultado se almacena en la carpeta `/frontend/dist/frontend/browser/`.
+
+---
+
 ### CI/CD (GitHub Actions)
 El proyecto incluye un flujo de integración continua (CI) mediante **GitHub Actions** en `.github/workflows/ci.yml`.
 
 Este flujo se dispara automáticamente en cada `push` o `pull_request` a las ramas `main` o `master` y realiza:
 1. **Pruebas del Backend**: Instala las dependencias y ejecuta el conjunto de tests con reporte de cobertura (`pytest --cov=app`).
 2. **Validación Sintáctica del ETL**: Valida que el script de python de ETL compile correctamente.
+3. **Compilación del Frontend**: Ejecuta el empaquetado de producción de Angular (`npm run build`) para garantizar que no existan errores de compilación de TypeScript o empaquetado antes del despliegue.
 
 
 ## Diagramas del Proceso
