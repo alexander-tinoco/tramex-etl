@@ -32,6 +32,9 @@ jobs:
           # la carga de configuraciones inicial no falle en CI.
           TRAMEX_FERNET_KEY: "CxNCUQhBIDIRsETw8i-dfZBdmcnh6YX43VWS-9txMY4="
           DATABASE_URL: "sqlite:///:memory:"
+          API_SECRET_KEY: "ci-secret-key-test-only"
+          API_USERNAME: "admin"
+          API_PASSWORD: "changeme"
         run: |
           cd backend
           python -m pytest --cov=app tests/ -v

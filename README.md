@@ -52,17 +52,34 @@ uvicorn app.main:app --reload --port 8000
 
 | Recurso | Prefijo | Operaciones |
 |---|---|---|
+| Autenticación | `/api/auth/token` | POST (Público: requiere `username` y `password` en formato form-data) |
 | Master Tramex | `/api/master-tramex/` | GET, POST, PATCH, DELETE |
 | Global Entry | `/api/global-entry/` | GET, POST, PATCH, DELETE |
 | Pasaportes | `/api/pasaportes/` | GET, POST, PATCH, DELETE |
 | Canadá | `/api/canada/` | GET, POST, PATCH, DELETE |
+
+> **Nota de contraseñas**: Para los recursos de **Master Tramex**, **Global Entry** y **Canadá**, la contraseña original se puede descifrar consumiendo el endpoint protected `GET {prefijo}/{id}/password`.
+
+#### Autenticación y Seguridad
+
+La API se encuentra protegida con autenticación basada en tokens JWT.
+1. **Iniciar Sesión:** Envía una solicitud `POST /api/auth/token` con los campos `username` y `password` en el cuerpo del formulario (OAuth2 password request).
+2. **Consumo de Endpoints:** Adjunta el token recibido en la cabecera `Authorization` de cada solicitud:
+   ```http
+   Authorization: Bearer <access_token>
+   ```
+
+Los parámetros de autenticación se configuran en el archivo `backend/.env` mediante:
+* `API_SECRET_KEY`: Frase secreta utilizada para la firma de tokens JWT.
+* `API_USERNAME`: Usuario administrador (por defecto `admin`).
+* `API_PASSWORD`: Contraseña de administrador (por defecto `changeme`).
 
 > **Nota de endpoints `GET /`**: Todos los endpoints de listado (`GET`) soportan los siguientes parámetros de consulta (query params) opcionales:
 > * `buscar`: Filtra los registros cuyo campo `nombre` coincida parcialmente (búsqueda insensible a mayúsculas/minúsculas).
 > * `skip`: Número de registros a omitir (por defecto `0`).
 > * `limit`: Número máximo de registros a retornar (por defecto `100`).
 
-> **Nota de seguridad**: Las contraseñas se cifran automáticamente con Fernet (AES) al crear (POST) o actualizar parcialmente (PATCH) los registros, y nunca se devuelven en las respuestas de la API.
+> **Nota de seguridad de datos**: Las contraseñas se cifran automáticamente con Fernet (AES-128) en la base de datos al crear (POST) o actualizar parcialmente (PATCH) los registros, y nunca se devuelven en los listados generales.
 
 ### CI/CD (GitHub Actions)
 El proyecto incluye un flujo de integración continua (CI) mediante **GitHub Actions** en `.github/workflows/ci.yml`.
