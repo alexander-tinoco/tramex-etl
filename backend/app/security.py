@@ -9,23 +9,18 @@ Las credenciales de acceso a la API se toman de variables de entorno:
 No se usa una tabla de usuarios para mantener la simplicidad.
 """
 
-import os
 from datetime import datetime, timedelta, timezone
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from app.config import settings
 
-# ---------------------------------------------------------------------------
-# Configuración
-# ---------------------------------------------------------------------------
-
-SECRET_KEY: str = os.environ.get("API_SECRET_KEY", "dev-secret-change-in-production")
+SECRET_KEY: str = settings.api_secret_key
 ALGORITHM: str = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS: int = 24
 
-API_USERNAME: str = os.environ.get("API_USERNAME", "admin")
-API_PASSWORD: str = os.environ.get("API_PASSWORD", "changeme")
+API_USERNAME: str = settings.api_username
+API_PASSWORD: str = settings.api_password
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 

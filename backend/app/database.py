@@ -5,13 +5,19 @@ Configuración de SQLAlchemy: motor y sesión de base de datos.
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-from app.config import DATABASE_URL
+from app.config import settings
 
 # ---------------------------------------------------------------------------
-# Motor y fábrica de sesiones
+# Motor y fábrica de sesiones con pooling configurado profesionalmente
 # ---------------------------------------------------------------------------
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(
+    settings.database_url,
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=3600,
+    pool_pre_ping=True
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

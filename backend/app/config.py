@@ -1,53 +1,57 @@
 """
-Configuración de la aplicación Tramex API.
-
-Carga variables de entorno desde archivos .env usando el mismo patrón
-que el ETL: primero busca backend/.env, luego ../etl/.env como fallback.
+Configuración de la aplicación Tramex API utilizando Pydantic Settings.
+Garantiza tipos correctos, validaciones y valores predeterminados.
 """
 
-import os
-from pathlib import Path
-
+from typing import List
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from cryptography.fernet import Fernet
 
-# ---------------------------------------------------------------------------
-# Carga de variables de entorno (.env)
-# ---------------------------------------------------------------------------
 
-# Rutas candidatas: backend/.env (propio) y etl/.env (fallback compartido)
-_base_dir = Path(__file__).resolve().parent.parent  # backend/
-_env_candidates = [
-    _base_dir / ".env",
-    _base_dir.parent / "etl" / ".env",
-]
-
-for env_path in _env_candidates:
-    if env_path.exists():
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, val = line.split("=", 1)
-                    key_clean = key.strip()
-                    if key_clean not in os.environ:
-                        os.environ[key_clean] = val.strip().strip("'\"")
-        break
-
-# ---------------------------------------------------------------------------
-# Variables de configuración
-# ---------------------------------------------------------------------------
-
-DATABASE_URL: str = os.environ.get(
-    "DATABASE_URL", "postgresql+psycopg2://postgres:postgres_password@localhost:5434/tramex"
-)
-
-FERNET_KEY: str | None = os.environ.get("TRAMEX_FERNET_KEY")
-
-if not FERNET_KEY:
-    raise RuntimeError(
-        "Falta TRAMEX_FERNET_KEY.  Genera una con generate_key.py o búscala "
-        "en el archivo .env e inicialízala antes de arrancar la API."
+class Settings(BaseSettings):
+    # Carga de variables desde archivos .env en orden de prioridad
+    model_config = SettingsConfigDict(
+        env_file=(".env", "../etl/.env"),
+        env_file_encoding="utf-8",
+        extra="ignore"
     )
 
-# Instancia de Fernet lista para cifrar / descifrar contraseñas
-fernet = Fernet(FERNET_KEY.encode())
+    database_url: str = Field(
+        default="postgresql+psycopg2://postgres:postgres_password@localhost:5434/tramex"
+    )
+    
+    tramex_fernet_key: str = Field(validation_alias="TRAMEX_FERNET_KEY")
+    
+    api_secret_key: str = Field(
+        default="dev-secret-change-in-production",
+        validation_alias="API_SECRET_KEY"
+    )
+    
+    api_username: str = Field(
+        default="admin",
+        validation_alias="API_USERNAME"
+    )
+    
+    api_password: str = Field(
+        default="changeme",
+        validation_alias="API_PASSWORD"
+    )
+
+    # Configuración de CORS permitidos para entornos de producción
+    allowed_origins: List[str] = Field(
+        default=["*"],
+        validation_alias="ALLOWED_ORIGINS"
+    )
+
+
+# Instanciar configuraciones validadas
+try:
+    settings = Settings()
+    # Instancia global de Fernet para cifrar / descifrar contraseñas
+    fernet = Fernet(settings.tramex_fernet_key.encode())
+except Exception as e:
+    raise RuntimeError(
+        f"Falta inicializar variables obligatorias en el entorno o en el archivo .env. "
+        f"Detalle del error de configuración: {e}"
+    )
