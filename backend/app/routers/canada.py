@@ -14,9 +14,17 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[CanadaResponse])
-def listar(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Listar registros de canada con paginación."""
-    return db.query(Canada).offset(skip).limit(limit).all()
+def listar(
+    skip: int = 0,
+    limit: int = 100,
+    buscar: str | None = None,
+    db: Session = Depends(get_db)
+):
+    """Listar registros de canada con paginación y búsqueda opcional por nombre."""
+    query = db.query(Canada)
+    if buscar:
+        query = query.filter(Canada.nombre.ilike(f"%{buscar}%"))
+    return query.offset(skip).limit(limit).all()
 
 
 @router.get("/{registro_id}", response_model=CanadaResponse)

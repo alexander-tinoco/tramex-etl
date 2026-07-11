@@ -14,9 +14,17 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[MasterTramexResponse])
-def listar(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Listar registros de master_tramex con paginación."""
-    return db.query(MasterTramex).offset(skip).limit(limit).all()
+def listar(
+    skip: int = 0,
+    limit: int = 100,
+    buscar: str | None = None,
+    db: Session = Depends(get_db)
+):
+    """Listar registros de master_tramex con paginación y búsqueda opcional por nombre."""
+    query = db.query(MasterTramex)
+    if buscar:
+        query = query.filter(MasterTramex.nombre.ilike(f"%{buscar}%"))
+    return query.offset(skip).limit(limit).all()
 
 
 @router.get("/{registro_id}", response_model=MasterTramexResponse)

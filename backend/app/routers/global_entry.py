@@ -14,9 +14,17 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[GlobalEntryResponse])
-def listar(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Listar registros de global_entry con paginación."""
-    return db.query(GlobalEntry).offset(skip).limit(limit).all()
+def listar(
+    skip: int = 0,
+    limit: int = 100,
+    buscar: str | None = None,
+    db: Session = Depends(get_db)
+):
+    """Listar registros de global_entry con paginación y búsqueda opcional por nombre."""
+    query = db.query(GlobalEntry)
+    if buscar:
+        query = query.filter(GlobalEntry.nombre.ilike(f"%{buscar}%"))
+    return query.offset(skip).limit(limit).all()
 
 
 @router.get("/{registro_id}", response_model=GlobalEntryResponse)
