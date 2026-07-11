@@ -20,7 +20,7 @@ import os
 # Add backend directory to Python path so app package is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app.config import DATABASE_URL
+from app.config import settings
 from app.database import Base
 import app.models  # Asegurar que se carguen los modelos
 
@@ -29,7 +29,7 @@ import app.models  # Asegurar que se carguen los modelos
 target_metadata = Base.metadata
 
 # Set the sqlalchemy database URL dynamically
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
