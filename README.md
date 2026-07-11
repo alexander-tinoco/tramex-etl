@@ -44,7 +44,7 @@ source .venv/bin/activate
 uvicorn app.main:app --reload --port 8000
 ```
 
-- **API**: `http://localhost:8000`
+- **API**: `http://localhost:8000` (o el puerto que prefieras, por ejemplo `8001` si el 8000 está ocupado)
 - **Documentación interactiva (Swagger)**: `http://localhost:8000/docs`
 - **Documentación alternativa (ReDoc)**: `http://localhost:8000/redoc`
 
@@ -52,12 +52,24 @@ uvicorn app.main:app --reload --port 8000
 
 | Recurso | Prefijo | Operaciones |
 |---|---|---|
-| Master Tramex | `/api/master-tramex` | GET, POST, PUT, DELETE |
-| Global Entry | `/api/global-entry` | GET, POST, PUT, DELETE |
-| Pasaportes | `/api/pasaportes` | GET, POST, PUT, DELETE |
-| Canadá | `/api/canada` | GET, POST, PUT, DELETE |
+| Master Tramex | `/api/master-tramex/` | GET, POST, PATCH, DELETE |
+| Global Entry | `/api/global-entry/` | GET, POST, PATCH, DELETE |
+| Pasaportes | `/api/pasaportes/` | GET, POST, PATCH, DELETE |
+| Canadá | `/api/canada/` | GET, POST, PATCH, DELETE |
 
-> **Nota de seguridad**: Las contraseñas se cifran automáticamente con Fernet (AES) al crear o actualizar registros, y nunca se devuelven en las respuestas de la API.
+> **Nota de endpoints `GET /`**: Todos los endpoints de listado (`GET`) soportan los siguientes parámetros de consulta (query params) opcionales:
+> * `buscar`: Filtra los registros cuyo campo `nombre` coincida parcialmente (búsqueda insensible a mayúsculas/minúsculas).
+> * `skip`: Número de registros a omitir (por defecto `0`).
+> * `limit`: Número máximo de registros a retornar (por defecto `100`).
+
+> **Nota de seguridad**: Las contraseñas se cifran automáticamente con Fernet (AES) al crear (POST) o actualizar parcialmente (PATCH) los registros, y nunca se devuelven en las respuestas de la API.
+
+### CI/CD (GitHub Actions)
+El proyecto incluye un flujo de integración continua (CI) mediante **GitHub Actions** en `.github/workflows/ci.yml`.
+
+Este flujo se dispara automáticamente en cada `push` o `pull_request` a las ramas `main` o `master` y realiza:
+1. **Pruebas del Backend**: Instala las dependencias y ejecuta el conjunto de tests con reporte de cobertura (`pytest --cov=app`).
+2. **Validación Sintáctica del ETL**: Valida que el script de python de ETL compile correctamente.
 
 
 ## Diagramas del Proceso
