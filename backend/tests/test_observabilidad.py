@@ -80,3 +80,37 @@ class TestMetricas:
         cuerpo = client.get("/metrics").text
         assert "Nombre Confidencial" not in cuerpo
         assert "clave-secreta-1234" not in cuerpo
+
+
+class TestDocumentacionInteractiva:
+    """
+    La politica cerrada de la API no debe romper Swagger.
+
+    Swagger UI carga sus recursos desde un CDN; con `default-src 'none'` la
+    pagina se renderiza en blanco y la documentacion interactiva deja de servir
+    para nada, que es justo lo que paso al anadir las cabeceras.
+    """
+
+    def test_swagger_responde(self, client_anonimo):
+        respuesta = client_anonimo.get("/docs")
+        assert respuesta.status_code == 200
+        assert "swagger" in respuesta.text.lower()
+
+    def test_swagger_recibe_una_politica_que_permite_su_cdn(self, client_anonimo):
+        politica = client_anonimo.get("/docs").headers["Content-Security-Policy"]
+        assert "cdn.jsdelivr.net" in politica
+        # Sigue siendo restrictiva: nada de incrustar la pagina en un marco.
+        assert "frame-ancestors 'none'" in politica
+
+    def test_el_resto_de_la_api_conserva_la_politica_cerrada(self, client_anonimo):
+        politica = client_anonimo.get("/").headers["Content-Security-Policy"]
+        assert politica.startswith("default-src 'none'")
+        assert "cdn.jsdelivr.net" not in politica
+
+    def test_el_esquema_openapi_se_genera(self, client_anonimo):
+        esquema = client_anonimo.get("/openapi.json").json()
+        assert esquema["info"]["title"] == "Tramex API"
+        # Los cuatro recursos y la administracion estan documentados.
+        rutas = esquema["paths"]
+        assert "/api/v1/master-tramex/" in rutas
+        assert "/api/v1/admin/auditoria" in rutas

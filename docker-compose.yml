@@ -108,6 +108,10 @@ services:
       # Volumen anonimo para que node_modules de la imagen no quede tapado por
       # el del host, que puede tener binarios de otra plataforma.
       - /app/node_modules
+    environment:
+      # Dentro del contenedor `localhost` es el propio dashboard; la API
+      # responde en el nombre del servicio de la red de Docker.
+      API_PROXY_TARGET: http://backend:8000
     ports:
       - "4200:4200"
     depends_on:

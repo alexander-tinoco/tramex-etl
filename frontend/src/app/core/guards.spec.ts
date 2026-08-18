@@ -10,6 +10,7 @@ import {
 } from '@angular/router';
 import { Observable, isObservable } from 'rxjs';
 import { adminGuard, authGuard } from './guards';
+import { Usuario } from '../models/api.model';
 import { AuthService } from './auth.service';
 
 const RUTA = {} as ActivatedRouteSnapshot;
@@ -112,5 +113,68 @@ describe('guards', () => {
 
   it('el router está disponible en el contexto de prueba', () => {
     expect(TestBed.inject(Router)).toBeTruthy();
+  });
+});
+
+describe('adminGuard con sesión sin resolver', () => {
+  let http: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => TestBed.resetTestingModule());
+
+  function usuario(rol: 'admin' | 'operador'): Usuario {
+    return {
+      id: 1,
+      correo_electronico: 'persona@example.com',
+      nombre: 'Persona',
+      rol,
+      activo: true,
+      ultimo_acceso_en: null,
+      cargado_en: '2026-08-17T10:00:00',
+    };
+  }
+
+  it('resuelve la sesión antes de decidir, al entrar por enlace directo', (done) => {
+    // Angular evalua los guards de una ruta en paralelo, no en cadena: si este
+    // no consultara por su cuenta, veria "sin sesion" y rebotaria al panel a
+    // una administradora legitima cada vez que recarga la pagina.
+    const resultado = TestBed.runInInjectionContext(() => adminGuard(RUTA, ESTADO));
+    expect(isObservable(resultado)).toBeTrue();
+
+    (resultado as Observable<boolean | UrlTree>).subscribe((valor) => {
+      expect(valor).toBeTrue();
+      done();
+    });
+
+    http.expectOne('/api/v1/auth/me').flush(usuario('admin'));
+  });
+
+  it('devuelve al panel si al resolver resulta ser operador', (done) => {
+    const resultado = TestBed.runInInjectionContext(() => adminGuard(RUTA, ESTADO));
+
+    (resultado as Observable<boolean | UrlTree>).subscribe((valor) => {
+      expect(valor instanceof UrlTree).toBeTrue();
+      expect((valor as UrlTree).toString()).toBe('/dashboard');
+      done();
+    });
+
+    http.expectOne('/api/v1/auth/me').flush(usuario('operador'));
+  });
+
+  it('manda al login si no hay sesión', (done) => {
+    const resultado = TestBed.runInInjectionContext(() => adminGuard(RUTA, ESTADO));
+
+    (resultado as Observable<boolean | UrlTree>).subscribe((valor) => {
+      expect((valor as UrlTree).toString()).toBe('/login');
+      done();
+    });
+
+    http.expectOne('/api/v1/auth/me').flush(null, { status: 401, statusText: 'Unauthorized' });
   });
 });

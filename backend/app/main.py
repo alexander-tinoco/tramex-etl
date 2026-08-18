@@ -105,6 +105,22 @@ CABECERAS_DE_SEGURIDAD = {
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
 }
 
+#: Rutas que devuelven HTML propio en lugar de JSON: la documentacion
+#: interactiva. Swagger UI y ReDoc cargan sus recursos desde un CDN, asi que la
+#: politica cerrada de arriba las dejaria en blanco. Se les aplica una politica
+#: propia, todavia restrictiva, en vez de relajar la de toda la API.
+RUTAS_DE_DOCUMENTACION = frozenset({"/docs", "/redoc", "/docs/oauth2-redirect"})
+
+CSP_DOCUMENTACION = (
+    "default-src 'none'; "
+    "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+    "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+    "img-src 'self' https://fastapi.tiangolo.com data:; "
+    "font-src 'self' https://cdn.jsdelivr.net; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'"
+)
+
 
 @app.middleware("http")
 async def observar_peticiones(request: Request, call_next):
@@ -129,6 +145,8 @@ async def observar_peticiones(request: Request, call_next):
 
     for cabecera, valor in CABECERAS_DE_SEGURIDAD.items():
         respuesta.headers.setdefault(cabecera, valor)
+    if request.url.path in RUTAS_DE_DOCUMENTACION:
+        respuesta.headers["Content-Security-Policy"] = CSP_DOCUMENTACION
     if settings.entorno == "production":
         # Solo en produccion: en local se trabaja sobre http y esta cabecera
         # dejaria el navegador forzando https contra un servidor que no lo habla.
