@@ -1,5 +1,13 @@
-pandas>=2.0
+# Pipeline ETL de Tramex
+pandas>=2.2
 openpyxl>=3.1
 SQLAlchemy>=2.0
-cryptography>=42.0
 psycopg2-binary>=2.9
+cryptography>=42.0
+
+# Reglas de identidad compartidas con la API (instalacion editable local).
+-e ./shared
+
+# Pruebas
+pytest>=8.0
+pytest-cov>=5.0
