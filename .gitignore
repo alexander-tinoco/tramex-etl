@@ -1,11 +1,35 @@
+# Datos crudos y volcados (nunca deben versionarse)
 raw-data/
+*.xlsx
+*.xls
+*.dump
+*.sql.gz
+
+# Python
 __pycache__/
 *.pyc
-.env
+*.pyo
 .venv/
 venv/
-tramex.db
-*.log
-.coverage
 .pytest_cache/
-alembic/__pycache__/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+tramex.db
+
+# Node
+node_modules/
+npm-debug.log*
+.angular/
+dist/
+
+# Entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Logs y temporales
+*.log
+.DS_Store

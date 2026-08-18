@@ -1,0 +1,48 @@
+{
+  "name": "tramex-etl",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Sistema de gestion de tramites migratorios: pipeline ETL en Python, API REST con FastAPI y dashboard Angular, con cifrado de credenciales, auditoria de accesos y observabilidad.",
+  "scripts": {
+    "prepare": "husky",
+    "release": "release-it",
+    "lint:backend": "cd backend && .venv/bin/python -m ruff check app etl_stubs 2>/dev/null || cd backend && python -m ruff check app",
+    "test": "echo \"Ejecuta las suites por modulo: backend (pytest), frontend (ng test), etl (pytest)\" && exit 0"
+  },
+  "lint-staged": {
+    "{backend,etl}/**/*.py": [
+      "python3 -m ruff check --force-exclude",
+      "python3 -m ruff format --check --force-exclude"
+    ],
+    "frontend/src/**/*.ts": [
+      "bash -c 'cd frontend && npm run lint -- --quiet'"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexander-tinoco/tramex-etl.git"
+  },
+  "keywords": [
+    "etl",
+    "fastapi",
+    "angular",
+    "postgresql",
+    "docker",
+    "observability"
+  ],
+  "author": "Alexander Tinoco",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/alexander-tinoco/tramex-etl/issues"
+  },
+  "homepage": "https://github.com/alexander-tinoco/tramex-etl#readme",
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@release-it/conventional-changelog": "^9.0.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "release-it": "^17.11.0"
+  }
+}
