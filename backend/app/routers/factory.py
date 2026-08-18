@@ -13,7 +13,7 @@ aplica a los cuatro por construccion, sin que ninguno se quede atras.
 # y aqui los esquemas llegan como parametros de la fabrica. Diferirlas las
 # convertiria en cadenas que FastAPI no podria resolver.
 import logging
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
@@ -75,6 +75,10 @@ def crear_router_tramite(
         incluir_eliminados: Annotated[
             bool, Query(description="Incluye los registros dados de baja logicamente.")
         ] = False,
+        orden: Annotated[
+            Literal["id", "reciente"],
+            Query(description="`reciente` devuelve primero lo ultimo modificado."),
+        ] = "id",
     ):
         items, total = crud.get_multi(
             db,
@@ -83,6 +87,7 @@ def crear_router_tramite(
             buscar=buscar,
             cliente_id=cliente_id,
             incluir_eliminados=incluir_eliminados,
+            orden=orden,
         )
         return {"total": total, "skip": skip, "limit": limit, "items": items}
 

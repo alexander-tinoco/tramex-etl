@@ -7,6 +7,8 @@ Lo especifico de cada recurso (campos propios, presencia o ausencia de
 credencial) se prueba aparte.
 """
 
+from datetime import UTC
+
 import pytest
 
 RECURSOS = {
@@ -237,3 +239,41 @@ def test_paginacion_reporta_el_total_real(client):
 def test_limite_de_pagina_esta_acotado(client):
     """Un `limit` desmedido debe rechazarse, no volcar la tabla entera."""
     assert client.get("/api/v1/canada/?limit=100000").status_code == 422
+
+
+class TestOrdenDeListado:
+    """
+    El tablero de la pantalla inicial pregunta «qué ha pasado hoy».
+
+    Por omisión el listado ordena por identificador, que es estable y sirve
+    para paginar un catálogo; para el tablero hace falta lo último tocado.
+    """
+
+    def test_por_omision_ordena_por_identificador(self, client):
+        for nombre in ("Tercero", "Primero", "Segundo"):
+            client.post("/api/v1/canada/", json={"nombre": nombre})
+
+        items = client.get("/api/v1/canada/").json()["items"]
+        assert [r["id"] for r in items] == sorted(r["id"] for r in items)
+
+    def test_orden_reciente_devuelve_primero_lo_ultimo_tocado(self, client, session):
+        from datetime import datetime, timedelta
+
+        from app.models import Canada
+
+        antiguo = client.post("/api/v1/canada/", json={"nombre": "Antiguo"}).json()
+        nuevo = client.post("/api/v1/canada/", json={"nombre": "Nuevo"}).json()
+
+        # La marca de tiempo se fija a mano: CURRENT_TIMESTAMP tiene resolución
+        # de un segundo, así que dos altas seguidas comparten instante y la
+        # prueba mediría el desempate por id, no el orden que se quiere probar.
+        ahora = datetime.now(UTC)
+        session.get(Canada, nuevo["id"]).actualizado_en = ahora - timedelta(hours=2)
+        session.get(Canada, antiguo["id"]).actualizado_en = ahora
+        session.commit()
+
+        items = client.get("/api/v1/canada/?orden=reciente").json()["items"]
+        assert [r["nombre"] for r in items] == ["Antiguo", "Nuevo"]
+
+    def test_un_orden_desconocido_se_rechaza(self, client):
+        assert client.get("/api/v1/canada/?orden=inventado").status_code == 422

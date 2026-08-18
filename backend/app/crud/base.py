@@ -101,8 +101,15 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         buscar: str | None = None,
         cliente_id: int | None = None,
         incluir_eliminados: bool = False,
+        orden: str = "id",
     ) -> tuple[list[ModelType], int]:
-        """Lista paginada mas el total de coincidencias."""
+        """
+        Lista paginada mas el total de coincidencias.
+
+        `orden="reciente"` devuelve primero lo ultimo tocado. Lo usa el tablero
+        de movimientos de la pantalla inicial, cuya pregunta es "que ha pasado
+        hoy" y no "cual fue el primer registro que se cargo".
+        """
         consulta = self._base_query(incluir_eliminados=incluir_eliminados)
         if buscar:
             consulta = consulta.where(self.model.nombre.ilike(f"%{buscar}%"))
@@ -113,8 +120,18 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             consulta = consulta.where(self.model.cliente_id == cliente_id)  # type: ignore[attr-defined]
 
         total = db.scalar(select(func.count()).select_from(consulta.subquery())) or 0
+
+        criterio: tuple[Any, ...]
+        if orden == "reciente":
+            # El id se mantiene como desempate para que el orden sea total y la
+            # paginacion no repita ni se salte filas cuando varias comparten
+            # marca de tiempo, que es lo normal tras una carga del ETL.
+            criterio = (self.model.actualizado_en.desc(), self.model.id.desc())
+        else:
+            criterio = (self.model.id,)
+
         registros: Sequence[ModelType] = db.scalars(
-            consulta.order_by(self.model.id).offset(skip).limit(limit)
+            consulta.order_by(*criterio).offset(skip).limit(limit)
         ).all()
         return list(registros), total
 
