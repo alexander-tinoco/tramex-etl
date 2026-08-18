@@ -44,12 +44,6 @@ class Settings(BaseSettings):
         default="dev-secret-change-in-production", validation_alias="API_SECRET_KEY"
     )
 
-    # TODO(auth): credenciales de un unico administrador tomadas del entorno.
-    # Se sustituyen por la tabla `usuarios` con hash bcrypt y roles; se
-    # conservan solo para sembrar el primer administrador.
-    api_username: str = Field(default="admin", validation_alias="API_USERNAME")
-    api_password: str = Field(default="changeme", validation_alias="API_PASSWORD")
-
     #: Origenes autorizados para consumir la API desde un navegador.
     #: En produccion no se admite el comodin: la API responde con credenciales
     #: (cookies y cabecera Authorization) y `*` junto a `allow_credentials`
@@ -69,6 +63,59 @@ class Settings(BaseSettings):
     )
 
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
+
+    # -- Sesiones -------------------------------------------------------
+
+    #: Duracion de la sesion. Ocho horas cubre una jornada completa sin obligar
+    #: a reautenticar a media tarde, y expira sola al final del dia.
+    token_expira_minutos: int = Field(
+        default=480, ge=5, le=1440, validation_alias="TOKEN_EXPIRA_MINUTOS"
+    )
+
+    #: Coste de bcrypt. 12 rondas es el equilibrio habitual entre resistencia a
+    #: fuerza bruta y latencia de login aceptable. Las pruebas lo bajan a 4:
+    #: con 12, una suite que inicia sesion decenas de veces tarda medio minuto
+    #: solo derivando hashes, y lo que se ejercita ahi es el flujo, no el coste.
+    bcrypt_rondas: int = Field(default=12, ge=4, le=16, validation_alias="BCRYPT_RONDAS")
+
+    #: `Secure` exige HTTPS para que el navegador envie la cookie. Se desactiva
+    #: solo fuera de produccion, donde se trabaja sobre http://localhost.
+    cookie_secure: bool = Field(default=False, validation_alias="COOKIE_SECURE")
+    cookie_samesite: Literal["lax", "strict", "none"] = Field(
+        default="lax", validation_alias="COOKIE_SAMESITE"
+    )
+
+    # -- Proteccion contra fuerza bruta ----------------------------------
+
+    #: Intentos fallidos consecutivos antes de bloquear temporalmente la cuenta.
+    intentos_maximos_login: int = Field(
+        default=5, ge=3, le=20, validation_alias="INTENTOS_MAXIMOS_LOGIN"
+    )
+    #: Ventana en la que se cuentan los intentos y duracion del bloqueo.
+    ventana_bloqueo_minutos: int = Field(
+        default=15, ge=1, le=120, validation_alias="VENTANA_BLOQUEO_MINUTOS"
+    )
+
+    #: Redis respalda el contador de intentos y el limite por IP. Es opcional:
+    #: sin el, el contador vive en memoria del proceso, lo que basta para
+    #: desarrollo y pruebas pero no coordina varias replicas.
+    redis_url: str | None = Field(default=None, validation_alias="REDIS_URL")
+
+    # -- Retencion de datos personales -----------------------------------
+
+    #: Dias que un registro permanece archivado antes de poder purgarse.
+    dias_retencion: int = Field(default=365, ge=30, validation_alias="DIAS_RETENCION")
+
+    # -- Siembra del primer administrador --------------------------------
+
+    #: Correo del primer administrador. El valor por defecto es un dominio
+    #: reservado para documentacion: hay que sustituirlo por uno real.
+    admin_inicial_correo: str = Field(
+        default="admin@example.com", validation_alias="ADMIN_INICIAL_CORREO"
+    )
+    admin_inicial_contrasena: str | None = Field(
+        default=None, validation_alias="ADMIN_INICIAL_CONTRASENA"
+    )
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
@@ -97,6 +144,12 @@ class Settings(BaseSettings):
         if self.entorno != "production":
             return self
 
+        if self.bcrypt_rondas < 12:
+            raise ValueError(
+                "BCRYPT_RONDAS no puede bajar de 12 en produccion: el coste de "
+                "derivacion es lo que hace inviable un ataque por diccionario."
+            )
+
         problemas: list[str] = []
         if "*" in self.allowed_origins:
             problemas.append(
@@ -107,6 +160,16 @@ class Settings(BaseSettings):
             problemas.append("API_SECRET_KEY conserva el valor de ejemplo.")
         if self.database_url.startswith("sqlite"):
             problemas.append("DATABASE_URL apunta a SQLite, que no es apto para produccion.")
+        if not self.cookie_secure:
+            problemas.append(
+                "COOKIE_SECURE debe estar activo en produccion: sin el, la cookie de "
+                "sesion viajaria por HTTP en claro."
+            )
+        if self.redis_url is None:
+            problemas.append(
+                "REDIS_URL es obligatorio en produccion: sin el, el bloqueo por fuerza "
+                "bruta vive en memoria de cada replica y se puede eludir rotando de instancia."
+            )
         if problemas:
             raise ValueError("Configuracion insegura para produccion: " + " | ".join(problemas))
         return self

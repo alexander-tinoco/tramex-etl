@@ -19,6 +19,9 @@ VALORES_DE_PRUEBA = {
     "ALLOWED_ORIGINS": "http://testserver",
     "LOG_LEVEL": "WARNING",
     "SENTRY_DSN": "",
+    # Coste minimo de bcrypt: la suite inicia sesion decenas de veces y con el
+    # coste de produccion tardaria mas en derivar hashes que en probar nada.
+    "BCRYPT_RONDAS": "4",
 }
 
 for clave, valor in VALORES_DE_PRUEBA.items():

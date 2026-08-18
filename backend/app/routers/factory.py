@@ -1,26 +1,33 @@
 """
 Fabrica de routers CRUD para las tablas de tramite.
 
-Los cuatro recursos exponen exactamente la misma superficie HTTP y solo
-difieren en su repositorio y sus esquemas. Antes existian cuatro archivos con
-el mismo bloque de endpoints copiado; aqui se genera una sola vez y se
-parametriza, de modo que cualquier cambio de contrato (un filtro nuevo, un
-codigo de estado distinto) se aplica a los cuatro por construccion.
+Los cuatro recursos exponen la misma superficie HTTP y solo difieren en su
+repositorio y sus esquemas. Antes existian cuatro archivos con el mismo bloque
+de endpoints copiado; aqui se genera una sola vez y se parametriza, de modo que
+cualquier cambio de contrato (un filtro nuevo, un asiento de auditoria mas) se
+aplica a los cuatro por construccion, sin que ninguno se quede atras.
 """
 
 # Sin `from __future__ import annotations`: FastAPI resuelve las anotaciones de
 # los endpoints en tiempo de ejecucion para construir el modelo de la peticion,
 # y aqui los esquemas llegan como parametros de la fabrica. Diferirlas las
 # convertiria en cadenas que FastAPI no podria resolver.
+import logging
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.crud.base import CRUDBase
+from app.crud.base import CRUDBase, ErrorDeDescifrado
 from app.database import get_db
+from app.models import NivelAuditoria
 from app.schemas import ContrasenaResponse, PaginatedResponse
+from app.security import UsuarioActual
+from app.services import auditoria
+from app.services.auditoria import Accion
+
+logger = logging.getLogger("tramex_api.tramites")
 
 
 def crear_router_tramite(
@@ -34,11 +41,11 @@ def crear_router_tramite(
     """
     Construye el router CRUD completo de un recurso de tramite.
 
-    `nombre_recurso` se usa en los mensajes de error y en la descripcion de los
-    endpoints, para que la documentacion generada no diga "registro" en los
-    cuatro casos.
+    `nombre_recurso` se usa en los mensajes de error y en la documentacion
+    generada, para que no diga "registro" en los cuatro casos.
     """
     router = APIRouter()
+    tabla = crud.definicion.tabla
     maneja_secreto = crud.definicion.campo_secreto is not None
 
     def _obtener_o_404(db: Session, registro_id: int, *, incluir_eliminados: bool = False):
@@ -93,8 +100,23 @@ def crear_router_tramite(
         status_code=status.HTTP_201_CREATED,
         summary=f"Crear un registro de {nombre_recurso}",
     )
-    def crear(datos: esquema_create, db: Annotated[Session, Depends(get_db)]):  # type: ignore[valid-type]
-        return crud.create(db, obj_in=datos)
+    def crear(
+        request: Request,
+        datos: esquema_create,  # type: ignore[valid-type]
+        db: Annotated[Session, Depends(get_db)],
+        usuario: UsuarioActual,
+    ):
+        registro = crud.create(db, obj_in=datos)
+        auditoria.registrar(
+            db,
+            accion=Accion.REGISTRO_CREADO,
+            usuario=usuario,
+            recurso=tabla,
+            registro_id=registro.id,
+            cliente_id=getattr(registro, "cliente_id", None),
+            request=request,
+        )
+        return registro
 
     @router.patch(
         "/{registro_id}",
@@ -102,12 +124,28 @@ def crear_router_tramite(
         summary=f"Actualizar parcialmente un registro de {nombre_recurso}",
     )
     def actualizar(
+        request: Request,
         registro_id: int,
         datos: esquema_update,  # type: ignore[valid-type]
         db: Annotated[Session, Depends(get_db)],
+        usuario: UsuarioActual,
     ):
         registro = _obtener_o_404(db, registro_id)
-        return crud.update(db, db_obj=registro, obj_in=datos)
+        campos = sorted(datos.model_dump(exclude_unset=True))
+        actualizado = crud.update(db, db_obj=registro, obj_in=datos)
+        auditoria.registrar(
+            db,
+            accion=Accion.REGISTRO_ACTUALIZADO,
+            usuario=usuario,
+            recurso=tabla,
+            registro_id=registro_id,
+            cliente_id=getattr(actualizado, "cliente_id", None),
+            request=request,
+            # Se registran los nombres de los campos tocados, nunca sus valores:
+            # uno de ellos puede ser la credencial del cliente.
+            detalle={"campos": ",".join(campos)},
+        )
+        return actualizado
 
     @router.delete(
         "/{registro_id}",
@@ -116,15 +154,30 @@ def crear_router_tramite(
         description=(
             "Borrado logico: el registro deja de aparecer en los listados pero se "
             "conserva para trazabilidad y puede reactivarse. La destruccion fisica "
-            "la realiza el proceso de retencion."
+            "solo ocurre al aplicar la politica de retencion."
         ),
     )
-    def eliminar(registro_id: int, db: Annotated[Session, Depends(get_db)]):
-        if crud.remove(db, id=registro_id) is None:
+    def eliminar(
+        request: Request,
+        registro_id: int,
+        db: Annotated[Session, Depends(get_db)],
+        usuario: UsuarioActual,
+    ):
+        registro = crud.remove(db, id=registro_id)
+        if registro is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"No existe un registro activo de {nombre_recurso} con id {registro_id}.",
             )
+        auditoria.registrar(
+            db,
+            accion=Accion.REGISTRO_ARCHIVADO,
+            usuario=usuario,
+            recurso=tabla,
+            registro_id=registro_id,
+            cliente_id=getattr(registro, "cliente_id", None),
+            request=request,
+        )
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @router.post(
@@ -132,7 +185,12 @@ def crear_router_tramite(
         response_model=esquema_response,  # type: ignore[valid-type]
         summary=f"Reactivar un registro de {nombre_recurso} dado de baja",
     )
-    def restaurar(registro_id: int, db: Annotated[Session, Depends(get_db)]):
+    def restaurar(
+        request: Request,
+        registro_id: int,
+        db: Annotated[Session, Depends(get_db)],
+        usuario: UsuarioActual,
+    ):
         registro = crud.restore(db, id=registro_id)
         if registro is None:
             raise HTTPException(
@@ -142,6 +200,15 @@ def crear_router_tramite(
                     "en estado dado de baja."
                 ),
             )
+        auditoria.registrar(
+            db,
+            accion=Accion.REGISTRO_RESTAURADO,
+            usuario=usuario,
+            recurso=tabla,
+            registro_id=registro_id,
+            cliente_id=getattr(registro, "cliente_id", None),
+            request=request,
+        )
         return registro
 
     if maneja_secreto:
@@ -152,16 +219,69 @@ def crear_router_tramite(
             summary=f"Descifrar la credencial de un registro de {nombre_recurso}",
             description=(
                 "Devuelve la contrasena en claro de la cuenta del cliente. Es la "
-                "operacion mas sensible de la API."
+                "operacion mas sensible de la API y **siempre** queda asentada en "
+                "la bitacora de auditoria, con el usuario, la fecha y el registro "
+                "consultado. La contrasena en si jamas se registra."
             ),
+            responses={
+                500: {
+                    "description": (
+                        "El criptograma no pudo descifrarse con la llave activa "
+                        "(llave rotada, dato corrupto o respaldo ajeno)."
+                    )
+                }
+            },
         )
-        def obtener_contrasena(registro_id: int, db: Annotated[Session, Depends(get_db)]):
+        def obtener_contrasena(
+            request: Request,
+            registro_id: int,
+            db: Annotated[Session, Depends(get_db)],
+            usuario: UsuarioActual,
+        ):
             registro = _obtener_o_404(db, registro_id, incluir_eliminados=True)
-            contrasena = crud.descifrar_secreto(registro)
+
+            try:
+                contrasena = crud.descifrar_secreto(registro)
+            except ErrorDeDescifrado as exc:
+                # Se audita igual: el intento de acceso ocurrio, y ademas hay un
+                # problema de infraestructura que alguien debe atender.
+                auditoria.registrar(
+                    db,
+                    accion=Accion.CREDENCIAL_ILEGIBLE,
+                    usuario=usuario,
+                    recurso=tabla,
+                    registro_id=registro_id,
+                    cliente_id=getattr(registro, "cliente_id", None),
+                    nivel=NivelAuditoria.ALERTA,
+                    request=request,
+                )
+                logger.error("Fallo de descifrado", exc_info=exc)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=(
+                        "La credencial almacenada no pudo descifrarse con la llave "
+                        "activa. Revisa TRAMEX_FERNET_KEY: puede haberse rotado la "
+                        "llave o restaurado un respaldo cifrado con otra."
+                    ),
+                ) from exc
+
+            asiento = auditoria.registrar(
+                db,
+                accion=Accion.CREDENCIAL_CONSULTADA,
+                usuario=usuario,
+                recurso=tabla,
+                registro_id=registro_id,
+                cliente_id=getattr(registro, "cliente_id", None),
+                nivel=NivelAuditoria.ADVERTENCIA,
+                request=request,
+                detalle={"tenia_credencial": contrasena is not None},
+            )
+
             return ContrasenaResponse(
                 contrasena=contrasena,
                 registro_id=registro_id,
                 recurso=nombre_recurso,
+                auditoria_id=asiento.id,
             )
 
     return router

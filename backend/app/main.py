@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.logging_config import setup_logging
-from app.routers import auth, clientes, tramites
+from app.routers import admin, auth, clientes, tramites
 from app.security import get_current_user
 
 setup_logging()
@@ -46,9 +46,18 @@ Sustituye la hoja de calculo compartida con la que operaba el equipo: centraliza
 clientes y tramites en PostgreSQL, cifra las credenciales de las cuentas de los
 clientes con Fernet y deja rastro auditable de cada acceso a datos sensibles.
 
-**Autenticacion.** Todos los recursos de negocio exigen sesion iniciada. Obten
-un token en `POST /api/v1/auth/token` y enrutalo en la cabecera
-`Authorization: Bearer <token>`.
+**Autenticacion.** Todos los recursos de negocio exigen sesion iniciada.
+`POST /api/v1/auth/token` deja la sesion en una cookie `httpOnly` (lo que usa el
+dashboard) y devuelve tambien el token en el cuerpo, para Swagger, scripts e
+integraciones que lo envian en `Authorization: Bearer <token>`.
+
+**Roles.** `operador` gestiona tramites y puede consultar credenciales de
+clientes; `admin` ademas administra usuarios, consulta la bitacora de auditoria
+y ejecuta la politica de retencion.
+
+**Auditoria.** Cada descifrado de una credencial queda asentado en
+`logs_auditoria` con el usuario, la fecha y el registro consultado. Lo que nunca
+se registra es la credencial en si.
 """
 
 app = FastAPI(
@@ -60,6 +69,12 @@ app = FastAPI(
     openapi_tags=[
         {"name": "Salud", "description": "Sondas de disponibilidad y diagnostico."},
         {"name": "Auth", "description": "Emision y verificacion de sesiones."},
+        {
+            "name": "Administracion",
+            "description": (
+                "Usuarios, bitacora de auditoria y politica de retencion. Requiere rol `admin`."
+            ),
+        },
         {"name": "Clientes", "description": "Entidad raiz: personas y sus tramites."},
         {"name": "Master Tramex", "description": "Tramites de visa americana y afines."},
         {"name": "Global Entry", "description": "Tramites de Global Entry."},
@@ -110,6 +125,9 @@ app.add_middleware(
 PROTEGIDO = [Depends(get_current_user)]
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
+app.include_router(
+    admin.router, prefix="/api/v1/admin", tags=["Administracion"], dependencies=PROTEGIDO
+)
 app.include_router(
     clientes.router, prefix="/api/v1/clientes", tags=["Clientes"], dependencies=PROTEGIDO
 )

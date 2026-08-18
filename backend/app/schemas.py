@@ -17,11 +17,15 @@ publico.
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 T = TypeVar("T")
+
+#: Los roles se declaran como literal para que aparezcan en el esquema OpenAPI
+#: como un enumerado legible, en lugar de como una cadena libre.
+RolUsuario = Literal["admin", "operador"]
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
@@ -253,3 +257,100 @@ class ContrasenaResponse(BaseModel):
     )
     registro_id: int
     recurso: str
+    auditoria_id: int = Field(
+        description=(
+            "Identificador del asiento que dejo esta consulta en la bitacora. "
+            "Toda lectura de una credencial queda registrada."
+        )
+    )
+
+
+# ===========================================================================
+# Autenticacion y usuarios
+# ===========================================================================
+
+
+class TokenResponse(BaseModel):
+    """
+    Respuesta del login.
+
+    El token se devuelve tambien en el cuerpo, ademas de en la cookie
+    `httpOnly`, porque Swagger, los scripts y las integraciones no usan cookies.
+    El dashboard ignora este campo y se apoya solo en la cookie.
+    """
+
+    access_token: str
+    token_type: str = "bearer"
+    expira_en_minutos: int
+    usuario: UsuarioResponse
+
+
+class UsuarioBase(BaseModel):
+    correo_electronico: EmailStr
+    nombre: str = Field(min_length=1, max_length=200)
+
+
+class UsuarioCreate(UsuarioBase):
+    contrasena: str = Field(
+        min_length=12,
+        max_length=128,
+        description=(
+            "Minimo 12 caracteres. El sistema custodia credenciales de cuentas "
+            "gubernamentales de terceros, asi que la cuenta que las abre no puede "
+            "protegerse con una contrasena corta."
+        ),
+    )
+    rol: RolUsuario = Field(default="operador")
+
+
+class UsuarioUpdate(BaseModel):
+    nombre: str | None = Field(default=None, min_length=1, max_length=200)
+    rol: RolUsuario | None = None
+    activo: bool | None = None
+
+
+class CambioContrasena(BaseModel):
+    contrasena_actual: str
+    contrasena_nueva: str = Field(min_length=12, max_length=128)
+
+
+class UsuarioResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    correo_electronico: str
+    nombre: str
+    rol: RolUsuario
+    activo: bool
+    ultimo_acceso_en: datetime | None = None
+    cargado_en: datetime
+
+
+class LogAuditoriaResponse(BaseModel):
+    """Asiento de la bitacora. Nunca contiene credenciales."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    ocurrido_en: datetime
+    usuario_id: int | None = None
+    usuario_correo: str | None = None
+    accion: str
+    recurso: str | None = None
+    registro_id: int | None = None
+    cliente_id: int | None = None
+    nivel: str
+    direccion_ip: str | None = None
+    detalle: str | None = None
+
+
+class ResultadoRetencion(BaseModel):
+    """Resumen de una ejecucion de la politica de retencion."""
+
+    dias_retencion: int
+    purgados_por_tabla: dict[str, int]
+    asientos_de_auditoria_purgados: int
+    total_purgado: int
+
+
+TokenResponse.model_rebuild()

@@ -20,9 +20,11 @@ Convenciones transversales a todas las tablas de tramite:
                    retencion documentada en docs/decisions/0005.
 """
 
+import enum
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, Text, func, text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Text, func, text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -215,3 +217,116 @@ class Canada(Base, TimestampMixin, IngestaMixin):
     contrasena_cifrada: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     cliente: Mapped["Cliente"] = relationship(back_populates="canada")
+
+
+# ---------------------------------------------------------------------------
+# usuarios — operadoras y administradores del sistema
+# ---------------------------------------------------------------------------
+
+
+class Rol(enum.StrEnum):
+    """
+    Roles del sistema.
+
+    Solo dos, porque el equipo real son dos figuras: quien atiende tramites y
+    quien administra. Anadir mas roles sin una necesidad concreta produce una
+    matriz de permisos que nadie mantiene.
+    """
+
+    #: Gestiona usuarios, consulta la bitacora de auditoria y purga registros.
+    ADMIN = "admin"
+    #: Opera los tramites del dia a dia, incluida la consulta de credenciales.
+    OPERADOR = "operador"
+
+
+class Usuario(Base, TimestampMixin):
+    """
+    Persona que accede al sistema.
+
+    Sustituye al par de variables de entorno `API_USERNAME` / `API_PASSWORD`
+    con el que antes se autenticaba un unico administrador compartido. Con un
+    usuario por persona, la bitacora de auditoria puede decir *quien* consulto
+    la credencial de un cliente, que es justamente el punto de auditarla.
+    """
+
+    __tablename__ = "usuarios"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    correo_electronico: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
+    nombre: Mapped[str] = mapped_column(Text, nullable=False)
+    #: Hash bcrypt. La columna se llama asi, y no "contrasena", para que quede
+    #: explicito en el esquema que aqui nunca hay texto plano.
+    contrasena_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    rol: Mapped[Rol] = mapped_column(
+        SAEnum(Rol, name="rol_usuario", values_callable=lambda e: [m.value for m in e]),
+        nullable=False,
+        default=Rol.OPERADOR,
+    )
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    ultimo_acceso_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    @property
+    def es_admin(self) -> bool:
+        return self.rol is Rol.ADMIN
+
+
+# ---------------------------------------------------------------------------
+# logs_auditoria — rastro de acceso a datos sensibles
+# ---------------------------------------------------------------------------
+
+
+class NivelAuditoria(enum.StrEnum):
+    """Severidad del evento, para poder filtrar la bitacora."""
+
+    INFO = "INFO"
+    ADVERTENCIA = "ADVERTENCIA"
+    ALERTA = "ALERTA"
+
+
+class LogAuditoria(Base):
+    """
+    Bitacora inmutable de eventos sensibles.
+
+    Existe por el dominio: el sistema guarda credenciales de cuentas
+    gubernamentales de clientes reales. Descifrar una de ellas es la operacion
+    mas delicada de la API y, sin este registro, nadie podria responder quien
+    la consulto, cuando ni de que cliente.
+
+    La tabla no tiene borrado logico ni actualizacion a proposito: una bitacora
+    que se puede editar no sirve como bitacora. La retencion se aplica
+    purgando por antiguedad, nunca corrigiendo asientos.
+    """
+
+    __tablename__ = "logs_auditoria"
+    __table_args__ = (
+        Index("ix_logs_auditoria_recurso", "recurso", "registro_id"),
+        Index("ix_logs_auditoria_usuario_fecha", "usuario_id", "ocurrido_en"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    ocurrido_en: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False, index=True
+    )
+    #: Se conserva aunque el usuario se elimine: un asiento sin autor no sirve.
+    usuario_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    usuario_correo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    accion: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    recurso: Mapped[str | None] = mapped_column(Text, nullable=True)
+    registro_id: Mapped[int | None] = mapped_column(nullable=True)
+    cliente_id: Mapped[int | None] = mapped_column(nullable=True, index=True)
+    nivel: Mapped[NivelAuditoria] = mapped_column(
+        SAEnum(
+            NivelAuditoria,
+            name="nivel_auditoria",
+            values_callable=lambda e: [m.value for m in e],
+        ),
+        nullable=False,
+        default=NivelAuditoria.INFO,
+    )
+    direccion_ip: Mapped[str | None] = mapped_column(Text, nullable=True)
+    agente_usuario: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: Contexto adicional del evento. Nunca contiene credenciales: lo que se
+    #: registra es *que se consulto*, jamas *que se obtuvo*.
+    detalle: Mapped[str | None] = mapped_column(Text, nullable=True)
