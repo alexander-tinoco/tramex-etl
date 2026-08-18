@@ -1,0 +1,29 @@
+# El contexto de build de la API es la raiz del repositorio (necesita shared/),
+# asi que conviene excluir aqui todo lo que no forma parte de ninguna imagen.
+.git/
+.github/
+.husky/
+node_modules/
+**/node_modules/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/*.egg-info/
+
+# Secretos y datos reales
+**/.env
+raw-data/
+*.xlsx
+
+# Artefactos de frontend
+frontend/dist/
+frontend/.angular/
+
+# Documentacion e imagenes
+docs/
+**/diagramas/
+*.md

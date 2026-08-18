@@ -1,0 +1,23 @@
+# Entornos y cachés locales
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Secretos y datos
+.env
+*.db
+raw-data/
+
+# Nada de esto influye en la imagen
+tests/
+conftest.py
+diagramas/
+README.md
+Dockerfile
+.dockerignore

@@ -5,8 +5,9 @@ SQLAlchemy>=2.0
 psycopg2-binary>=2.9
 cryptography>=42.0
 
-# Reglas de identidad compartidas con la API (instalacion editable local).
--e ./shared
+# El paquete `shared/` (reglas de identidad comunes con la API) se instala
+# aparte, porque su ruta depende del directorio de trabajo:
+#   pip install -e ./shared      # desde la raiz del repositorio
 
 # Pruebas
 pytest>=8.0

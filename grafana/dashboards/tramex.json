@@ -1,0 +1,205 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "Tramex — API y acceso a datos sensibles",
+  "uid": "tramex-api",
+  "tags": ["tramex"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Trafico y salud",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Peticiones por segundo, por ruta",
+      "description": "Ritmo de peticiones agrupado por plantilla de ruta.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (ruta) (rate(tramex_peticiones_total[5m]))",
+          "legendFormat": "{{ruta}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latencia (percentiles 50, 95 y 99)",
+      "description": "Percentiles calculados sobre el histograma de duracion.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 0 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(tramex_duracion_peticiones_segundos_bucket[5m])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(tramex_duracion_peticiones_segundos_bucket[5m])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(tramex_duracion_peticiones_segundos_bucket[5m])))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Tasa de error (5xx)",
+      "description": "Proporcion de respuestas 5xx sobre el total.",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 9 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.01 },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(tramex_peticiones_total{codigo=~\"5..\"}[5m])) / clamp_min(sum(rate(tramex_peticiones_total[5m])), 0.001)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Respuestas por codigo de estado",
+      "gridPos": { "h": 5, "w": 18, "x": 6, "y": 9 },
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 1, "fillOpacity": 25, "stacking": { "mode": "normal" } } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (codigo) (rate(tramex_peticiones_total[5m]))",
+          "legendFormat": "{{codigo}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Seguridad y datos sensibles",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Credenciales de clientes descifradas",
+      "description": "Cada punto corresponde a un asiento en logs_auditoria. Un pico sostenido merece revisarse en la bitacora.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 20 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (recurso) (rate(tramex_credenciales_consultadas_total[15m]) * 60)",
+          "legendFormat": "{{recurso}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Intentos de inicio de sesion",
+      "description": "Una subida de 'fallido' o cualquier 'cuenta_bloqueada' indica un intento de fuerza bruta.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 20 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (resultado) (rate(tramex_intentos_login_total[5m]) * 60)",
+          "legendFormat": "{{resultado}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Credenciales descifradas (24 h)",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 23 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "expr": "sum(increase(tramex_credenciales_consultadas_total[24h]))", "refId": "A" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Logins fallidos (1 h)",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 23 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 10 },
+              { "color": "red", "value": 30 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(tramex_intentos_login_total{resultado=\"fallido\"}[1h]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Cuentas bloqueadas (24 h)",
+      "description": "Cualquier valor distinto de cero merece una mirada a la bitacora.",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 23 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(tramex_intentos_login_total{resultado=~\"cuenta_bloqueada|bloqueado_por_ip\"}[24h]))",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}

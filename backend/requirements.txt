@@ -22,8 +22,11 @@ redis>=5.0                    # Contadores de fuerza bruta compartidos
 sentry-sdk[fastapi]>=2.0.0
 prometheus-client>=0.20
 
-# Reglas de identidad compartidas con el ETL
--e ../shared
+# El paquete `shared/` (reglas de identidad comunes con el ETL) NO se declara
+# aqui: su ruta relativa cambia segun desde donde se instale (raiz del
+# repositorio en local, /app en la imagen). Se instala como paso aparte:
+#   pip install -e ./shared      # desarrollo, desde la raiz del repositorio
+#   pip install ./shared         # imagen de Docker
 
 # Pruebas y calidad
 pytest>=8.0

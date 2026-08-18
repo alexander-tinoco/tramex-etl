@@ -1,8 +1,18 @@
+# Stack de desarrollo.
+#
+# Levanta el ecosistema completo con recarga en caliente. Para produccion se
+# usa docker-compose.prod.yml, que consume las imagenes publicadas en GHCR y
+# no monta el codigo como volumen.
+#
+#   docker compose up -d
+
+name: tramex
+
 services:
   db:
     image: postgres:16-alpine
     container_name: tramex_postgres
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres_password
@@ -12,52 +22,147 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tramex"]
       interval: 5s
       timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: tramex_redis
+    restart: unless-stopped
+    # Los contadores de fuerza bruta se pueden reconstruir; no hace falta
+    # persistirlos, y desactivar el volcado evita escrituras innecesarias.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
       retries: 5
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: tramex_pgadmin
-    restart: always
+  # Job de una sola ejecucion. Las migraciones NO viven en el arranque de la
+  # API: con varias replicas, todas intentarian migrar a la vez sobre la misma
+  # base. Aqui se aplican una vez y ademas se siembra el administrador inicial.
+  migraciones:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: development
+    container_name: tramex_migraciones
+    command: sh -c "alembic upgrade head && python -m scripts.sembrar_admin"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin_password
-    ports:
-      - "5051:80"
-    volumes:
-      - ./pgadmin/servers.json:/pgadmin4/servers.json
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres_password@db:5432/tramex
+      TRAMEX_FERNET_KEY: ${TRAMEX_FERNET_KEY:?define TRAMEX_FERNET_KEY en un .env de la raiz}
+      API_SECRET_KEY: ${API_SECRET_KEY:-clave-de-desarrollo-no-usar-en-produccion}
+      APP_ENV: development
+      ADMIN_INICIAL_CORREO: ${ADMIN_INICIAL_CORREO:-admin@example.com}
+      ADMIN_INICIAL_CONTRASENA: ${ADMIN_INICIAL_CONTRASENA:-}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: "no"
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
+      target: development
     container_name: tramex_backend
-    restart: always
-    volumes:
-      - ./backend:/app
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
-      DATABASE_URL: "postgresql+psycopg2://postgres:postgres_password@db:5432/tramex"
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres_password@db:5432/tramex
+      REDIS_URL: redis://redis:6379
+      TRAMEX_FERNET_KEY: ${TRAMEX_FERNET_KEY:?define TRAMEX_FERNET_KEY en un .env de la raiz}
+      API_SECRET_KEY: ${API_SECRET_KEY:-clave-de-desarrollo-no-usar-en-produccion}
+      APP_ENV: development
+      ALLOWED_ORIGINS: http://localhost:4200,http://localhost:8080
+      COOKIE_SECURE: "false"
+      LOG_LEVEL: INFO
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      # Solo el codigo; el entorno de Python vive en la imagen.
+      - ./backend/app:/app/app
+      - ./backend/scripts:/app/scripts
+      - ./shared:/app/shared
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      migraciones:
+        condition: service_completed_successfully
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      target: development
     container_name: tramex_frontend
-    restart: always
+    restart: unless-stopped
+    volumes:
+      - ./frontend/src:/app/src
+      # Volumen anonimo para que node_modules de la imagen no quede tapado por
+      # el del host, que puede tener binarios de otra plataforma.
+      - /app/node_modules
     ports:
-      - "8080:80"
+      - "4200:4200"
     depends_on:
       - backend
 
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: tramex_prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+
+  grafana:
+    image: grafana/grafana-oss:11.5.1
+    container_name: tramex_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      # El panel es de solo lectura para invitados; no hay datos de clientes en
+      # las metricas, pero tampoco hace falta abrir el registro.
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
+  pgadmin:
+    image: dpage/pgadmin4:8.14
+    container_name: tramex_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin_password
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5051:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data:
+  prometheus_data:
+  grafana_data:
+  pgadmin_data:

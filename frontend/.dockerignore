@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.angular/
+.vscode/
+coverage/
+.env
+diagramas/
+README.md
+Dockerfile
+.dockerignore
