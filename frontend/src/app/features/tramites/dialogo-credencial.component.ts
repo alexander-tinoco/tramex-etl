@@ -2,69 +2,98 @@ import { Component, computed, inject, input, output, signal } from '@angular/cor
 import { HttpErrorResponse } from '@angular/common/http';
 import { ApiService } from '../../core/api.service';
 import { ConfiguracionRecurso } from '../../models/recursos.model';
+import { PictogramaComponent } from '../../shared/pictograma.component';
 
 /**
- * Dialogo de consulta de la credencial de un cliente.
+ * Diálogo de consulta de la credencial de un cliente.
  *
- * Es la operacion mas sensible de la aplicacion, y la interfaz lo refleja: la
- * contrasena llega oculta, se revela solo bajo peticion explicita y el dialogo
- * muestra el numero de asiento que la consulta dejo en la bitacora, para que
- * quien la hace sepa que ha quedado registrada.
+ * Es la operación más sensible del sistema, y la única pieza dorada de toda la
+ * interfaz: el dorado del logotipo está reservado a esto, así que cuando
+ * aparece significa siempre lo mismo.
+ *
+ * La credencial llega oculta, se revela solo bajo petición explícita, y el
+ * diálogo muestra el folio del asiento que la consulta acaba de dejar en la
+ * bitácora. Que quien consulta vea ese folio es parte del diseño: la promesa
+ * del sistema es que el acceso deja huella, y una promesa que no se ve no
+ * tranquiliza a nadie.
  */
 @Component({
   selector: 'app-dialogo-credencial',
   standalone: true,
+  imports: [PictogramaComponent],
   template: `
-    <div class="modal-fondo" (click)="cerrar.emit()">
-      <div class="modal modal-angosto" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
-        <header class="modal-cabecera">
-          <h3><i class="fa-solid fa-key"></i> Credencial del cliente</h3>
+    <div class="telon" (click)="cerrar.emit()">
+      <div
+        class="ventanilla angosta"
+        (click)="$event.stopPropagation()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="titulo-credencial"
+      >
+        <header class="ventanilla-cabecera">
+          <h3 id="titulo-credencial">
+            <app-picto nombre="llave" [tamano]="18" />
+            Credencial del cliente
+          </h3>
           <button type="button" class="boton-icono" (click)="cerrar.emit()" aria-label="Cerrar">
-            <i class="fa-solid fa-xmark"></i>
+            <app-picto nombre="cerrar" [tamano]="16" />
           </button>
         </header>
 
-        <div class="modal-cuerpo">
+        <div class="ventanilla-cuerpo">
           @if (cargando()) {
-            <p class="text-center"><i class="fa-solid fa-spinner fa-spin"></i> Descifrando…</p>
+            <p class="medio">Descifrando…</p>
           } @else if (error()) {
-            <div class="alerta alerta-error" role="alert">
-              <i class="fa-solid fa-triangle-exclamation"></i>
+            <div class="aviso error" role="alert">
+              <app-picto nombre="alerta" [tamano]="18" />
               <span>{{ error() }}</span>
             </div>
           } @else if (sinCredencial()) {
-            <p class="text-muted">Este registro no tiene ninguna credencial almacenada.</p>
-          } @else {
-            <p class="text-muted">{{ recurso().titulo }} · registro #{{ registroId() }}</p>
-            <div class="campo-control credencial">
-              <input
-                [type]="visible() ? 'text' : 'password'"
-                [value]="contrasena()"
-                readonly
-                aria-label="Credencial del cliente"
-              />
-              <button
-                type="button"
-                class="boton-icono"
-                (click)="alternar()"
-                [attr.aria-label]="visible() ? 'Ocultar' : 'Mostrar'"
-              >
-                <i class="fa-solid" [class.fa-eye]="!visible()" [class.fa-eye-slash]="visible()"></i>
-              </button>
-              <button type="button" class="boton-icono" (click)="copiar()" aria-label="Copiar">
-                <i class="fa-solid" [class.fa-copy]="!copiada()" [class.fa-check]="copiada()"></i>
-              </button>
+            <div class="aviso dato">
+              <app-picto nombre="aviso" [tamano]="18" />
+              <span>Este registro no tiene ninguna credencial almacenada.</span>
             </div>
-            <p class="nota-auditoria">
-              <i class="fa-solid fa-clipboard-list"></i>
-              Esta consulta quedó registrada en la bitácora de auditoría
-              (asiento #{{ auditoriaId() }}).
+          } @else {
+            <div class="placa-credencial">
+              <p class="procedencia">{{ recurso().titulo }} · registro {{ registroId() }}</p>
+              <div class="valor">
+                <input
+                  [type]="visible() ? 'text' : 'password'"
+                  [value]="contrasena()"
+                  readonly
+                  aria-label="Credencial del cliente"
+                />
+                <button
+                  type="button"
+                  class="boton-icono"
+                  (click)="alternar()"
+                  [attr.aria-label]="visible() ? 'Ocultar' : 'Mostrar'"
+                >
+                  <app-picto [nombre]="visible() ? 'ocultar' : 'ver'" [tamano]="17" />
+                </button>
+                <button
+                  type="button"
+                  class="boton-icono"
+                  (click)="copiar()"
+                  [attr.aria-label]="copiada() ? 'Copiada' : 'Copiar credencial'"
+                >
+                  <app-picto [nombre]="copiada() ? 'confirmado' : 'copiar'" [tamano]="17" />
+                </button>
+              </div>
+            </div>
+
+            <p class="folio-auditoria">
+              <app-picto nombre="bitacora" [tamano]="16" />
+              <span>
+                Esta consulta quedó asentada en la bitácora con tu usuario y la fecha.
+                Folio del asiento: <strong>{{ auditoriaId() }}</strong>
+              </span>
             </p>
           }
         </div>
 
-        <footer class="modal-pie">
-          <button type="button" class="btn-secondary" (click)="cerrar.emit()">Cerrar</button>
+        <footer class="ventanilla-pie">
+          <button type="button" class="boton secundario" (click)="cerrar.emit()">Cerrar</button>
         </footer>
       </div>
     </div>
@@ -89,7 +118,7 @@ export class DialogoCredencialComponent {
   );
 
   constructor() {
-    // La peticion se lanza al construir el dialogo: abrirlo *es* la accion de
+    // La petición se lanza al construir el diálogo: abrirlo *es* la acción de
     // consultar, y por tanto lo que se audita.
     queueMicrotask(() => this.consultar());
   }
@@ -104,8 +133,8 @@ export class DialogoCredencialComponent {
       error: (fallo: unknown) => {
         this.cargando.set(false);
         if (fallo instanceof HttpErrorResponse && fallo.status === 500) {
-          // El backend distingue "no hay credencial" de "hay un criptograma que
-          // no abre"; el segundo caso indica una llave rotada o un respaldo
+          // El backend distingue «no hay credencial» de «hay un criptograma que
+          // no abre»; el segundo caso indica una llave rotada o un respaldo
           // ajeno, y merece un mensaje que lleve a revisarlo.
           this.error.set(
             'La credencial no pudo descifrarse con la llave activa. Avisa a quien administre el sistema.',

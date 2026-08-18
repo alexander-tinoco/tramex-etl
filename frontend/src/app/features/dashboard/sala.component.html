@@ -1,0 +1,122 @@
+<section>
+  <!-- El buscador es la primera acción de la jornada, así que ocupa el ancho
+       y se lee como el cartel de una ventanilla. -->
+  <div class="buscador">
+    <app-picto nombre="buscar" [tamano]="24" />
+    <input
+      type="search"
+      [value]="busqueda()"
+      (input)="buscar($event)"
+      placeholder="Buscar a una persona…"
+      aria-label="Buscar a una persona por nombre"
+      autocomplete="off"
+    />
+    @if (busqueda()) {
+      <button type="button" class="boton-icono" (click)="limpiar()" aria-label="Limpiar búsqueda">
+        <app-picto nombre="cerrar" [tamano]="16" />
+      </button>
+    } @else {
+      <span class="pista">Nombre o apellido</span>
+    }
+  </div>
+
+  @if (encontrados(); as personas) {
+    <div class="tablero">
+      <table>
+        <caption class="rotulo" style="text-align: left; padding: 0.75rem 1rem">
+          @if (buscando()) {
+            Buscando…
+          } @else {
+            {{ personas.length }} persona(s) para «{{ busqueda() }}»
+          }
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Persona</th>
+            <th scope="col">Pasaporte</th>
+            <th scope="col">Correo</th>
+            <th scope="col">Teléfono</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (persona of personas; track persona.id) {
+            <tr>
+              <td class="nombre" data-etiqueta="Persona">{{ nombreCompleto(persona) }}</td>
+              <td class="dato" data-etiqueta="Pasaporte">{{ persona.numero_pasaporte || '—' }}</td>
+              <td class="dato" data-etiqueta="Correo">{{ persona.correo_electronico || '—' }}</td>
+              <td class="dato" data-etiqueta="Teléfono">{{ persona.telefono || '—' }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="4" class="vacio">
+                No hay ninguna persona registrada con ese nombre.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <!-- Recuentos como renglón de marcaje, nunca como cuatro tarjetas. -->
+    <div class="marcaje">
+      @for (recurso of recursos; track recurso.clave) {
+        <button type="button" class="marcaje-celda" (click)="abrirRecurso.emit(recurso.clave)">
+          <span class="cifra">{{ conteoDe(recurso.clave) }}</span>
+          <span class="etiqueta">{{ recurso.titulo }}</span>
+        </button>
+      }
+      <span class="marcaje-celda">
+        <span class="cifra">{{ totalPersonas() }}</span>
+        <span class="etiqueta">Trámites en total</span>
+      </span>
+    </div>
+
+    <div class="tablero">
+      <table>
+        <caption class="rotulo" style="text-align: left; padding: 0.75rem 1rem">
+          Últimos movimientos
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Carril</th>
+            <th scope="col">Persona</th>
+            <th scope="col">Pasaporte</th>
+            <th scope="col">Actualizado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (cargandoTablero()) {
+            <tr>
+              <td colspan="4" class="vacio">Cargando movimientos…</td>
+            </tr>
+          } @else {
+            @for (movimiento of movimientos(); track movimiento.recurso + '-' + movimiento.registro.id) {
+              <tr [class.fila-archivada]="movimiento.registro.eliminado_en !== null">
+                <td data-etiqueta="Carril">
+                  <span class="distintivo">
+                    <app-picto [nombre]="RECURSOS[movimiento.recurso].picto" [tamano]="13" />
+                    {{ RECURSOS[movimiento.recurso].titulo }}
+                  </span>
+                </td>
+                <td class="nombre" data-etiqueta="Persona">{{ movimiento.registro.nombre }}</td>
+                <td class="dato" data-etiqueta="Pasaporte">
+                  {{ pasaporteDe(movimiento.registro) }}
+                </td>
+                <td class="dato" data-etiqueta="Actualizado">
+                  {{ formatearFechaHora(movimiento.registro.actualizado_en) }}
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4" class="vacio">
+                  Todavía no hay trámites cargados. Ejecuta el pipeline ETL sobre el archivo
+                  de la agencia para poblarlos.
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

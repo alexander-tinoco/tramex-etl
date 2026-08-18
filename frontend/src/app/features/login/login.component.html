@@ -1,78 +1,82 @@
-<div class="login-screen">
-  <div class="login-card">
-    <div class="login-brand">
-      <i class="fa-solid fa-passport icon-brand"></i>
-      <h1>Tramex</h1>
-      <p class="text-muted">Gestión de trámites migratorios</p>
+<div class="acceso">
+  <div class="acceso-placa">
+    <div class="acceso-marca">
+      <img src="marca/tramex-logotipo.png" alt="Tramex" width="416" height="462" />
+      <span class="oficio">Gestión de trámites migratorios</span>
     </div>
 
-    @if (sesionExpirada()) {
-      <div class="alerta alerta-aviso" role="status">
-        <i class="fa-solid fa-clock-rotate-left"></i>
-        <span>Tu sesión expiró. Vuelve a iniciar sesión.</span>
-      </div>
-    }
-
-    <form (submit)="enviar($event)" novalidate>
-      <label class="campo">
-        <span>Correo electrónico</span>
-        <div class="campo-control">
-          <i class="fa-solid fa-envelope"></i>
-          <input
-            type="email"
-            name="correo"
-            autocomplete="username"
-            placeholder="tu.correo@ejemplo.com"
-            required
-            [(ngModel)]="correo"
-            [disabled]="cargando()"
-          />
-        </div>
-      </label>
-
-      <label class="campo">
-        <span>Contraseña</span>
-        <div class="campo-control">
-          <i class="fa-solid fa-lock"></i>
-          <input
-            [type]="mostrarContrasena() ? 'text' : 'password'"
-            name="contrasena"
-            autocomplete="current-password"
-            placeholder="••••••••••••"
-            required
-            [(ngModel)]="contrasena"
-            [disabled]="cargando()"
-          />
-          <button
-            type="button"
-            class="boton-icono"
-            (click)="alternarVisibilidad()"
-            [attr.aria-label]="mostrarContrasena() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-          >
-            <i class="fa-solid" [class.fa-eye]="!mostrarContrasena()" [class.fa-eye-slash]="mostrarContrasena()"></i>
-          </button>
-        </div>
-      </label>
-
-      @if (error()) {
-        <div class="alerta alerta-error" role="alert">
-          <i class="fa-solid fa-circle-exclamation"></i>
-          <span>{{ error() }}</span>
+    <div class="acceso-cuerpo">
+      @if (sesionExpirada()) {
+        <div class="aviso atencion" role="status">
+          <app-picto nombre="reloj" [tamano]="18" />
+          <span>Tu sesión expiró. Vuelve a iniciar sesión.</span>
         </div>
       }
 
-      <button type="submit" class="btn-primary btn-block" [disabled]="cargando()">
-        @if (cargando()) {
-          <i class="fa-solid fa-spinner fa-spin"></i> <span>Verificando…</span>
-        } @else {
-          <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Entrar</span>
-        }
-      </button>
-    </form>
+      <form (submit)="enviar($event)" novalidate>
+        <label class="campo">
+          <span class="nombre-campo">Correo electrónico</span>
+          <div class="campo-linea">
+            <app-picto nombre="sobre" [tamano]="18" />
+            <input
+              type="email"
+              name="correo"
+              autocomplete="username"
+              placeholder="tu.correo@ejemplo.com"
+              required
+              [(ngModel)]="correo"
+              [disabled]="cargando()"
+            />
+          </div>
+        </label>
 
-    <p class="login-nota text-muted">
-      <i class="fa-solid fa-shield-halved"></i>
-      Los accesos a credenciales de clientes quedan registrados en la bitácora de auditoría.
+        <label class="campo">
+          <span class="nombre-campo">Contraseña</span>
+          <div class="campo-linea">
+            <app-picto nombre="candado" [tamano]="18" />
+            <input
+              [type]="mostrarContrasena() ? 'text' : 'password'"
+              name="contrasena"
+              autocomplete="current-password"
+              placeholder="••••••••••••"
+              required
+              [(ngModel)]="contrasena"
+              [disabled]="cargando()"
+            />
+            <button
+              type="button"
+              class="boton-icono"
+              (click)="alternarVisibilidad()"
+              [attr.aria-label]="mostrarContrasena() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              <app-picto [nombre]="mostrarContrasena() ? 'ocultar' : 'ver'" [tamano]="18" />
+            </button>
+          </div>
+        </label>
+
+        @if (error()) {
+          <div class="aviso error" role="alert">
+            <app-picto nombre="aviso" [tamano]="18" />
+            <span>{{ error() }}</span>
+          </div>
+        }
+
+        <button type="submit" class="boton bloque" [disabled]="cargando()">
+          @if (cargando()) {
+            <span>Verificando…</span>
+          } @else {
+            <span>Entrar</span>
+          }
+        </button>
+      </form>
+    </div>
+
+    <p class="acceso-nota">
+      <app-picto nombre="escudo" [tamano]="16" />
+      <span>
+        Cada consulta de una credencial de cliente queda asentada en la bitácora
+        de auditoría con tu usuario, la fecha y el registro consultado.
+      </span>
     </p>
   </div>
 </div>

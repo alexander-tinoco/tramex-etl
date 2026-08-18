@@ -105,6 +105,10 @@ services:
     restart: unless-stopped
     volumes:
       - ./frontend/src:/app/src
+      # Los activos estaticos (logotipo, favicon) tambien se montan: sin esto,
+      # anadir una imagen obligaria a reconstruir la imagen de Docker para
+      # verla, y el navegador devolveria 404 sin explicar por que.
+      - ./frontend/public:/app/public
       # Volumen anonimo para que node_modules de la imagen no quede tapado por
       # el del host, que puede tener binarios de otra plataforma.
       - /app/node_modules

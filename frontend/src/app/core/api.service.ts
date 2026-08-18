@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
   AsientoAuditoria,
+  Cliente,
   ClienteDetalle,
   CuerpoTramite,
   EstadoSalud,
@@ -19,6 +20,8 @@ export interface FiltrosListado {
   buscar?: string;
   clienteId?: number;
   incluirEliminados?: boolean;
+  /** `reciente` devuelve primero lo último tocado; lo usa el tablero de sala. */
+  orden?: 'id' | 'reciente';
 }
 
 /**
@@ -53,6 +56,9 @@ export class ApiService {
     }
     if (filtros.incluirEliminados) {
       params = params.set('incluir_eliminados', 'true');
+    }
+    if (filtros.orden) {
+      params = params.set('orden', filtros.orden);
     }
 
     return this.http.get<Paginado<T>>(`${this.baseUrl}${endpoint}`, { ...this.opciones, params });
@@ -90,6 +96,21 @@ export class ApiService {
 
   obtenerCliente(id: number): Observable<ClienteDetalle> {
     return this.http.get<ClienteDetalle>(`${this.baseUrl}/clientes/${id}`, this.opciones);
+  }
+
+  /**
+   * Busca personas, no filas.
+   *
+   * La pantalla de sala busca sobre `clientes` y no sobre cada tabla de
+   * trámite: la pregunta real de la operadora es "quién es esta persona y qué
+   * tiene abierto", que es justamente lo que el modelo relacional hizo posible.
+   */
+  buscarClientes(termino: string, limit = 8): Observable<Paginado<Cliente>> {
+    const params = new HttpParams().set('buscar', termino).set('limit', String(limit));
+    return this.http.get<Paginado<Cliente>>(`${this.baseUrl}/clientes/`, {
+      ...this.opciones,
+      params,
+    });
   }
 
   listarAuditoria(skip = 0, limit = 25, accion?: string): Observable<Paginado<AsientoAuditoria>> {

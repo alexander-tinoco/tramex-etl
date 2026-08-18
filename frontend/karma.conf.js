@@ -6,11 +6,32 @@
 // Puppeteer (por ejemplo, instalado por otra herramienta), y sin esta busqueda
 // `ng test` falla con "No binary for ChromeHeadless browser on your platform".
 
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-/** Busca el ejecutable de Chrome en las ubicaciones habituales. */
+/**
+ * Comprueba que un binario de Chrome arranca de verdad.
+ *
+ * No basta con que el archivo exista ni con quedarse con la versión más nueva:
+ * una descarga incompleta o una versión rota en la caché revienta al arrancar
+ * con un volcado de pila que no dice nada útil. Un arranque real en modo
+ * headless es la única prueba fiable, y cuesta menos de un segundo.
+ */
+function arranca(ruta) {
+  try {
+    execFileSync(ruta, ['--headless', '--no-sandbox', '--disable-gpu', '--dump-dom', 'about:blank'], {
+      stdio: 'ignore',
+      timeout: 30000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Busca un ejecutable de Chrome utilizable entre las ubicaciones habituales. */
 function localizarChrome() {
   if (process.env.CHROME_BIN && fs.existsSync(process.env.CHROME_BIN)) {
     return process.env.CHROME_BIN;
@@ -36,7 +57,9 @@ function localizarChrome() {
     }
   }
 
-  return candidatos.find((ruta) => fs.existsSync(ruta));
+  // Se prueba cada candidato hasta encontrar uno que arranque, en lugar de
+  // quedarse con el primero que exista.
+  return candidatos.find((ruta) => fs.existsSync(ruta) && arranca(ruta));
 }
 
 const chrome = localizarChrome();

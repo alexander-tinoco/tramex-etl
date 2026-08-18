@@ -3,10 +3,11 @@ import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { CLAVES_RECURSO, ClaveRecurso, RECURSOS } from '../../models/recursos.model';
-import { ResumenComponent } from './resumen.component';
+import { SalaComponent } from './sala.component';
 import { TablaTramitesComponent } from '../tramites/tabla-tramites.component';
+import { PictogramaComponent } from '../../shared/pictograma.component';
 
-type Seccion = 'resumen' | ClaveRecurso;
+type Seccion = 'sala' | ClaveRecurso;
 
 /**
  * Contenedor del panel.
@@ -20,7 +21,7 @@ type Seccion = 'resumen' | ClaveRecurso;
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, ResumenComponent, TablaTramitesComponent],
+  imports: [RouterLink, SalaComponent, TablaTramitesComponent, PictogramaComponent],
   templateUrl: './dashboard.component.html',
 })
 export class DashboardComponent {
@@ -29,7 +30,7 @@ export class DashboardComponent {
   private readonly router = inject(Router);
 
   readonly secciones = CLAVES_RECURSO.map((clave) => RECURSOS[clave]);
-  readonly seccion = signal<Seccion>('resumen');
+  readonly seccion = signal<Seccion>('sala');
   readonly baseConectada = signal<boolean | null>(null);
 
   readonly usuario = this.auth.usuario;
@@ -37,10 +38,17 @@ export class DashboardComponent {
 
   readonly recursoActivo = computed(() => {
     const actual = this.seccion();
-    return actual === 'resumen' ? null : RECURSOS[actual];
+    return actual === 'sala' ? null : RECURSOS[actual];
   });
 
-  readonly titulo = computed(() => this.recursoActivo()?.titulo ?? 'Resumen del sistema');
+  readonly titulo = computed(() => this.recursoActivo()?.titulo ?? 'Sala');
+
+  /** El encabezado dice de qué trata el carril, no repite su nombre. */
+  readonly subtitulo = computed(
+    () =>
+      this.recursoActivo()?.descripcion ??
+      'Busca a una persona y abre su expediente completo. Abajo, lo último que se ha tocado.',
+  );
 
   constructor() {
     this.api.estadoSalud().subscribe({

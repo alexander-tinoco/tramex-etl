@@ -1,4 +1,5 @@
 import { Component, input, output } from '@angular/core';
+import { NombrePictograma, PictogramaComponent } from './pictograma.component';
 
 /**
  * Dialogo de confirmacion reutilizable.
@@ -10,23 +11,32 @@ import { Component, input, output } from '@angular/core';
 @Component({
   selector: 'app-dialogo-confirmacion',
   standalone: true,
+  imports: [PictogramaComponent],
   template: `
-    <div class="modal-fondo" (click)="cancelar.emit()">
-      <div class="modal modal-angosto" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
-        <header class="modal-cabecera">
-          <h3><i class="fa-solid" [class]="icono()"></i> {{ titulo() }}</h3>
+    <div class="telon" (click)="cancelar.emit()">
+      <div
+        class="ventanilla angosta"
+        (click)="$event.stopPropagation()"
+        role="dialog"
+        aria-modal="true"
+      >
+        <header class="ventanilla-cabecera">
+          <h3>
+            <app-picto [nombre]="picto()" [tamano]="18" />
+            {{ titulo() }}
+          </h3>
         </header>
-        <div class="modal-cuerpo">
+        <div class="ventanilla-cuerpo">
           <p>{{ mensaje() }}</p>
           @if (detalle()) {
-            <p class="text-muted">{{ detalle() }}</p>
+            <p class="medio prosa" style="margin-top: 0.5rem">{{ detalle() }}</p>
           }
         </div>
-        <footer class="modal-pie">
-          <button type="button" class="btn-secondary" (click)="cancelar.emit()">Cancelar</button>
+        <footer class="ventanilla-pie">
+          <button type="button" class="boton secundario" (click)="cancelar.emit()">Cancelar</button>
           <button
             type="button"
-            [class]="peligroso() ? 'btn-danger' : 'btn-primary'"
+            [class]="peligroso() ? 'boton peligro' : 'boton'"
             (click)="confirmar.emit()"
           >
             {{ textoConfirmar() }}
@@ -41,7 +51,7 @@ export class DialogoConfirmacionComponent {
   readonly mensaje = input.required<string>();
   readonly detalle = input<string>('');
   readonly textoConfirmar = input<string>('Confirmar');
-  readonly icono = input<string>('fa-circle-question');
+  readonly picto = input<NombrePictograma>('aviso');
   readonly peligroso = input<boolean>(false);
 
   readonly confirmar = output<void>();

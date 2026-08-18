@@ -2,18 +2,44 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Tramex System — Dashboard</title>
+  <title>Tramex · Gestión de trámites</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Sistema de gestión de trámites migratorios de la agencia Tramex.">
+  <meta name="theme-color" content="#003C48">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <!-- Google Fonts -->
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <!-- FontAwesome for Premium Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!--
+    Barlow Semi Condensed  · voz de señalética: rótulos, carriles, encabezados.
+    Atkinson Hyperlegible  · voz humana: nombres y prosa.
+    Atkinson Hyperlegible Mono · voz del dato: pasaportes, folios, credenciales.
+      Diseñada por el Braille Institute para distinguir l/I/1 y 0/O. Aquí no es
+      una elección estética: estos valores se transcriben a mano a los portales
+      consulares, y confundir un carácter es un viaje perdido.
+  -->
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Atkinson+Hyperlegible+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
-<body class="dark-theme">
+<body>
+<!--
+THESIS: El expediente se lee como panel de carril de control migratorio: un dato
+por franja, legible a un metro. Rechaza el tablero de tarjetas de métrica y riel
+de iconos de esta categoría.
+OWN-WORLD: Hormigón claro (#F2F4F3), paneles esmaltados verde petróleo (#003C48)
+del logotipo, salvia (#84C0A8) en el carril activo, acero (#185868) estructural.
+El dorado (#C8B060) queda reservado a la revelación de credenciales. Pictogramas
+macizos propios; Barlow Semi Condensed rotula, Atkinson Hyperlegible lee y su mono
+sostiene el dato transcribible.
+STORY: La operadora ve el expediente completo de una persona y comprueba que tocar
+una credencial deja huella: el sistema le devuelve el folio del asiento.
+FIRST VIEWPORT: Riel de paneles a la izquierda, símbolo arriba. A la derecha,
+buscador a escala de rótulo ocupando el ancho; debajo, tablero de movimientos
+recientes en filas densas con su carril de color, y un renglón de recuentos como
+marcaje de ventanilla, nunca tarjetas.
+FORM: Señalética de sala de control fronterizo, candidata 5 de 7; semilla bc773ca1.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->
   <app-root></app-root>
 </body>
 </html>

@@ -1,3 +1,5 @@
+import { NombrePictograma } from '../shared/pictograma.component';
+
 /**
  * Configuracion declarativa de los cuatro recursos de tramite.
  *
@@ -29,7 +31,10 @@ export interface ColumnaRecurso {
 export interface ConfiguracionRecurso {
   clave: ClaveRecurso;
   titulo: string;
-  icono: string;
+  /** Pictograma del carril, del repertorio propio del sistema. */
+  picto: NombrePictograma;
+  /** Qué es este trámite, en una línea, para el encabezado de la sección. */
+  descripcion: string;
   /** Segmento de la API, ya con las barras que espera el backend. */
   endpoint: string;
   /** Si el recurso custodia una credencial cifrada del cliente. */
@@ -44,7 +49,8 @@ export const RECURSOS: Record<ClaveRecurso, ConfiguracionRecurso> = {
   master_tramex: {
     clave: 'master_tramex',
     titulo: 'Master Tramex',
-    icono: 'fa-list-check',
+    picto: 'visa',
+    descripcion: 'Visas americanas y trámites afines. Custodia la credencial de la cuenta consular del cliente.',
     endpoint: '/master-tramex/',
     tieneCredencial: true,
     columnas: [
@@ -78,7 +84,8 @@ export const RECURSOS: Record<ClaveRecurso, ConfiguracionRecurso> = {
   global_entry: {
     clave: 'global_entry',
     titulo: 'Global Entry',
-    icono: 'fa-globe',
+    picto: 'globo',
+    descripcion: 'Programa de entrada acelerada. La columna «Número de la cuenta» del archivo original es en realidad la credencial.',
     endpoint: '/global-entry/',
     tieneCredencial: true,
     columnas: [
@@ -105,7 +112,8 @@ export const RECURSOS: Record<ClaveRecurso, ConfiguracionRecurso> = {
   pasaportes: {
     clave: 'pasaportes',
     titulo: 'Pasaportes',
-    icono: 'fa-book-bookmark',
+    picto: 'pasaporte',
+    descripcion: 'Citas de expedición y renovación. Es la única hoja sin credenciales y sin identificador duro.',
     endpoint: '/pasaportes/',
     tieneCredencial: false,
     columnas: [
@@ -136,7 +144,8 @@ export const RECURSOS: Record<ClaveRecurso, ConfiguracionRecurso> = {
   canada: {
     clave: 'canada',
     titulo: 'Canadá',
-    icono: 'fa-map',
+    picto: 'hoja',
+    descripcion: 'Trámites con cuenta IRCC. La columna «Cuenta Cita» del archivo original es la credencial.',
     endpoint: '/canada/',
     tieneCredencial: true,
     columnas: [

@@ -8,8 +8,22 @@ import { formatearValor } from '../../shared/formato';
 import { DialogoConfirmacionComponent } from '../../shared/dialogo-confirmacion.component';
 import { DialogoCredencialComponent } from './dialogo-credencial.component';
 import { FormularioTramiteComponent } from './formulario-tramite.component';
+import { PictogramaComponent } from '../../shared/pictograma.component';
 
 const TAMANO_PAGINA = 10;
+
+/** Columnas cuyo contenido se teclea después en un portal consular. */
+const CAMPOS_DE_DATO = new Set([
+  'id',
+  'id_solicitud',
+  'telefono',
+  'numero_pasaporte',
+  'correo_electronico',
+  'cuenta_ircc',
+  'fecha_cita',
+  'cargado_en',
+  'actualizado_en',
+]);
 
 /**
  * Tabla de un recurso de tramite, con busqueda, paginacion y acciones.
@@ -22,7 +36,12 @@ const TAMANO_PAGINA = 10;
 @Component({
   selector: 'app-tabla-tramites',
   standalone: true,
-  imports: [FormularioTramiteComponent, DialogoCredencialComponent, DialogoConfirmacionComponent],
+  imports: [
+    FormularioTramiteComponent,
+    DialogoCredencialComponent,
+    DialogoConfirmacionComponent,
+    PictogramaComponent,
+  ],
   templateUrl: './tabla-tramites.component.html',
 })
 export class TablaTramitesComponent implements OnChanges, OnDestroy {
@@ -150,6 +169,17 @@ export class TablaTramitesComponent implements OnChanges, OnDestroy {
 
   estaArchivado(registro: Tramite): boolean {
     return registro.eliminado_en !== null;
+  }
+
+  /**
+   * Indica si una columna lleva un valor que alguien transcribe a otro portal.
+   *
+   * Esas celdas se componen en la mono legible, donde una l no se confunde con
+   * una I ni un 0 con una O. El nombre y los campos de texto libre no: son
+   * lenguaje, y se leen mejor en la proporcional.
+   */
+  esDato(campo: string): boolean {
+    return CAMPOS_DE_DATO.has(campo);
   }
 
   abrirAlta(): void {

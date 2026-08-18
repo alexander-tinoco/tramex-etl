@@ -1,100 +1,124 @@
-<div class="app-shell">
-  <main class="content-wrapper contenido-pleno">
-    <header class="top-navbar">
-      <div class="page-title">
+<div class="sala">
+  <main class="recinto recinto-pleno">
+    <header class="cabecera">
+      <div>
         <h1>Bitácora de auditoría</h1>
-        <p class="text-muted">
+        <p class="subtitulo prosa">
           Cada consulta de una credencial de cliente deja un asiento. Lo que se registra es
           qué se consultó, nunca qué se obtuvo.
         </p>
       </div>
-      <a class="btn-secondary" routerLink="/dashboard">
-        <i class="fa-solid fa-arrow-left"></i> <span>Volver al panel</span>
-      </a>
+      <div class="cabecera-acciones">
+        <a class="boton secundario" routerLink="/dashboard">
+          <app-picto nombre="volver" [tamano]="16" />
+          <span>Volver a la sala</span>
+        </a>
+      </div>
     </header>
 
-    <div class="views-container">
-      <section class="vista">
-        <div class="barra-acciones">
-          <label class="campo campo-en-linea">
-            <span>Filtrar por acción</span>
-            <select [value]="filtro()" (change)="cambiarFiltro($event)">
-              @for (accion of acciones; track accion.valor) {
-                <option [value]="accion.valor">{{ accion.etiqueta }}</option>
-              }
-            </select>
-          </label>
-          <button type="button" class="btn-secondary" (click)="cargar()">
-            <i class="fa-solid fa-rotate"></i> <span>Actualizar</span>
-          </button>
+    <div class="vista">
+      <div class="barra-acciones">
+        <label class="interruptor" style="gap: 0.75rem">
+          <span>Filtrar por acción</span>
+          <select [value]="filtro()" (change)="cambiarFiltro($event)" style="min-width: 16rem">
+            @for (accion of acciones; track accion.valor) {
+              <option [value]="accion.valor">{{ accion.etiqueta }}</option>
+            }
+          </select>
+        </label>
+        <button type="button" class="boton secundario" (click)="cargar()">
+          <app-picto nombre="actualizar" [tamano]="16" />
+          <span>Actualizar</span>
+        </button>
+      </div>
+
+      @if (error()) {
+        <div class="aviso error" role="alert">
+          <app-picto nombre="aviso" [tamano]="18" />
+          <span>{{ error() }}</span>
         </div>
+      }
 
-        @if (error()) {
-          <div class="alerta alerta-error" role="alert">
-            <i class="fa-solid fa-circle-exclamation"></i>
-            <span>{{ error() }}</span>
-          </div>
-        }
-
-        <div class="table-container">
-          <table>
-            <thead>
+      <div class="tablero">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Fecha</th>
+              <th scope="col">Nivel</th>
+              <th scope="col">Acción</th>
+              <th scope="col">Usuario</th>
+              <th scope="col">Recurso</th>
+              <th scope="col">Registro</th>
+              <th scope="col">Origen</th>
+              <th scope="col">Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (cargando()) {
               <tr>
-                <th>Fecha</th>
-                <th>Nivel</th>
-                <th>Acción</th>
-                <th>Usuario</th>
-                <th>Recurso</th>
-                <th>Registro</th>
-                <th>Origen</th>
-                <th>Detalle</th>
+                <td colspan="8" class="vacio">Cargando bitácora…</td>
               </tr>
-            </thead>
-            <tbody>
-              @if (cargando()) {
+            } @else if (asientos().length === 0) {
+              <tr>
+                <td colspan="8" class="vacio">No hay asientos que mostrar.</td>
+              </tr>
+            } @else {
+              @for (asiento of asientos(); track asiento.id) {
                 <tr>
-                  <td colspan="8" class="text-center">
-                    <i class="fa-solid fa-spinner fa-spin"></i> Cargando bitácora…
+                  <td class="dato" data-etiqueta="Fecha">
+                    {{ formatearFechaHora(asiento.ocurrido_en) }}
+                  </td>
+                  <td data-etiqueta="Nivel">
+                    <span class="distintivo" [class]="claseNivel(asiento.nivel)">
+                      {{ asiento.nivel }}
+                    </span>
+                  </td>
+                  <td data-etiqueta="Acción">{{ asiento.accion }}</td>
+                  <td data-etiqueta="Usuario">{{ formatearTexto(asiento.usuario_correo) }}</td>
+                  <td data-etiqueta="Recurso">{{ formatearTexto(asiento.recurso) }}</td>
+                  <td class="dato" data-etiqueta="Registro">
+                    {{ formatearTexto(asiento.registro_id) }}
+                  </td>
+                  <td class="dato" data-etiqueta="Origen">
+                    {{ formatearTexto(asiento.direccion_ip) }}
+                  </td>
+                  <td class="dato" data-etiqueta="Detalle">
+                    {{ formatearTexto(asiento.detalle) }}
                   </td>
                 </tr>
-              } @else if (asientos().length === 0) {
-                <tr>
-                  <td colspan="8" class="text-center text-muted">No hay asientos que mostrar.</td>
-                </tr>
-              } @else {
-                @for (asiento of asientos(); track asiento.id) {
-                  <tr>
-                    <td>{{ formatearFechaHora(asiento.ocurrido_en) }}</td>
-                    <td>
-                      <span class="etiqueta" [class]="claseNivel(asiento.nivel)">{{ asiento.nivel }}</span>
-                    </td>
-                    <td>{{ asiento.accion }}</td>
-                    <td>{{ formatearTexto(asiento.usuario_correo) }}</td>
-                    <td>{{ formatearTexto(asiento.recurso) }}</td>
-                    <td>{{ formatearTexto(asiento.registro_id) }}</td>
-                    <td>{{ formatearTexto(asiento.direccion_ip) }}</td>
-                    <td class="celda-detalle">{{ formatearTexto(asiento.detalle) }}</td>
-                  </tr>
-                }
               }
-            </tbody>
-          </table>
-        </div>
+            }
+          </tbody>
+        </table>
+      </div>
 
-        <div class="paginacion">
-          <span class="text-muted">
-            {{ total() }} asiento(s) · página {{ pagina() + 1 }} de {{ totalPaginas() }}
-          </span>
-          <div class="paginacion-controles">
-            <button type="button" class="btn-secondary" (click)="paginaAnterior()" [disabled]="pagina() === 0">
-              <i class="fa-solid fa-chevron-left"></i> Anterior
-            </button>
-            <button type="button" class="btn-secondary" (click)="paginaSiguiente()" [disabled]="!hayPaginaSiguiente()">
-              Siguiente <i class="fa-solid fa-chevron-right"></i>
-            </button>
-          </div>
+      <div class="paginacion">
+        <span>
+          <span class="cifra">{{ total() }}</span> asiento(s) ·
+          página <span class="cifra">{{ pagina() + 1 }}</span> de
+          <span class="cifra">{{ totalPaginas() }}</span>
+        </span>
+        <div class="paginacion-controles">
+          <button
+            type="button"
+            class="boton secundario"
+            (click)="paginaAnterior()"
+            [disabled]="pagina() === 0"
+          >
+            <app-picto nombre="anterior" [tamano]="14" />
+            <span>Anterior</span>
+          </button>
+          <button
+            type="button"
+            class="boton secundario"
+            (click)="paginaSiguiente()"
+            [disabled]="!hayPaginaSiguiente()"
+          >
+            <span>Siguiente</span>
+            <app-picto nombre="siguiente" [tamano]="14" />
+          </button>
         </div>
-      </section>
+      </div>
     </div>
   </main>
 </div>

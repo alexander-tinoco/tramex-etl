@@ -1,80 +1,95 @@
-<div class="app-shell">
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <i class="fa-solid fa-passport icon-brand"></i>
-      <h2>Tramex</h2>
+<div class="sala">
+  <aside class="rail">
+    <div class="rail-marca">
+      <span class="placa-marca">
+        <img src="marca/tramex-simbolo.png" alt="" width="304" height="290" aria-hidden="true" />
+      </span>
+      <div>
+        <span class="nombre">Tramex</span>
+        <span class="oficio">Control de trámites</span>
+      </div>
     </div>
 
-    <nav class="sidebar-menu" aria-label="Secciones">
-      <ul>
+    <nav class="rail-menu" aria-label="Secciones">
+      <p class="rail-seccion" id="rotulo-carriles">Carriles</p>
+      <ul aria-labelledby="rotulo-carriles">
         <li>
           <button
             type="button"
-            class="menu-item"
-            [class.active]="seccion() === 'resumen'"
-            (click)="irA('resumen')"
+            class="carril"
+            [class.activo]="seccion() === 'sala'"
+            [attr.aria-current]="seccion() === 'sala' ? 'page' : null"
+            (click)="irA('sala')"
           >
-            <i class="fa-solid fa-chart-line"></i> <span>Resumen</span>
+            <app-picto nombre="sala" [tamano]="20" />
+            <span>Sala</span>
           </button>
         </li>
         @for (recurso of secciones; track recurso.clave) {
           <li>
             <button
               type="button"
-              class="menu-item"
-              [class.active]="seccion() === recurso.clave"
+              class="carril"
+              [class.activo]="seccion() === recurso.clave"
+              [attr.aria-current]="seccion() === recurso.clave ? 'page' : null"
               (click)="irA(recurso.clave)"
             >
-              <i class="fa-solid" [class]="recurso.icono"></i> <span>{{ recurso.titulo }}</span>
+              <app-picto [nombre]="recurso.picto" [tamano]="20" />
+              <span>{{ recurso.titulo }}</span>
             </button>
           </li>
         }
         @if (esAdmin()) {
           <li>
-            <a class="menu-item" routerLink="/auditoria">
-              <i class="fa-solid fa-clipboard-list"></i> <span>Auditoría</span>
+            <a class="carril" routerLink="/auditoria">
+              <app-picto nombre="bitacora" [tamano]="20" />
+              <span>Bitácora</span>
             </a>
           </li>
         }
       </ul>
     </nav>
 
-    <div class="sidebar-footer">
-      <button type="button" class="btn-secondary btn-block text-danger" (click)="cerrarSesion()">
-        <i class="fa-solid fa-power-off"></i> <span>Cerrar sesión</span>
+    <div class="rail-pie">
+      <button type="button" class="boton secundario bloque" (click)="cerrarSesion()">
+        <app-picto nombre="salir" [tamano]="16" />
+        <span>Cerrar sesión</span>
       </button>
     </div>
   </aside>
 
-  <main class="content-wrapper">
-    <header class="top-navbar">
-      <div class="page-title">
+  <main class="recinto">
+    <header class="cabecera">
+      <div>
         <h1>{{ titulo() }}</h1>
+        @if (subtitulo(); as texto) {
+          <p class="subtitulo prosa">{{ texto }}</p>
+        }
       </div>
 
-      <div class="top-navbar-actions">
+      <div class="cabecera-acciones">
         @if (baseConectada() !== null) {
-          <div class="api-status-badge" [class]="baseConectada() ? 'success' : 'error'">
-            <i class="fa-solid fa-database"></i>
-            <span>{{ baseConectada() ? 'Base conectada' : 'Base no disponible' }}</span>
-          </div>
+          <span class="placa-estado" [class]="baseConectada() ? 'abierta' : 'cerrada'">
+            <app-picto nombre="base" [tamano]="14" />
+            {{ baseConectada() ? 'Base conectada' : 'Base no disponible' }}
+          </span>
         }
 
-        <div class="user-profile">
-          <div class="avatar"><i class="fa-solid fa-user-gear"></i></div>
-          <div class="user-datos">
-            <span>{{ usuario()?.nombre }}</span>
-            <small class="text-muted">{{ usuario()?.rol }}</small>
-          </div>
+        <div class="identidad">
+          <app-picto nombre="persona" [tamano]="22" />
+          <span class="quien">
+            <strong>{{ usuario()?.nombre }}</strong>
+            <span>{{ usuario()?.rol }}</span>
+          </span>
         </div>
       </div>
     </header>
 
-    <div class="views-container">
+    <div class="vista">
       @if (recursoActivo(); as recurso) {
         <app-tabla-tramites [recurso]="recurso" />
       } @else {
-        <app-resumen />
+        <app-sala (abrirRecurso)="irA($event)" />
       }
     </div>
   </main>

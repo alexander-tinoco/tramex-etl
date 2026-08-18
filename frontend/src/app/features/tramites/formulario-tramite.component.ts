@@ -2,6 +2,7 @@ import { Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CuerpoTramite, Tramite } from '../../models/api.model';
 import { ConfiguracionRecurso } from '../../models/recursos.model';
+import { PictogramaComponent } from '../../shared/pictograma.component';
 
 /**
  * Formulario de alta y edicion, generado a partir de la configuracion del
@@ -14,7 +15,7 @@ import { ConfiguracionRecurso } from '../../models/recursos.model';
 @Component({
   selector: 'app-formulario-tramite',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, PictogramaComponent],
   templateUrl: './formulario-tramite.component.html',
 })
 export class FormularioTramiteComponent {

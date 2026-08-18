@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AsientoAuditoria } from '../../models/api.model';
 import { formatearFechaHora, formatearTexto } from '../../shared/formato';
+import { PictogramaComponent } from '../../shared/pictograma.component';
 
 /** Acciones por las que tiene sentido filtrar la bitacora. */
 const ACCIONES = [
@@ -29,7 +30,7 @@ const TAMANO_PAGINA = 25;
 @Component({
   selector: 'app-panel-auditoria',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, PictogramaComponent],
   templateUrl: './panel-auditoria.component.html',
 })
 export class PanelAuditoriaComponent {
@@ -97,11 +98,11 @@ export class PanelAuditoriaComponent {
   claseNivel(nivel: string): string {
     switch (nivel) {
       case 'ALERTA':
-        return 'etiqueta-alerta';
+        return 'alerta';
       case 'ADVERTENCIA':
-        return 'etiqueta-advertencia';
+        return 'advertencia';
       default:
-        return 'etiqueta-info';
+        return 'info';
     }
   }
 }

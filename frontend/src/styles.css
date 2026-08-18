@@ -1,987 +1,1461 @@
 /* ===========================================================================
-   TRAMEX SYSTEM - DESIGN SYSTEM & PREMIUM STYLES
+   TRAMEX · Sistema visual
+   Señalética de sala de control migratorio.
+
+   La sala es de hormigón claro y los carteles son paneles esmaltados en el
+   verde petróleo del logotipo. Nada aquí decora: cada color, cada regla y cada
+   peso tipográfico responde a una pregunta que se hace la operadora —dónde
+   estoy, qué fila es esta, qué pasa si toco esto— y a una escena de uso real:
+   ocho horas frente a la pantalla en la oficina, y a veces de pie en la fila
+   del consulado con el teléfono en la mano.
    =========================================================================== */
 
-/* 1. RESET Y COMPORTAMIENTO BASE */
-* {
+/* ---------------------------------------------------------------------------
+   1. FICHAS
+   Los cuatro colores salen medidos del logotipo, no estimados a ojo.
+   --------------------------------------------------------------------------- */
+
+:root {
+    /* -- La sala ---------------------------------------------------------
+       Hormigón, no crema. El fondo lleva una pizca de verde para pertenecer
+       a la familia del petróleo, pero se mantiene frío: es arquitectura, no
+       papel. Claro y no oscuro porque la jornada transcurre alternando con
+       portales consulares blancos, y porque la escena del móvil ocurre al
+       sol. */
+    --sala: #f2f4f3;
+    --sala-hueco: #e8ecea;
+    --sala-honda: #dde3e1;
+    --regla: #cdd6d3;
+    --regla-fina: #e0e6e4;
+
+    /* -- Los paneles -----------------------------------------------------
+       Verde petróleo: el 37 % del logotipo. Es el color del cartel colgado
+       del techo, y aquí ocupa regiones enteras —el riel, las cabeceras—
+       nunca acentos sueltos sobre un fondo neutro. */
+    --panel: #003c48;
+    --panel-hondo: #002d36;
+    --panel-alto: #0a4d5a;
+    --panel-tinta: #eef3f2;
+    --panel-tinta-tenue: #9db6bb;
+
+    /* -- El carril -------------------------------------------------------
+       Verde salvia: el 23 % del logotipo, el relleno del globo. Marca el
+       carril que te toca: sección activa, fila seleccionada, confirmación. */
+    --carril: #84c0a8;
+    --carril-hondo: #3f7f68;
+    --carril-tinta: #1f5647;
+    --carril-vela: #e4f0ea;
+
+    /* -- El acero --------------------------------------------------------
+       El azul del wordmark. Estructura secundaria y texto de apoyo. */
+    --acero: #185868;
+    --acero-claro: #4c7f8c;
+
+    /* -- El cordón -------------------------------------------------------
+       Dorado. Son 42 píxeles del logotipo: su color más raro, y aquí está
+       reservado en exclusiva a una sola cosa —revelar la credencial de un
+       cliente—. Ninguna otra pieza de la interfaz puede usarlo, así que
+       cuando aparece significa siempre lo mismo. */
+    --cordon: #a8862e;
+    --cordon-vivo: #c8b060;
+    --cordon-vela: #f7f1de;
+
+    /* -- Carriles de estado ----------------------------------------------
+       La señalética codifica por carril. El ámbar es claramente naranja y el
+       rojo claramente rojo, para que ninguno se confunda con el cordón. */
+    --ambar: #a9641b;
+    --ambar-vela: #fbf0e2;
+    --rojo: #9e2b25;
+    --rojo-vela: #fbeceb;
+
+    /* -- Tinta -----------------------------------------------------------
+       Nunca gris puro: el texto secundario se tiñe del petróleo del mundo. */
+    --tinta: #0d2429;
+    --tinta-media: #3d5a60;
+    --tinta-tenue: #6c868c;
+
+    /* -- Tipografía ------------------------------------------------------
+       Barlow Semi Condensed rotula (señalética de transporte, condensada por
+       naturaleza, que es lo que pide una tabla densa). Atkinson Hyperlegible
+       lee. Su mono sostiene todo dato que se transcribe a mano a otro portal:
+       fue diseñada para distinguir l/I/1 y 0/O, y aquí eso evita un viaje
+       perdido. Ninguna de las dos es decorativa. */
+    --rotulo: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
+    --lectura: 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
+    --dato: 'Atkinson Hyperlegible Mono', 'SFMono-Regular', ui-monospace, monospace;
+
+    /* -- Métrica ---------------------------------------------------------
+       Un solo ritmo de espaciado en todo el sistema. */
+    --e1: 0.25rem;
+    --e2: 0.5rem;
+    --e3: 0.75rem;
+    --e4: 1rem;
+    --e5: 1.5rem;
+    --e6: 2rem;
+    --e7: 3rem;
+
+    /* Esquinas casi rectas: un cartel esmaltado no es una pastilla. */
+    --canto: 2px;
+    --canto-panel: 3px;
+
+    /* Sombras con desplazamiento y difuminado reales: la luz de una sala
+       viene de arriba. Nunca un halo de color centrado. */
+    --sombra-baja: 0 1px 2px rgba(0, 45, 54, 0.08), 0 2px 6px rgba(0, 45, 54, 0.06);
+    --sombra-alta: 0 8px 16px rgba(0, 45, 54, 0.12), 0 24px 48px rgba(0, 45, 54, 0.16);
+
+    --rail-ancho: 15rem;
+}
+
+/* ---------------------------------------------------------------------------
+   2. BASE
+   --------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
-    font-family: 'Outfit', sans-serif;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    background: var(--sala);
+    color: var(--tinta);
+    font-family: var(--lectura);
+    font-size: 15px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* ---------------------------------------------------------------------------
+   3. SUPERFICIES DEL NAVEGADOR
+   Las partes que no se dibujan también forman parte del diseño. Sin esto, la
+   selección, el cursor, la barra de desplazamiento y el anillo de foco llegan
+   con los valores por defecto del navegador, que no pertenecen a ningún
+   sistema.
+   --------------------------------------------------------------------------- */
+
+::selection {
+    background: var(--carril);
+    color: var(--panel-hondo);
+}
+
 :root {
-    /* Paleta de Colores HSL (Tema Oscuro Premium) */
-    --bg-main: hsl(224, 25%, 12%);
-    --bg-card: hsl(223, 20%, 18%);
-    --bg-card-hover: hsl(223, 20%, 22%);
-    --border-color: hsla(220, 20%, 30%, 0.4);
-    
-    --text-primary: hsl(210, 40%, 98%);
-    --text-secondary: hsl(215, 20%, 75%);
-    --text-muted: hsl(215, 15%, 55%);
-    
-    /* Colores Acento */
-    --color-primary: hsl(263, 70%, 55%);
-    --color-primary-hover: hsl(263, 70%, 65%);
-    --color-secondary: hsl(190, 85%, 50%);
-    --color-danger: hsl(354, 70%, 54%);
-    --color-danger-hover: hsl(354, 70%, 64%);
-    --color-success: hsl(142, 70%, 45%);
-    --color-success-bg: hsla(142, 70%, 45%, 0.15);
-    
-    /* Sombras y Efectos */
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.25);
-    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.4);
-    --radius-sm: 8px;
-    --radius-md: 14px;
-    --radius-lg: 20px;
-    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-smooth: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    accent-color: var(--panel);
+    caret-color: var(--panel);
+    scrollbar-color: var(--acero-claro) var(--sala-hueco);
+    scrollbar-width: thin;
 }
 
-body {
-    background-color: var(--bg-main);
-    color: var(--text-primary);
-    overflow-x: hidden;
-    height: 100vh;
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
 }
 
-/* Ocultar elementos utilitarios */
-.hidden {
-    display: none !important;
+::-webkit-scrollbar-track {
+    background: var(--sala-hueco);
 }
 
-/* 2. COMPONENTES GLOBALES */
-.btn-primary, .btn-secondary, .btn-danger {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 10px 20px;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 0.95rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--transition-fast);
+::-webkit-scrollbar-thumb {
+    background: var(--acero-claro);
+    border: 3px solid var(--sala-hueco);
+    border-radius: 999px;
 }
 
-.btn-primary {
-    background: linear-gradient(135deg, var(--color-primary), hsl(270, 70%, 45%));
-    color: #fff;
-    box-shadow: 0 4px 14px hsla(263, 70%, 55%, 0.35);
+::-webkit-scrollbar-thumb:hover {
+    background: var(--acero);
 }
 
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px hsla(263, 70%, 55%, 0.45);
-    background: linear-gradient(135deg, var(--color-primary-hover), hsl(270, 70%, 55%));
+/* Un anillo de foco de dos capas se ve tanto sobre la sala clara como sobre
+   el panel oscuro, sin necesidad de una regla por contexto. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--panel);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px var(--carril);
 }
 
-.btn-primary:active {
-    transform: translateY(0);
+.panel :where(a, button, input, select):focus-visible,
+.rail :where(a, button, input, select):focus-visible {
+    outline-color: var(--carril);
+    box-shadow: 0 0 0 4px rgba(132, 192, 168, 0.3);
 }
 
-.btn-secondary {
-    background-color: hsla(220, 20%, 30%, 0.3);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-}
+/* ---------------------------------------------------------------------------
+   4. TIPOGRAFÍA
+   --------------------------------------------------------------------------- */
 
-.btn-secondary:hover {
-    background-color: hsla(220, 20%, 30%, 0.6);
-}
-
-.btn-danger {
-    background-color: var(--color-danger);
-    color: #fff;
-}
-
-.btn-danger:hover {
-    background-color: var(--color-danger-hover);
-}
-
-.btn-block {
-    display: flex;
-    width: 100%;
-}
-
-.text-danger {
-    color: var(--color-danger) !important;
-}
-
-/* Inputs y Formularios */
-.form-group {
-    margin-bottom: 20px;
-}
-
-/* Alertas */
-.alert {
-    padding: 12px 16px;
-    border-radius: var(--radius-sm);
-    font-size: 0.88rem;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.alert.error {
-    background-color: hsla(354, 70%, 54%, 0.15);
-    border: 1px solid hsla(354, 70%, 54%, 0.3);
-    color: hsl(354, 85%, 70%);
-}
-
-/* 3. LOGINS SCREEN STYLES */
-#login-screen {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: radial-gradient(circle at 10% 20%, hsl(224, 30%, 15%) 0%, var(--bg-main) 90%);
-    width: 100%;
-}
-
-.login-card {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: 40px 30px;
-    box-shadow: var(--shadow-lg);
-    backdrop-filter: blur(8px);
-}
-
-/* 4. DASHBOARD LAYOUT STYLES */
-#main-screen {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    height: 100vh;
-}
-
-/* Sidebar */
-.sidebar {
-    background-color: var(--bg-card);
-    border-right: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-}
-
-.sidebar-brand {
-    padding: 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.icon-brand {
-    font-size: 1.5rem;
-    color: var(--color-secondary);
-}
-
-.sidebar-brand h2 {
-    font-size: 1.3rem;
+h1,
+h2,
+h3,
+h4 {
+    font-family: var(--rotulo);
     font-weight: 600;
-    letter-spacing: 0.5px;
+    line-height: 1.1;
+    text-wrap: balance;
+    letter-spacing: 0.005em;
 }
 
-.sidebar-menu {
-    flex: 1;
-    padding: 20px 14px;
+h1 {
+    font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2.1rem);
 }
 
-.sidebar-menu ul {
-    list-style: none;
+h2 {
+    font-size: 1.35rem;
 }
 
-.menu-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    font-weight: 500;
-    cursor: pointer;
-    margin-bottom: 8px;
-    transition: var(--transition-fast);
-}
-
-.menu-item i {
+h3 {
     font-size: 1.1rem;
-    width: 20px;
-    text-align: center;
-    color: var(--text-muted);
-    transition: var(--transition-fast);
 }
 
-.menu-item:hover {
-    background-color: hsla(220, 20%, 30%, 0.2);
-    color: var(--text-primary);
+/* El rótulo de señalética: versalitas anchas, como un cartel de carril. */
+.rotulo {
+    font-family: var(--rotulo);
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--acero);
 }
 
-.menu-item:hover i {
-    color: var(--text-primary);
+/* Todo dato transcribible: pasaportes, folios, teléfonos, credenciales. */
+.dato {
+    font-family: var(--dato);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
 }
 
-.menu-item.active {
-    background-color: hsla(263, 70%, 55%, 0.15);
-    color: var(--text-primary);
+.tenue {
+    color: var(--tinta-tenue);
 }
 
-.menu-item.active i {
-    color: var(--color-secondary);
+.medio {
+    color: var(--tinta-media);
 }
 
-.sidebar-footer {
-    padding: 20px 14px;
-    border-top: 1px solid var(--border-color);
+/* La prosa se corta a una medida legible; una línea de 200 caracteres cansa. */
+.prosa {
+    max-width: 68ch;
 }
 
-/* Content Area */
-.content-wrapper {
+/* ---------------------------------------------------------------------------
+   5. LA SALA · estructura general
+   --------------------------------------------------------------------------- */
+
+.sala {
+    display: grid;
+    grid-template-columns: var(--rail-ancho) minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+.recinto {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+}
+
+.recinto-pleno {
+    grid-column: 1 / -1;
+}
+
+/* ---------------------------------------------------------------------------
+   6. EL RIEL · la columna de paneles colgados
+   --------------------------------------------------------------------------- */
+
+.rail {
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    color: var(--panel-tinta);
+    position: sticky;
+    top: 0;
     height: 100vh;
+}
+
+.rail-marca {
+    display: flex;
+    align-items: center;
+    gap: var(--e3);
+    padding: var(--e5) var(--e4) var(--e4);
+}
+
+/* El símbolo se dibujó para fondo claro, así que sobre el panel viaja en su
+   propia placa, exactamente como una marca aplicada sobre un cartel oscuro.
+   Aclararlo con un filtro lo dejaría lavado y perdería el detalle del globo. */
+.rail-marca .placa-marca {
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    flex-shrink: 0;
+    background: var(--sala);
+    border-radius: var(--canto);
+    padding: 0.35rem;
+}
+
+.rail-marca img {
+    width: 100%;
+    height: auto;
+}
+
+.rail-marca .nombre {
+    font-family: var(--rotulo);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.rail-marca .oficio {
+    display: block;
+    font-family: var(--rotulo);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--panel-tinta-tenue);
+    margin-top: 2px;
+}
+
+.rail-seccion {
+    font-family: var(--rotulo);
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--panel-tinta-tenue);
+    padding: var(--e4) var(--e4) var(--e2);
+}
+
+.rail-menu {
+    flex: 1;
     overflow-y: auto;
 }
 
-.top-navbar {
-    height: 70px;
-    padding: 0 40px;
+.rail-menu ul {
+    list-style: none;
+}
+
+/* Cada carril es una franja de ancho completo, no un botón con esquinas.
+   La marca activa es una barra de salvia en el borde: así es como un cartel
+   señala el carril abierto. */
+.carril {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border-color);
-    background-color: hsla(224, 25%, 12%, 0.6);
-    backdrop-filter: blur(10px);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-.page-title h1 {
-    font-size: 1.4rem;
-    font-weight: 600;
-}
-
-.top-navbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.api-status-badge {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.api-status-badge.success {
-    background-color: var(--color-success-bg);
-    color: var(--color-success);
-    border: 1px solid hsla(142, 70%, 45%, 0.3);
-}
-
-.api-status-badge.error {
-    background-color: hsla(354, 70%, 54%, 0.15);
-    color: var(--color-danger);
-    border: 1px solid hsla(354, 70%, 54%, 0.3);
-}
-
-.user-profile {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.user-profile .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background-color: hsla(220, 20%, 30%, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-secondary);
-}
-
-.user-profile span {
-    font-size: 0.9rem;
+    gap: var(--e3);
+    width: 100%;
+    padding: var(--e3) var(--e4);
+    border: 0;
+    border-left: 4px solid transparent;
+    background: transparent;
+    color: var(--panel-tinta);
+    font-family: var(--rotulo);
+    font-size: 0.95rem;
     font-weight: 500;
-    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 120ms linear, border-color 120ms linear;
 }
 
-/* Views */
-.views-container {
-    padding: 40px;
+.carril:hover {
+    background: var(--panel-alto);
+}
+
+.carril.activo {
+    background: var(--panel-hondo);
+    border-left-color: var(--carril);
+    color: #fff;
+}
+
+.carril .cuenta {
+    margin-left: auto;
+    font-family: var(--dato);
+    font-size: 0.8rem;
+    color: var(--panel-tinta-tenue);
+    font-variant-numeric: tabular-nums;
+}
+
+.carril.activo .cuenta {
+    color: var(--carril);
+}
+
+.rail-pie {
+    padding: var(--e4);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Un botón secundario hereda tinta oscura, que sobre el panel es invisible.
+   Dentro del riel se reencuadra con la tinta del propio panel. */
+.rail .boton.secundario {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--panel-tinta);
+}
+
+.rail .boton.secundario:hover:not(:disabled) {
+    background: var(--panel-alto);
+    border-color: var(--carril);
+    color: #fff;
+}
+
+/* ---------------------------------------------------------------------------
+   7. LA CABECERA DE SALA
+   --------------------------------------------------------------------------- */
+
+.cabecera {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--e5);
+    flex-wrap: wrap;
+    padding: var(--e5) var(--e6) var(--e4);
+    border-bottom: 1px solid var(--regla);
+    background: var(--sala);
+}
+
+.cabecera h1 {
+    color: var(--panel);
+}
+
+.cabecera .subtitulo {
+    color: var(--tinta-media);
+    font-size: 0.9rem;
+    margin-top: var(--e1);
+}
+
+.cabecera-acciones {
+    display: flex;
+    align-items: center;
+    gap: var(--e4);
+}
+
+/* Estado de la base: una placa, como el letrero de una ventanilla. */
+.placa-estado {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--e2);
+    padding: var(--e1) var(--e3);
+    border-radius: var(--canto);
+    font-family: var(--rotulo);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.placa-estado.abierta {
+    background: var(--carril-vela);
+    color: var(--carril-tinta);
+}
+
+.placa-estado.cerrada {
+    background: var(--rojo-vela);
+    color: var(--rojo);
+}
+
+.identidad {
+    display: flex;
+    align-items: center;
+    gap: var(--e2);
+    padding-left: var(--e4);
+    border-left: 1px solid var(--regla);
+}
+
+.identidad .quien {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.identidad .quien strong {
+    font-family: var(--rotulo);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.identidad .quien span {
+    font-family: var(--rotulo);
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--acero);
+}
+
+.vista {
+    padding: var(--e5) var(--e6) var(--e7);
     flex: 1;
 }
 
-.view.active {
-    display: block;
-}
+/* ---------------------------------------------------------------------------
+   8. EL BUSCADOR · a escala de rótulo
+   La primera acción real de la jornada es encontrar a una persona, así que
+   ocupa el ancho y se lee como el cartel de una ventanilla, no como un campo
+   de formulario más.
+   --------------------------------------------------------------------------- */
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* 5. VISTA DASHBOARD (MÉTRICAS) */
-.grid-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 24px;
-    margin-bottom: 40px;
-}
-
-.stat-card {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: 24px;
+.buscador {
     display: flex;
     align-items: center;
-    gap: 20px;
-    transition: var(--transition-fast);
+    gap: var(--e3);
+    background: #fff;
+    border: 1px solid var(--regla);
+    border-bottom: 3px solid var(--panel);
+    padding: var(--e3) var(--e4);
+    transition: border-color 120ms linear;
 }
 
-.stat-card:hover {
-    transform: translateY(-4px);
-    background-color: var(--bg-card-hover);
-    box-shadow: var(--shadow-md);
+.buscador:focus-within {
+    border-bottom-color: var(--carril-hondo);
 }
 
-.stat-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.buscador > app-picto {
+    color: var(--acero);
+}
+
+.buscador input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-family: var(--rotulo);
     font-size: 1.4rem;
-}
-
-.stat-card.p-purple .stat-icon { background-color: rgba(138, 43, 226, 0.15); color: #a060ff; }
-
-.stat-card.p-blue .stat-icon { background-color: rgba(30, 144, 255, 0.15); color: #4facfe; }
-
-.stat-card.p-teal .stat-icon { background-color: rgba(0, 206, 209, 0.15); color: #00f2fe; }
-
-.stat-card.p-orange .stat-icon { background-color: rgba(255, 140, 0, 0.15); color: #ff9f43; }
-
-.stat-info h3 {
-    font-size: 0.9rem;
     font-weight: 500;
-    color: var(--text-secondary);
-    margin-bottom: 4px;
+    color: var(--tinta);
+    min-width: 0;
 }
 
-.stat-number {
-    font-size: 1.8rem;
-    font-weight: 700;
+.buscador input::placeholder {
+    color: var(--tinta-tenue);
 }
 
-.dashboard-banner {
-    background: linear-gradient(135deg, hsla(263, 70%, 55%, 0.15) 0%, hsla(190, 85%, 50%, 0.05) 100%);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 40px;
+.buscador .pista {
+    font-family: var(--rotulo);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--tinta-tenue);
+    white-space: nowrap;
 }
 
-.banner-content h2 {
-    font-size: 1.6rem;
-    font-weight: 600;
-    margin-bottom: 12px;
-}
+/* ---------------------------------------------------------------------------
+   9. EL MARCAJE · recuentos como renglón de ventanilla
+   Deliberadamente no son tarjetas: cuatro cajas iguales con icono, título y
+   número son el patrón por defecto de esta categoría. Aquí es un solo renglón
+   con reglas verticales, como el marcaje de una hoja de control.
+   --------------------------------------------------------------------------- */
 
-.banner-content p {
-    color: var(--text-secondary);
-    line-height: 1.6;
-    max-width: 680px;
-}
-
-.banner-ill {
-    font-size: 4.5rem;
-    color: var(--color-primary);
-    opacity: 0.5;
-}
-
-/* 6. VISTAS CRUD (TABLAS Y PAGINACIÓN) */
-.crud-actions-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    gap: 20px;
-}
-
-.search-box {
-    position: relative;
-    width: 100%;
-    max-width: 380px;
-}
-
-.search-box i {
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-}
-
-.search-box input {
-    width: 100%;
-    padding: 12px 16px 12px 44px;
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    transition: var(--transition-fast);
-}
-
-.search-box input:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px hsla(263, 70%, 55%, 0.2);
-}
-
-/* Tablas */
-.table-container {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-}
-
-th, td {
-    padding: 16px 24px;
-    font-size: 0.92rem;
-}
-
-th {
-    background-color: hsla(224, 25%, 10%, 0.4);
-    font-weight: 600;
-    color: var(--text-secondary);
-    border-bottom: 1px solid var(--border-color);
-}
-
-td {
-    border-bottom: 1px solid hsla(220, 20%, 30%, 0.2);
-    color: var(--text-primary);
-}
-
-tr:last-child td {
-    border-bottom: none;
-}
-
-tr:hover td {
-    background-color: hsla(220, 20%, 30%, 0.1);
-}
-
-/* Celdas con botones */
-.table-actions {
-    display: flex;
-    gap: 8px;
-}
-
-/* Paginación */
-.pagination-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 20px;
-}
-
-/* Forzar columnas completas en modales pequeños o campos largos */
-.grid-col-2 {
-    grid-column: span 2;
-}
-
-/* Password Modal specific styling */
-.pwd-instruction {
-    color: var(--text-secondary);
-    font-size: 0.88rem;
-    margin-bottom: 16px;
-}
-
-/* 8. TOAST NOTIFICATIONS */
-#toast-container {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    z-index: 9999;
-}
-
-.toast.success { border-left-color: var(--color-success); }
-
-.toast.error { border-left-color: var(--color-danger); }
-
-@keyframes slideIn {
-    to { transform: translateX(0); opacity: 1; }
-}
-
-/* Responsividad para pantallas pequeñas */
-@media (max-width: 900px) {
-    #main-screen {
-        grid-template-columns: 1fr;
-    }
-    .sidebar {
-        display: none;
-    }
-    .modal-grid-fields {
-        grid-template-columns: 1fr;
-    }
-    .grid-col-2 {
-        grid-column: span 1;
-    }
-}
-
-/* ===========================================================================
-   COMPONENTES DEL PANEL REFACTORIZADO
-   ===========================================================================
-   Estilos de los componentes en que se dividio el dashboard. Reutilizan las
-   variables del sistema de diseno definidas arriba, para que la interfaz siga
-   siendo una sola pieza y no dos generaciones superpuestas.
-   =========================================================================== */
-
-.app-shell {
-    display: flex;
-    min-height: 100vh;
-}
-
-.contenido-pleno {
-    width: 100%;
-}
-
-/* -- Barra de acciones de las tablas ------------------------------------- */
-
-.barra-acciones {
+.marcaje {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+    border: 1px solid var(--regla);
+    border-left: 0;
+    background: #fff;
+    margin-top: var(--e5);
 }
 
-.barra-acciones .search-box {
-    flex: 1 1 260px;
+.marcaje-celda {
+    flex: 1 1 9rem;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: baseline;
+    gap: var(--e2);
+    padding: var(--e3) var(--e4);
+    border-left: 1px solid var(--regla);
+    text-decoration: none;
+    color: inherit;
+    transition: background 120ms linear;
+}
+
+button.marcaje-celda:hover {
+    background: var(--carril-vela);
+}
+
+span.marcaje-celda {
+    cursor: default;
+}
+
+.marcaje-celda .cifra {
+    font-family: var(--dato);
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--panel);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.marcaje-celda .etiqueta {
+    font-family: var(--rotulo);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--acero);
+}
+
+/* ---------------------------------------------------------------------------
+   10. EL TABLERO · filas densas con su carril
+   --------------------------------------------------------------------------- */
+
+.tablero {
+    margin-top: var(--e5);
+    background: #fff;
+    border: 1px solid var(--regla);
+    overflow-x: auto;
+}
+
+.tablero table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.tablero thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--panel);
+    color: var(--panel-tinta);
+    font-family: var(--rotulo);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: var(--e3) var(--e4);
+    white-space: nowrap;
+}
+
+.tablero tbody td {
+    padding: var(--e3) var(--e4);
+    border-top: 1px solid var(--regla-fina);
+    vertical-align: middle;
+}
+
+.tablero tbody tr:hover {
+    background: var(--carril-vela);
+}
+
+/* Los valores que se transcriben a otro portal van en la mono legible. */
+.tablero td.dato {
+    font-family: var(--dato);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.tablero td.nombre {
+    font-weight: 700;
+    color: var(--panel);
+    white-space: nowrap;
+}
+
+.tablero .acciones {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.tablero .vacio {
+    padding: var(--e7) var(--e4);
+    text-align: center;
+    color: var(--tinta-media);
+}
+
+/* Una fila dada de baja se distingue por estructura además de por color:
+   franja diagonal de fondo, no solo un tono más claro. */
+.fila-archivada {
+    background-image: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 6px,
+        var(--sala-hueco) 6px,
+        var(--sala-hueco) 12px
+    );
+    color: var(--tinta-media);
+}
+
+.fila-archivada td.nombre {
+    color: var(--tinta-media);
+}
+
+/* Distintivo de carril: qué tipo de trámite es esta fila. */
+.distintivo {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--e1);
+    padding: 2px var(--e2);
+    border-radius: var(--canto);
+    background: var(--sala-hueco);
+    color: var(--acero);
+    font-family: var(--rotulo);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.distintivo.activo {
+    background: var(--carril-vela);
+    color: var(--carril-tinta);
+}
+
+.distintivo.baja {
+    background: var(--sala-honda);
+    color: var(--tinta-media);
+}
+
+.distintivo.info {
+    background: #e3edf0;
+    color: var(--acero);
+}
+
+.distintivo.advertencia {
+    background: var(--ambar-vela);
+    color: var(--ambar);
+}
+
+.distintivo.alerta {
+    background: var(--rojo-vela);
+    color: var(--rojo);
+}
+
+/* ---------------------------------------------------------------------------
+   11. CONTROLES
+   --------------------------------------------------------------------------- */
+
+.boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--e2);
+    padding: var(--e2) var(--e4);
+    border: 1px solid transparent;
+    border-radius: var(--canto);
+    background: var(--panel);
+    color: var(--panel-tinta);
+    font-family: var(--rotulo);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 120ms linear, color 120ms linear;
+}
+
+.boton:hover:not(:disabled) {
+    background: var(--panel-hondo);
+}
+
+.boton:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.boton.secundario {
+    background: transparent;
+    border-color: var(--regla);
+    color: var(--panel);
+}
+
+.boton.secundario:hover:not(:disabled) {
+    background: var(--sala-hueco);
+    border-color: var(--acero-claro);
+}
+
+.boton.peligro {
+    background: var(--rojo);
+    color: #fff;
+}
+
+.boton.peligro:hover:not(:disabled) {
+    background: #82231e;
+}
+
+.boton.bloque {
+    width: 100%;
+}
+
+/* Botón de icono: un cuadro de control, no una pastilla flotante. */
+.boton-icono {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid transparent;
+    border-radius: var(--canto);
+    background: transparent;
+    color: var(--acero);
+    cursor: pointer;
+    transition: background 120ms linear, color 120ms linear, border-color 120ms linear;
+}
+
+.boton-icono:hover {
+    background: var(--sala-hueco);
+    border-color: var(--regla);
+    color: var(--panel);
+}
+
+.boton-icono.peligro:hover {
+    background: var(--rojo-vela);
+    border-color: var(--rojo);
+    color: var(--rojo);
+}
+
+/* El único control dorado del sistema: revelar la credencial de un cliente. */
+.boton-icono.cordon {
+    color: var(--cordon);
+}
+
+.boton-icono.cordon:hover {
+    background: var(--cordon-vela);
+    border-color: var(--cordon);
+    color: var(--cordon);
+}
+
+/* ---------------------------------------------------------------------------
+   12. CAMPOS
+   --------------------------------------------------------------------------- */
+
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: var(--e1);
+    margin-bottom: var(--e4);
+}
+
+.campo > .nombre-campo {
+    font-family: var(--rotulo);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--acero);
+}
+
+.campo .obligatorio {
+    color: var(--rojo);
+    font-style: normal;
+}
+
+.campo input,
+.campo select {
+    width: 100%;
+    padding: var(--e2) var(--e3);
+    border: 1px solid var(--regla);
+    border-radius: var(--canto);
+    background: #fff;
+    color: var(--tinta);
+    font-family: var(--lectura);
+    font-size: 0.95rem;
+    transition: border-color 120ms linear;
+}
+
+/* Los campos que capturan datos transcribibles se escriben en la mono. */
+.campo input[name='numero_pasaporte'],
+.campo input[name='telefono'],
+.campo input[name='id_solicitud'],
+.campo input[name='cuenta_ircc'],
+.campo input[type='password'],
+.campo input[type='date'] {
+    font-family: var(--dato);
+    font-variant-numeric: tabular-nums;
+}
+
+.campo input:focus,
+.campo select:focus {
+    border-color: var(--panel);
+    outline: 0;
+}
+
+.campo input:disabled {
+    background: var(--sala-hueco);
+    color: var(--tinta-media);
+}
+
+.campo .ayuda {
+    font-size: 0.78rem;
+    color: var(--tinta-media);
+}
+
+.campo-linea {
+    display: flex;
+    align-items: center;
+    gap: var(--e2);
+    border: 1px solid var(--regla);
+    border-radius: var(--canto);
+    background: #fff;
+    padding-right: var(--e1);
+    transition: border-color 120ms linear;
+}
+
+.campo-linea:focus-within {
+    border-color: var(--panel);
+}
+
+.campo-linea > app-picto {
+    color: var(--acero);
+    padding-left: var(--e3);
+}
+
+.campo-linea input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    padding: var(--e2) var(--e2);
+    font-family: var(--lectura);
+    font-size: 0.95rem;
+    color: var(--tinta);
+    min-width: 0;
 }
 
 .interruptor {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    color: var(--text-secondary);
+    gap: var(--e2);
+    font-family: var(--rotulo);
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--acero);
     cursor: pointer;
     user-select: none;
-    font-size: 0.9rem;
 }
 
 .interruptor input {
-    accent-color: var(--color-primary);
     width: 1rem;
     height: 1rem;
     cursor: pointer;
 }
 
-/* -- Tablas -------------------------------------------------------------- */
+/* ---------------------------------------------------------------------------
+   13. AVISOS
+   Sin barra lateral de color gruesa: el aviso es una placa completa teñida,
+   con su pictograma, como un cartel de incidencia.
+   --------------------------------------------------------------------------- */
 
-.columna-acciones {
-    white-space: nowrap;
-    text-align: right;
+.aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--e3);
+    padding: var(--e3) var(--e4);
+    border: 1px solid;
+    border-radius: var(--canto);
+    font-size: 0.9rem;
 }
 
-/* Una fila dada de baja sigue siendo legible pero se distingue de un vistazo:
-   el borrado es logico y conviene que se note que ese registro ya no cuenta. */
-.fila-archivada {
-    opacity: 0.55;
+.aviso.error {
+    background: var(--rojo-vela);
+    border-color: rgba(158, 43, 37, 0.35);
+    color: #7d211c;
 }
 
-.fila-archivada td {
-    text-decoration: line-through;
-    text-decoration-color: var(--text-muted);
+.aviso.atencion {
+    background: var(--ambar-vela);
+    border-color: rgba(169, 100, 27, 0.35);
+    color: #854d14;
 }
 
-.fila-archivada .columna-acciones {
-    text-decoration: none;
+.aviso.dato {
+    background: var(--carril-vela);
+    border-color: rgba(63, 127, 104, 0.35);
+    color: var(--carril-tinta);
+    font-family: var(--lectura);
 }
 
-.etiqueta {
-    display: inline-block;
-    padding: 0.15rem 0.6rem;
-    border-radius: 999px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+/* ---------------------------------------------------------------------------
+   14. DIÁLOGOS · la persiana de ventanilla
+   El único momento con movimiento autorizado del sistema. Un diálogo aquí no
+   aparece con un desvanecido genérico: baja como la persiana de una
+   ventanilla que se abre.
+   --------------------------------------------------------------------------- */
+
+.telon {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: var(--e4);
+    background: rgba(0, 45, 54, 0.45);
+    animation: telon-entra 140ms ease-out;
+}
+
+.ventanilla {
+    width: min(38rem, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: var(--sala);
+    border: 1px solid var(--panel);
+    border-radius: var(--canto-panel);
+    box-shadow: var(--sombra-alta);
+    transform-origin: top center;
+    animation: persiana 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ventanilla.angosta {
+    width: min(28rem, 100%);
+}
+
+@keyframes telon-entra {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes persiana {
+    from {
+        transform: scaleY(0.82) translateY(-6%);
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .telon,
+    .ventanilla {
+        animation: none;
+    }
+}
+
+.ventanilla-cabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e4);
+    padding: var(--e3) var(--e4);
+    background: var(--panel);
+    color: var(--panel-tinta);
+}
+
+.ventanilla-cabecera h3 {
+    display: flex;
+    align-items: center;
+    gap: var(--e2);
+    font-size: 1rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
 }
 
-.etiqueta-archivado {
-    background: hsla(215, 15%, 55%, 0.18);
-    color: var(--text-muted);
+.ventanilla-cabecera .boton-icono {
+    color: var(--panel-tinta-tenue);
 }
 
-.etiqueta-info {
-    background: hsla(190, 85%, 50%, 0.15);
-    color: var(--color-secondary);
+.ventanilla-cabecera .boton-icono:hover {
+    background: var(--panel-alto);
+    border-color: transparent;
+    color: #fff;
 }
 
-.etiqueta-advertencia {
-    background: hsla(38, 92%, 55%, 0.18);
-    color: hsl(38, 92%, 62%);
+.ventanilla-cuerpo {
+    padding: var(--e5) var(--e4);
 }
 
-.etiqueta-alerta {
-    background: hsla(354, 70%, 54%, 0.18);
-    color: var(--color-danger-hover);
-}
-
-.celda-detalle {
-    max-width: 22rem;
-    overflow-wrap: anywhere;
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}
-
-/* -- Paginacion ---------------------------------------------------------- */
-
-.paginacion {
+.ventanilla-pie {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-top: 1rem;
+    justify-content: flex-end;
+    gap: var(--e2);
+    padding: var(--e3) var(--e4);
+    border-top: 1px solid var(--regla);
+    background: var(--sala-hueco);
 }
 
-.paginacion-controles {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.paginacion-controles button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-/* -- Formularios y campos ------------------------------------------------ */
-
-.campo {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    margin-bottom: 1rem;
-}
-
-.campo > span {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-}
-
-.campo .requerido {
-    color: var(--color-danger);
-    font-style: normal;
-}
-
-.campo-en-linea {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0;
-}
-
-.campo-control {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0 0.85rem;
-    background: var(--bg-main);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    transition: border-color 0.2s ease;
-}
-
-.campo-control:focus-within {
-    border-color: var(--color-primary);
-}
-
-.campo-control > i {
-    color: var(--text-muted);
-}
-
-.campo-control input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text-primary);
-    padding: 0.75rem 0;
-    font-size: 0.95rem;
-}
-
-.campo input,
-.campo select {
-    background: var(--bg-main);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    padding: 0.7rem 0.85rem;
-    font-size: 0.95rem;
-    outline: none;
-    transition: border-color 0.2s ease;
-}
-
-.campo input:focus,
-.campo select:focus {
-    border-color: var(--color-primary);
-}
-
-.campo input:disabled {
-    opacity: 0.6;
-}
-
-/* La credencial se muestra en fuente monoespaciada: distinguir una l de una I
-   o un 0 de una O importa cuando hay que teclearla en otro sitio. */
-.credencial input {
-    font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Code', monospace;
-    letter-spacing: 0.06em;
-}
-
-.rejilla-formulario {
+.rejilla-campos {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 1rem;
+    gap: 0 var(--e4);
 }
 
 .campo-ancho {
     grid-column: 1 / -1;
 }
 
-@media (max-width: 640px) {
-    .rejilla-formulario {
+/* ---------------------------------------------------------------------------
+   15. LA PLACA DE CREDENCIAL · lo único dorado
+   --------------------------------------------------------------------------- */
+
+.placa-credencial {
+    border: 1px solid var(--cordon);
+    border-top: 3px solid var(--cordon);
+    background: var(--cordon-vela);
+    padding: var(--e4);
+}
+
+.placa-credencial .procedencia {
+    font-family: var(--rotulo);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cordon);
+    margin-bottom: var(--e2);
+}
+
+.placa-credencial .valor {
+    display: flex;
+    align-items: center;
+    gap: var(--e2);
+    background: #fff;
+    border: 1px solid rgba(168, 134, 46, 0.4);
+    padding: var(--e2) var(--e3);
+}
+
+.placa-credencial .valor input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-family: var(--dato);
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--tinta);
+    min-width: 0;
+}
+
+.placa-credencial .valor .boton-icono {
+    color: var(--cordon);
+}
+
+.placa-credencial .valor .boton-icono:hover {
+    background: var(--cordon-vela);
+    border-color: var(--cordon);
+}
+
+/* El folio del asiento: la prueba de que la consulta quedó registrada. */
+.folio-auditoria {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--e2);
+    margin-top: var(--e3);
+    font-size: 0.82rem;
+    color: var(--tinta-media);
+}
+
+.folio-auditoria strong {
+    font-family: var(--dato);
+    color: var(--panel);
+}
+
+/* ---------------------------------------------------------------------------
+   16. PAGINACIÓN
+   --------------------------------------------------------------------------- */
+
+.paginacion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--e3);
+    margin-top: var(--e4);
+    font-family: var(--rotulo);
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--acero);
+}
+
+.paginacion .cifra {
+    font-family: var(--dato);
+    font-variant-numeric: tabular-nums;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--panel);
+    font-weight: 700;
+}
+
+.paginacion-controles {
+    display: flex;
+    gap: var(--e2);
+}
+
+/* ---------------------------------------------------------------------------
+   17. BARRA DE ACCIONES
+   --------------------------------------------------------------------------- */
+
+.barra-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--e3);
+    margin-bottom: var(--e4);
+}
+
+.barra-acciones .buscador {
+    flex: 1 1 20rem;
+}
+
+/* ---------------------------------------------------------------------------
+   18. ACCESO
+   La pantalla de acceso es el cartel de entrada: el logotipo completo sobre
+   la sala, y el formulario como una placa de ventanilla.
+   --------------------------------------------------------------------------- */
+
+.acceso {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr;
+    place-items: center;
+    padding: var(--e5);
+    background:
+        linear-gradient(180deg, var(--sala) 0%, var(--sala-hueco) 100%);
+}
+
+.acceso-placa {
+    width: min(26rem, 100%);
+    background: #fff;
+    border: 1px solid var(--regla);
+    border-top: 4px solid var(--panel);
+    box-shadow: var(--sombra-baja);
+}
+
+.acceso-marca {
+    text-align: center;
+    padding: var(--e6) var(--e5) var(--e4);
+    border-bottom: 1px solid var(--regla-fina);
+}
+
+.acceso-marca img {
+    width: 6.5rem;
+    height: auto;
+}
+
+.acceso-marca .oficio {
+    display: block;
+    font-family: var(--rotulo);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--acero);
+    margin-top: var(--e2);
+}
+
+.acceso-cuerpo {
+    padding: var(--e5);
+}
+
+.acceso-nota {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--e2);
+    padding: var(--e3) var(--e5) var(--e5);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--tinta-media);
+}
+
+.acceso-nota app-picto {
+    color: var(--acero);
+    flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   19. EXPEDIENTE · los trámites de una persona
+   --------------------------------------------------------------------------- */
+
+.expediente {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--e2);
+    margin-top: var(--e2);
+}
+
+/* ---------------------------------------------------------------------------
+   20. ADAPTACIÓN
+   La escena móvil es de lectura y búsqueda, no de captura: el riel se convierte
+   en una barra de carriles desplazable y la tabla se lee por tarjetas de fila.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 62rem) {
+    .sala {
+        grid-template-columns: 1fr;
+    }
+
+    .rail {
+        position: static;
+        height: auto;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--e2);
+        overflow-x: auto;
+        padding-right: var(--e2);
+    }
+
+    .rail-marca {
+        padding: var(--e3);
+        flex-shrink: 0;
+    }
+
+    .rail-marca .oficio,
+    .rail-seccion {
+        display: none;
+    }
+
+    .rail-menu {
+        overflow: visible;
+    }
+
+    .rail-menu ul {
+        display: flex;
+        gap: var(--e1);
+    }
+
+    .carril {
+        border-left: 0;
+        border-bottom: 3px solid transparent;
+        white-space: nowrap;
+        padding: var(--e3);
+    }
+
+    .carril.activo {
+        border-left-color: transparent;
+        border-bottom-color: var(--carril);
+    }
+
+    .carril .cuenta {
+        display: none;
+    }
+
+    .rail-pie {
+        border-top: 0;
+        border-left: 1px solid rgba(255, 255, 255, 0.12);
+        padding: var(--e2) var(--e3);
+        margin-left: auto;
+    }
+
+    .rail-pie .boton {
+        padding: var(--e2);
+    }
+
+    .rail-pie .boton span {
+        display: none;
+    }
+
+    .cabecera,
+    .vista {
+        padding-left: var(--e4);
+        padding-right: var(--e4);
+    }
+
+    .buscador input {
+        font-size: 1.1rem;
+    }
+
+    .rejilla-campos {
         grid-template-columns: 1fr;
     }
 }
 
-/* -- Botones de icono ---------------------------------------------------- */
+@media (max-width: 46rem) {
+    /* Cada fila se convierte en una ficha etiquetada: en un teléfono, una
+       tabla de nueve columnas obliga a desplazar en dos ejes a la vez. */
+    .tablero {
+        border: 0;
+        background: transparent;
+        overflow: visible;
+    }
 
-.boton-icono {
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 0.45rem;
-    border-radius: var(--radius-sm);
-    transition: background 0.15s ease, color 0.15s ease;
-}
+    .tablero thead {
+        display: none;
+    }
 
-.boton-icono:hover {
-    background: var(--bg-card-hover);
-    color: var(--text-primary);
-}
+    .tablero table,
+    .tablero tbody,
+    .tablero tr,
+    .tablero td {
+        display: block;
+        width: 100%;
+    }
 
-.boton-icono.peligro:hover {
-    color: var(--color-danger-hover);
-}
+    .tablero tbody tr {
+        background: #fff;
+        border: 1px solid var(--regla);
+        margin-bottom: var(--e3);
+        overflow: hidden;
+    }
 
-/* -- Modales ------------------------------------------------------------- */
+    /* La celda del nombre asciende a cabecera del cartel: panel verde con la
+       persona en claro, igual que el rótulo superior de una señal. Se coloca
+       arriba con `order` porque en la tabla no es la primera columna, y así se
+       evita además la barra lateral de color que delata a cualquier interfaz
+       generada. */
+    .tablero tbody tr {
+        display: flex;
+        flex-direction: column;
+    }
 
-.modal-fondo {
-    position: fixed;
-    inset: 0;
-    background: hsla(224, 30%, 6%, 0.72);
-    backdrop-filter: blur(3px);
-    display: grid;
-    place-items: center;
-    padding: 1.5rem;
-    z-index: 50;
-}
+    .tablero tbody td.nombre {
+        order: -1;
+        display: block;
+        background: var(--panel);
+        color: var(--panel-tinta);
+        font-family: var(--rotulo);
+        font-size: 1.05rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: var(--e2) var(--e3);
+        text-align: left;
+    }
 
-.modal {
-    width: min(38rem, 100%);
-    max-height: 90vh;
-    overflow-y: auto;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-}
+    .tablero tbody td.nombre::before {
+        content: none;
+    }
 
-.modal-angosto {
-    width: min(26rem, 100%);
-}
+    .tablero tbody td {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--e4);
+        border-top: 0;
+        padding: var(--e1) var(--e3);
+        text-align: right;
+    }
 
-.modal-cabecera,
-.modal-pie {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.15rem 1.4rem;
-}
+    .tablero tbody td.nombre + td,
+    .tablero tbody td:first-child {
+        padding-top: var(--e2);
+    }
 
-.modal-cabecera {
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border-color);
-}
+    .tablero tbody tr:last-child {
+        margin-bottom: 0;
+    }
 
-.modal-cabecera h3 {
-    font-size: 1.05rem;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-}
+    .tablero tbody td::before {
+        content: attr(data-etiqueta);
+        font-family: var(--rotulo);
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--acero);
+        text-align: left;
+        flex-shrink: 0;
+    }
 
-.modal-cuerpo {
-    padding: 1.4rem;
-}
+    .tablero .acciones {
+        justify-content: flex-end;
+        padding-top: var(--e2);
+        margin-top: var(--e1);
+        border-top: 1px solid var(--regla-fina);
+    }
 
-.modal-pie {
-    justify-content: flex-end;
-    border-top: 1px solid var(--border-color);
-}
+    .tablero .acciones::before {
+        content: none;
+    }
 
-/* -- Avisos -------------------------------------------------------------- */
-
-.alerta {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    padding: 0.8rem 1rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.9rem;
-    margin: 0 1.4rem 1rem;
-}
-
-form > .alerta,
-.vista > .alerta {
-    margin: 0 0 1rem;
-}
-
-.alerta-error {
-    background: hsla(354, 70%, 54%, 0.14);
-    color: var(--color-danger-hover);
-    border: 1px solid hsla(354, 70%, 54%, 0.3);
-}
-
-.alerta-aviso {
-    background: hsla(38, 92%, 55%, 0.14);
-    color: hsl(38, 92%, 68%);
-    border: 1px solid hsla(38, 92%, 55%, 0.3);
-}
-
-.nota-auditoria {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    margin-top: 1rem;
-    font-size: 0.82rem;
-    color: var(--text-muted);
-}
-
-/* -- Login --------------------------------------------------------------- */
-
-.login-screen {
-    min-height: 100vh;
-    display: grid;
-    place-items: center;
-    padding: 1.5rem;
-    background:
-        radial-gradient(circle at 15% 20%, hsla(263, 70%, 55%, 0.16), transparent 45%),
-        radial-gradient(circle at 85% 80%, hsla(190, 85%, 50%, 0.12), transparent 45%),
-        var(--bg-main);
-}
-
-.login-card {
-    width: min(24rem, 100%);
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    padding: 2.2rem 1.9rem;
-}
-
-.login-brand {
-    text-align: center;
-    margin-bottom: 1.8rem;
-}
-
-.login-brand .icon-brand {
-    font-size: 2.2rem;
-    color: var(--color-primary);
-}
-
-.login-brand h1 {
-    margin-top: 0.5rem;
-    font-size: 1.7rem;
-}
-
-.login-nota {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.55rem;
-    margin-top: 1.5rem;
-    font-size: 0.78rem;
-    line-height: 1.45;
-}
-
-/* -- Perfil de usuario en la barra superior ------------------------------ */
-
-.user-datos {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.25;
-}
-
-.user-datos small {
-    font-size: 0.72rem;
-    text-transform: capitalize;
-}
-
-/* -- Tarjetas del resumen ------------------------------------------------ */
-
-.stat-card.p-master_tramex .stat-icon { background: hsla(263, 70%, 55%, 0.18); color: hsl(263, 70%, 70%); }
-
-.stat-card.p-global_entry .stat-icon { background: hsla(212, 90%, 55%, 0.18); color: hsl(212, 90%, 70%); }
-
-.stat-card.p-pasaportes .stat-icon { background: hsla(172, 70%, 45%, 0.18); color: hsl(172, 70%, 60%); }
-
-.stat-card.p-canada .stat-icon { background: hsla(20, 90%, 55%, 0.18); color: hsl(20, 90%, 68%); }
-
-/* La navegacion lateral usa botones (son acciones, no enlaces), asi que hay
-   que devolverles el aspecto que tenian como elementos de lista. */
-.sidebar-menu .menu-item {
-    width: 100%;
-    background: transparent;
-    border: none;
-    text-align: left;
-    font: inherit;
-    cursor: pointer;
-    color: inherit;
-    text-decoration: none;
+    .marcaje-celda {
+        flex-basis: 50%;
+    }
 }

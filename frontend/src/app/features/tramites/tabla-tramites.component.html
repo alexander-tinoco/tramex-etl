@@ -1,13 +1,14 @@
-<section class="vista">
+<section>
   <div class="barra-acciones">
-    <div class="search-box">
-      <i class="fa-solid fa-magnifying-glass"></i>
+    <div class="buscador">
+      <app-picto nombre="buscar" [tamano]="20" />
       <input
         type="search"
         placeholder="Buscar por nombre…"
         [value]="busqueda()"
         (input)="buscar($event)"
         aria-label="Buscar por nombre"
+        autocomplete="off"
       />
     </div>
 
@@ -16,38 +17,39 @@
       <span>Ver dados de baja</span>
     </label>
 
-    <button type="button" class="btn-primary" (click)="abrirAlta()">
-      <i class="fa-solid fa-plus"></i> <span>Agregar registro</span>
+    <button type="button" class="boton" (click)="abrirAlta()">
+      <app-picto nombre="anadir" [tamano]="16" />
+      <span>Agregar</span>
     </button>
   </div>
 
   @if (error()) {
-    <div class="alerta alerta-error" role="alert">
-      <i class="fa-solid fa-circle-exclamation"></i>
+    <div class="aviso error" role="alert">
+      <app-picto nombre="aviso" [tamano]="18" />
       <span>{{ error() }}</span>
     </div>
   }
 
-  <div class="table-container">
+  <div class="tablero">
     <table>
       <thead>
         <tr>
           @for (columna of recurso().columnas; track columna.campo) {
-            <th>{{ columna.etiqueta }}</th>
+            <th scope="col">{{ columna.etiqueta }}</th>
           }
-          <th class="columna-acciones">Acciones</th>
+          <th scope="col" class="acciones">Acciones</th>
         </tr>
       </thead>
       <tbody>
         @if (cargando()) {
           <tr>
-            <td [attr.colspan]="recurso().columnas.length + 1" class="text-center">
-              <i class="fa-solid fa-spinner fa-spin"></i> Cargando información…
+            <td [attr.colspan]="recurso().columnas.length + 1" class="vacio">
+              Cargando registros…
             </td>
           </tr>
         } @else if (registros().length === 0) {
           <tr>
-            <td [attr.colspan]="recurso().columnas.length + 1" class="text-center text-muted">
+            <td [attr.colspan]="recurso().columnas.length + 1" class="vacio">
               @if (busqueda()) {
                 No hay resultados para «{{ busqueda() }}».
               } @else {
@@ -59,11 +61,17 @@
           @for (registro of registros(); track registro.id) {
             <tr [class.fila-archivada]="estaArchivado(registro)">
               @for (columna of recurso().columnas; track columna.campo) {
-                <td>{{ formatear(valorDe(registro, columna.campo), columna.formato) }}</td>
+                <td
+                  [attr.data-etiqueta]="columna.etiqueta"
+                  [class.dato]="esDato(columna.campo)"
+                  [class.nombre]="columna.campo === 'nombre'"
+                >
+                  {{ formatear(valorDe(registro, columna.campo), columna.formato) }}
+                </td>
               }
-              <td class="columna-acciones">
+              <td class="acciones" data-etiqueta="Acciones">
                 @if (estaArchivado(registro)) {
-                  <span class="etiqueta etiqueta-archivado">Dado de baja</span>
+                  <span class="distintivo baja">Dado de baja</span>
                   <button
                     type="button"
                     class="boton-icono"
@@ -71,18 +79,18 @@
                     title="Reactivar registro"
                     aria-label="Reactivar registro"
                   >
-                    <i class="fa-solid fa-rotate-left"></i>
+                    <app-picto nombre="restaurar" [tamano]="17" />
                   </button>
                 } @else {
                   @if (recurso().tieneCredencial) {
                     <button
                       type="button"
-                      class="boton-icono"
+                      class="boton-icono cordon"
                       (click)="credencialAbierta.set(registro.id)"
-                      title="Ver credencial (queda auditado)"
+                      title="Ver credencial · queda registrado en la bitácora"
                       aria-label="Ver credencial"
                     >
-                      <i class="fa-solid fa-key"></i>
+                      <app-picto nombre="llave" [tamano]="17" />
                     </button>
                   }
                   <button
@@ -92,7 +100,7 @@
                     title="Editar"
                     aria-label="Editar"
                   >
-                    <i class="fa-solid fa-pen-to-square"></i>
+                    <app-picto nombre="editar" [tamano]="17" />
                   </button>
                   <button
                     type="button"
@@ -101,7 +109,7 @@
                     title="Dar de baja"
                     aria-label="Dar de baja"
                   >
-                    <i class="fa-solid fa-box-archive"></i>
+                    <app-picto nombre="archivar" [tamano]="17" />
                   </button>
                 }
               </td>
@@ -113,20 +121,29 @@
   </div>
 
   <div class="paginacion">
-    <span class="text-muted">
-      {{ total() }} registro(s) · página {{ pagina() + 1 }} de {{ totalPaginas() }}
+    <span>
+      <span class="cifra">{{ total() }}</span> registro(s) ·
+      página <span class="cifra">{{ pagina() + 1 }}</span> de
+      <span class="cifra">{{ totalPaginas() }}</span>
     </span>
     <div class="paginacion-controles">
-      <button type="button" class="btn-secondary" (click)="paginaAnterior()" [disabled]="pagina() === 0">
-        <i class="fa-solid fa-chevron-left"></i> Anterior
+      <button
+        type="button"
+        class="boton secundario"
+        (click)="paginaAnterior()"
+        [disabled]="pagina() === 0"
+      >
+        <app-picto nombre="anterior" [tamano]="14" />
+        <span>Anterior</span>
       </button>
       <button
         type="button"
-        class="btn-secondary"
+        class="boton secundario"
         (click)="paginaSiguiente()"
         [disabled]="!hayPaginaSiguiente()"
       >
-        Siguiente <i class="fa-solid fa-chevron-right"></i>
+        <span>Siguiente</span>
+        <app-picto nombre="siguiente" [tamano]="14" />
       </button>
     </div>
   </div>
@@ -155,9 +172,9 @@
   <app-dialogo-confirmacion
     titulo="Dar de baja el registro"
     [mensaje]="'Se dará de baja «' + registroAArchivar()!.nombre + '».'"
-    detalle="El registro deja de aparecer en los listados pero se conserva para trazabilidad y puede reactivarse."
+    detalle="El registro deja de aparecer en los listados pero se conserva para trazabilidad y puede reactivarse en cualquier momento."
     textoConfirmar="Dar de baja"
-    icono="fa-box-archive"
+    picto="archivar"
     [peligroso]="true"
     (confirmar)="archivar()"
     (cancelar)="registroAArchivar.set(null)"
