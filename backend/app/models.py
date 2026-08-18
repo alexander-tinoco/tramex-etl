@@ -23,7 +23,17 @@ Convenciones transversales a todas las tablas de tramite:
 import enum
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Text, func, text
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -68,6 +78,27 @@ class RegistroBase(Base, TimestampMixin):
     hash_fila: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+def indice_trigramas(tabla: str) -> Index:
+    """
+    Indice GIN de trigramas sobre el nombre, para las busquedas parciales.
+
+    Los listados filtran con `ILIKE '%texto%'`, y un indice B-tree no puede
+    servir esa consulta porque el comodin va al inicio: PostgreSQL acabaria
+    recorriendo la tabla entera. `pg_trgm` si la resuelve.
+
+    Se declara en el modelo, y no solo en la migracion, para que la deteccion de
+    deriva de la integracion continua no lo interprete como un indice sobrante.
+    En dialectos que no son PostgreSQL los argumentos especificos se ignoran y
+    queda un indice ordinario, inofensivo para las pruebas.
+    """
+    return Index(
+        f"ix_{tabla}_nombre_trgm",
+        "nombre",
+        postgresql_using="gin",
+        postgresql_ops={"nombre": "gin_trgm_ops"},
+    )
+
+
 def indice_clave_natural(tabla: str) -> Index:
     """
     Indice unico *parcial* sobre la clave natural de los registros activos.
@@ -97,7 +128,10 @@ class Cliente(RegistroBase):
     """Persona que contrata uno o mas tramites con la agencia."""
 
     __tablename__ = "clientes"
-    __table_args__ = (indice_clave_natural("clientes"),)
+    __table_args__ = (
+        indice_clave_natural("clientes"),
+        indice_trigramas("clientes"),
+    )
 
     apellido: Mapped[str | None] = mapped_column(Text, nullable=True)
     correo_electronico: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
@@ -134,6 +168,7 @@ class MasterTramex(RegistroBase):
     __table_args__ = (
         Index("ix_master_tramex_cliente_activo", "cliente_id", "eliminado_en"),
         indice_clave_natural("master_tramex"),
+        indice_trigramas("master_tramex"),
     )
 
     cliente_id: Mapped[int] = mapped_column(
@@ -162,6 +197,7 @@ class GlobalEntry(RegistroBase):
     __table_args__ = (
         Index("ix_global_entry_cliente_activo", "cliente_id", "eliminado_en"),
         indice_clave_natural("global_entry"),
+        indice_trigramas("global_entry"),
     )
 
     cliente_id: Mapped[int] = mapped_column(
@@ -187,6 +223,7 @@ class Pasaporte(RegistroBase):
     __table_args__ = (
         Index("ix_pasaportes_cliente_activo", "cliente_id", "eliminado_en"),
         indice_clave_natural("pasaportes"),
+        indice_trigramas("pasaportes"),
     )
 
     cliente_id: Mapped[int] = mapped_column(
@@ -215,6 +252,7 @@ class Canada(RegistroBase):
     __table_args__ = (
         Index("ix_canada_cliente_activo", "cliente_id", "eliminado_en"),
         indice_clave_natural("canada"),
+        indice_trigramas("canada"),
     )
 
     cliente_id: Mapped[int] = mapped_column(
@@ -259,9 +297,14 @@ class Usuario(Base, TimestampMixin):
     """
 
     __tablename__ = "usuarios"
+    __table_args__ = (UniqueConstraint("correo_electronico", name="uq_usuarios_correo"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    correo_electronico: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
+    # La unicidad se declara como restriccion con nombre explicito en
+    # `__table_args__`, no con `unique=True` aqui: asi el nombre coincide con el
+    # de la migracion y la deteccion de deriva de la CI no la ve como distinta.
+    # Tampoco lleva `index=True`, porque la propia restriccion crea su indice.
+    correo_electronico: Mapped[str] = mapped_column(Text, nullable=False)
     nombre: Mapped[str] = mapped_column(Text, nullable=False)
     #: Hash bcrypt. La columna se llama asi, y no "contrasena", para que quede
     #: explicito en el esquema que aqui nunca hay texto plano.

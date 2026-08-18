@@ -1,153 +1,233 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main]
   pull_request:
-    branches: [ main, master ]
+    branches: [main]
+
+# Un push nuevo sobre la misma rama cancela la ejecucion anterior: revisar un
+# commit que ya quedo obsoleto solo gasta minutos de runner.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Llave Fernet valida generada exclusivamente para la CI. No cifra ningun
+  # dato real; existe porque la configuracion es fail-fast y sin ella la
+  # aplicacion no arranca ni para correr las pruebas.
+  TRAMEX_FERNET_KEY: "CxNCUQhBIDIRsETw8i-dfZBdmcnh6YX43VWS-9txMY4="
+  API_SECRET_KEY: "clave-de-ci-sin-valor-en-produccion"
+  APP_ENV: development
+  BCRYPT_RONDAS: "4"
 
 jobs:
-  backend-tests:
-    name: Backend Tests (FastAPI)
+  # ---------------------------------------------------------------------------
+  secretos:
+    name: Escaneo de secretos
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          # Gitleaks revisa el historial completo, no solo el ultimo commit:
+          # un secreto filtrado sigue estando filtrado aunque ya se haya
+          # borrado del archivo.
+          fetch-depth: 0
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
-
-      - name: Run Pytest
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
         env:
-          # Proveemos una llave Fernet y BD de desarrollo seguras para que
-          # la carga de configuraciones inicial no falle en CI.
-          TRAMEX_FERNET_KEY: "CxNCUQhBIDIRsETw8i-dfZBdmcnh6YX43VWS-9txMY4="
-          DATABASE_URL: "sqlite:///:memory:"
-          API_SECRET_KEY: "ci-secret-key-test-only"
-          API_USERNAME: "admin"
-          API_PASSWORD: "changeme"
-        run: |
-          cd backend
-          python -m pytest --cov=app tests/ -v
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  etl-syntax-check:
-    name: ETL Syntax Check
+  # ---------------------------------------------------------------------------
+  calidad-python:
+    name: Estilo y tipos (Python)
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: pip
 
-      - name: Install dependencies
+      - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
-          pip install -r etl/requirements.txt
+          pip install -r backend/requirements.txt -r etl/requirements.txt
+          pip install -e ./shared
 
-      - name: Validate ETL Script Compilation
+      - name: Ruff (estilo)
+        run: ruff check backend etl shared
+
+      - name: Ruff (formato)
+        run: ruff format --check backend etl shared
+
+      - name: mypy (tipos)
+        run: mypy
+
+  # ---------------------------------------------------------------------------
+  pruebas-python:
+    name: Pruebas y cobertura (API + ETL)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
         run: |
-          python -m py_compile etl/etl_tramex.py
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt -r etl/requirements.txt
+          pip install -e ./shared
 
-  frontend-build:
-    name: Frontend Build (Angular)
+      - name: Ejecutar la suite con umbral de cobertura
+        # El umbral esta en pyproject (fail_under = 85): la ejecucion falla si
+        # la cobertura baja, en lugar de limitarse a informarlo.
+        run: pytest --cov --cov-report=term-missing --cov-report=xml
+
+      - name: Publicar el reporte de cobertura
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cobertura-python
+          path: coverage.xml
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  integracion:
+    name: Migraciones y ETL contra PostgreSQL
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    # Las pruebas unitarias corren sobre SQLite. Este trabajo existe para lo que
+    # SQLite no puede verificar: que las migraciones se apliquen y se reviertan
+    # sobre PostgreSQL real, que el indice de trigramas se cree y que el ETL sea
+    # idempotente de verdad contra la base a la que se despliega.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_password
+          POSTGRES_DB: tramex
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres_password@localhost:5432/tramex
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
-          node-version: '22'
-          cache: 'npm'
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt -r etl/requirements.txt
+          pip install -e ./shared
+
+      - name: Aplicar migraciones
+        working-directory: backend
+        run: alembic upgrade head
+
+      - name: Verificar que las migraciones son reversibles
+        working-directory: backend
+        run: |
+          alembic downgrade base
+          alembic upgrade head
+
+      - name: Comprobar que no hay deriva entre modelos y migraciones
+        working-directory: backend
+        # Si `autogenerate` detecta cambios, es que alguien modifico un modelo
+        # sin escribir la migracion correspondiente.
+        run: |
+          alembic revision --autogenerate -m "deteccion-de-deriva" --rev-id deriva
+          if grep -qE "op\.(create|drop|add|alter)_" alembic/versions/deriva_*.py; then
+            echo "::error::Los modelos y las migraciones no coinciden. Genera la migracion que falta."
+            cat alembic/versions/deriva_*.py
+            exit 1
+          fi
+          rm alembic/versions/deriva_*.py
+
+      - name: Sembrar el administrador inicial
+        working-directory: backend
+        env:
+          ADMIN_INICIAL_CONTRASENA: contrasena-de-integracion-1234
+        run: python -m scripts.sembrar_admin
+
+      - name: Generar un archivo de prueba y verificar la idempotencia del ETL
+        run: python .github/scripts/verificar_etl.py
+
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Estilo, tipos, pruebas y build (Angular)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
-        run: |
-          cd frontend
-          npm ci
+      - name: Instalar dependencias
+        run: npm ci
 
-      - name: Run Linter (ESLint)
-        run: |
-          cd frontend
-          npm run lint
+      - name: ESLint
+        run: npm run lint
 
-      - name: Run Unit Tests (Jasmine/Karma)
-        run: |
-          cd frontend
-          npx ng test --watch=false --browsers=ChromeHeadless
+      - name: Comprobacion de tipos
+        run: npm run typecheck
 
-      - name: Build Angular Application
-        run: |
-          cd frontend
-          npm run build
+      - name: Pruebas
+        run: npm test
 
-  docker-publish:
-    name: Build & Push Docker Images to GHCR
-    needs: [backend-tests, etl-syntax-check, frontend-build]
-    # Solo se ejecuta al hacer push en la rama principal, no en Pull Requests
-    if: github.event_name == 'push'
+      - name: Build de produccion
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  imagenes:
+    name: Compilar imagenes Docker
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
+    # Compilar en cada PR detecta un Dockerfile roto antes de intentar publicar.
+    # No se sube nada: eso es responsabilidad del pipeline de entrega.
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Imagen de la API
+        uses: docker/build-push-action@v6
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          context: .
+          file: backend/Dockerfile
+          target: production
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Extract metadata (tags, labels) for Backend
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}-backend
-          tags: |
-            type=raw,value=latest
-            type=sha,format=short
-
-      - name: Build and push Backend Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
-
-      - name: Extract metadata (tags, labels) for Frontend
-        id: meta-frontend
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}-frontend
-          tags: |
-            type=raw,value=latest
-            type=sha,format=short
-
-      - name: Build and push Frontend Docker image
-        uses: docker/build-push-action@v5
+      - name: Imagen del dashboard
+        uses: docker/build-push-action@v6
         with:
           context: ./frontend
-          push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
+          file: ./frontend/Dockerfile
+          target: production
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

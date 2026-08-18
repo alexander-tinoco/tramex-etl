@@ -59,7 +59,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("correo_electronico", name="uq_usuarios_correo"),
     )
-    op.create_index("ix_usuarios_correo_electronico", "usuarios", ["correo_electronico"])
+    # No se crea un indice aparte sobre el correo: la restriccion UNIQUE ya
+    # lleva el suyo, y duplicarlo solo anade escrituras en cada alta.
     op.create_index("ix_usuarios_eliminado_en", "usuarios", ["eliminado_en"])
 
     op.create_table(
@@ -111,7 +112,6 @@ def downgrade() -> None:
     op.drop_table("logs_auditoria")
 
     op.drop_index("ix_usuarios_eliminado_en", table_name="usuarios")
-    op.drop_index("ix_usuarios_correo_electronico", table_name="usuarios")
     op.drop_table("usuarios")
 
     if conexion.dialect.name == "postgresql":
