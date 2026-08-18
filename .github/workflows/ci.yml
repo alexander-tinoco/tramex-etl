@@ -34,6 +34,13 @@ jobs:
           # borrado del archivo.
           fetch-depth: 0
 
+      # gitleaks-action detecta y usa automaticamente el `.gitleaks.toml` de la
+      # raiz del repositorio (sin variable GITLEAKS_CONFIG ni --config, es la
+      # busqueda por defecto del propio binario). Ese archivo permite dos
+      # valores de prueba fijos y reutilizados a proposito en varios lugares
+      # del repositorio (una llave Fernet de ejemplo y una contrasena de la
+      # suite del backend); ninguno cifra ni protege un dato real, y el resto
+      # de las reglas de gitleaks sigue activo sobre cualquier otro secreto.
       - name: Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:

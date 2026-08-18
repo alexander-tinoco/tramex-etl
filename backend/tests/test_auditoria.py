@@ -8,7 +8,7 @@ es lo que hace defendible que la API pueda descifrarlas.
 
 from datetime import UTC
 
-from tests.conftest import CORREO_ADMIN, CORREO_OPERADOR
+from tests.conftest import CONTRASENA_DE_PRUEBA, CORREO_ADMIN, CORREO_OPERADOR
 
 from app.services.auditoria import Accion
 
@@ -42,7 +42,7 @@ class TestRegistroDeEventos:
         )
         client_anonimo.post(
             "/api/v1/auth/token",
-            data={"username": CORREO_ADMIN, "password": "contrasena-de-prueba-1234"},
+            data={"username": CORREO_ADMIN, "password": CONTRASENA_DE_PRUEBA},
         )
 
         asientos = _asientos(client_anonimo, accion=Accion.LOGIN_FALLIDO)

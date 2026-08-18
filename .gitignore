@@ -37,3 +37,9 @@ dist/
 # Metadatos de build de paquetes Python
 *.egg-info/
 build/
+
+# Herramientas de asistencia de IA: configuracion y estado local de sesion,
+# nunca artefactos del proyecto en si.
+.claude/
+.impeccable/
+.gitleaks-report.json
