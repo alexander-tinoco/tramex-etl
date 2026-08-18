@@ -15,7 +15,16 @@ module.exports = defineConfig([
     ],
     processor: angular.processInlineTemplates,
     rules: {
-      "@typescript-eslint/no-explicit-any": "off",
+      // `any` estaba desactivado y el servicio HTTP devolvia `any` en todos
+      // sus metodos: el proyecto usaba TypeScript sin obtener nada a cambio.
+      // Ahora las respuestas de la API estan modeladas en src/app/models.
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/explicit-function-return-type": [
+        "warn",
+        { allowExpressions: true, allowHigherOrderFunctions: true },
+      ],
+      "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
+      "no-console": ["error", { allow: ["error", "warn"] }],
       "@angular-eslint/directive-selector": [
         "error",
         {

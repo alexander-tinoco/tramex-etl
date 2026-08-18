@@ -1,0 +1,165 @@
+<section class="vista">
+  <div class="barra-acciones">
+    <div class="search-box">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input
+        type="search"
+        placeholder="Buscar por nombre…"
+        [value]="busqueda()"
+        (input)="buscar($event)"
+        aria-label="Buscar por nombre"
+      />
+    </div>
+
+    <label class="interruptor">
+      <input type="checkbox" [checked]="incluirArchivados()" (change)="alternarArchivados()" />
+      <span>Ver dados de baja</span>
+    </label>
+
+    <button type="button" class="btn-primary" (click)="abrirAlta()">
+      <i class="fa-solid fa-plus"></i> <span>Agregar registro</span>
+    </button>
+  </div>
+
+  @if (error()) {
+    <div class="alerta alerta-error" role="alert">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          @for (columna of recurso().columnas; track columna.campo) {
+            <th>{{ columna.etiqueta }}</th>
+          }
+          <th class="columna-acciones">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (cargando()) {
+          <tr>
+            <td [attr.colspan]="recurso().columnas.length + 1" class="text-center">
+              <i class="fa-solid fa-spinner fa-spin"></i> Cargando información…
+            </td>
+          </tr>
+        } @else if (registros().length === 0) {
+          <tr>
+            <td [attr.colspan]="recurso().columnas.length + 1" class="text-center text-muted">
+              @if (busqueda()) {
+                No hay resultados para «{{ busqueda() }}».
+              } @else {
+                Todavía no hay registros de {{ recurso().titulo }}.
+              }
+            </td>
+          </tr>
+        } @else {
+          @for (registro of registros(); track registro.id) {
+            <tr [class.fila-archivada]="estaArchivado(registro)">
+              @for (columna of recurso().columnas; track columna.campo) {
+                <td>{{ formatear(valorDe(registro, columna.campo), columna.formato) }}</td>
+              }
+              <td class="columna-acciones">
+                @if (estaArchivado(registro)) {
+                  <span class="etiqueta etiqueta-archivado">Dado de baja</span>
+                  <button
+                    type="button"
+                    class="boton-icono"
+                    (click)="restaurar(registro)"
+                    title="Reactivar registro"
+                    aria-label="Reactivar registro"
+                  >
+                    <i class="fa-solid fa-rotate-left"></i>
+                  </button>
+                } @else {
+                  @if (recurso().tieneCredencial) {
+                    <button
+                      type="button"
+                      class="boton-icono"
+                      (click)="credencialAbierta.set(registro.id)"
+                      title="Ver credencial (queda auditado)"
+                      aria-label="Ver credencial"
+                    >
+                      <i class="fa-solid fa-key"></i>
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="boton-icono"
+                    (click)="abrirEdicion(registro)"
+                    title="Editar"
+                    aria-label="Editar"
+                  >
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="boton-icono peligro"
+                    (click)="confirmarArchivado(registro)"
+                    title="Dar de baja"
+                    aria-label="Dar de baja"
+                  >
+                    <i class="fa-solid fa-box-archive"></i>
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="paginacion">
+    <span class="text-muted">
+      {{ total() }} registro(s) · página {{ pagina() + 1 }} de {{ totalPaginas() }}
+    </span>
+    <div class="paginacion-controles">
+      <button type="button" class="btn-secondary" (click)="paginaAnterior()" [disabled]="pagina() === 0">
+        <i class="fa-solid fa-chevron-left"></i> Anterior
+      </button>
+      <button
+        type="button"
+        class="btn-secondary"
+        (click)="paginaSiguiente()"
+        [disabled]="!hayPaginaSiguiente()"
+      >
+        Siguiente <i class="fa-solid fa-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+</section>
+
+@if (formularioAbierto()) {
+  <app-formulario-tramite
+    [recurso]="recurso()"
+    [registro]="registroEnEdicion()"
+    [guardando]="guardando()"
+    [error]="errorFormulario()"
+    (guardar)="guardar($event)"
+    (cerrar)="cerrarFormulario()"
+  />
+}
+
+@if (credencialAbierta() !== null) {
+  <app-dialogo-credencial
+    [recurso]="recurso()"
+    [registroId]="credencialAbierta()!"
+    (cerrar)="credencialAbierta.set(null)"
+  />
+}
+
+@if (registroAArchivar()) {
+  <app-dialogo-confirmacion
+    titulo="Dar de baja el registro"
+    [mensaje]="'Se dará de baja «' + registroAArchivar()!.nombre + '».'"
+    detalle="El registro deja de aparecer en los listados pero se conserva para trazabilidad y puede reactivarse."
+    textoConfirmar="Dar de baja"
+    icono="fa-box-archive"
+    [peligroso]="true"
+    (confirmar)="archivar()"
+    (cancelar)="registroAArchivar.set(null)"
+  />
+}

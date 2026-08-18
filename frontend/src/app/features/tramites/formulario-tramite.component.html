@@ -1,0 +1,63 @@
+<div class="modal-fondo" (click)="cerrar.emit()">
+  <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <header class="modal-cabecera">
+      <h3>
+        <i class="fa-solid" [class]="esEdicion() ? 'fa-pen-to-square' : 'fa-plus'"></i>
+        {{ esEdicion() ? 'Editar' : 'Nuevo' }} registro · {{ recurso().titulo }}
+      </h3>
+      <button type="button" class="boton-icono" (click)="cerrar.emit()" aria-label="Cerrar">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </header>
+
+    <form (submit)="enviar($event)" novalidate>
+      <div class="modal-cuerpo rejilla-formulario">
+        @for (campo of recurso().campos; track campo.nombre) {
+          <label class="campo" [class.campo-ancho]="campo.anchoCompleto">
+            <span>
+              {{ campo.etiqueta }}
+              @if (campo.requerido) {
+                <em class="requerido" aria-hidden="true">*</em>
+              }
+            </span>
+            <input
+              [type]="campo.tipo"
+              [name]="campo.nombre"
+              [required]="!!campo.requerido"
+              [attr.autocomplete]="campo.tipo === 'password' ? 'new-password' : 'off'"
+              [ngModel]="valores()[campo.nombre]"
+              (ngModelChange)="actualizarCampo(campo.nombre, $event)"
+              [disabled]="guardando()"
+            />
+            @if (campo.ayuda) {
+              <small class="text-muted">{{ campo.ayuda }}</small>
+            }
+            @if (campo.tipo === 'password' && esEdicion()) {
+              <small class="text-muted">Déjalo vacío para conservar la credencial actual.</small>
+            }
+          </label>
+        }
+      </div>
+
+      @if (error()) {
+        <div class="alerta alerta-error" role="alert">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span>{{ error() }}</span>
+        </div>
+      }
+
+      <footer class="modal-pie">
+        <button type="button" class="btn-secondary" (click)="cerrar.emit()" [disabled]="guardando()">
+          Cancelar
+        </button>
+        <button type="submit" class="btn-primary" [disabled]="guardando()">
+          @if (guardando()) {
+            <i class="fa-solid fa-spinner fa-spin"></i> <span>Guardando…</span>
+          } @else {
+            <i class="fa-solid fa-floppy-disk"></i> <span>Guardar</span>
+          }
+        </button>
+      </footer>
+    </form>
+  </div>
+</div>

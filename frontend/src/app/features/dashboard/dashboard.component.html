@@ -1,0 +1,81 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <i class="fa-solid fa-passport icon-brand"></i>
+      <h2>Tramex</h2>
+    </div>
+
+    <nav class="sidebar-menu" aria-label="Secciones">
+      <ul>
+        <li>
+          <button
+            type="button"
+            class="menu-item"
+            [class.active]="seccion() === 'resumen'"
+            (click)="irA('resumen')"
+          >
+            <i class="fa-solid fa-chart-line"></i> <span>Resumen</span>
+          </button>
+        </li>
+        @for (recurso of secciones; track recurso.clave) {
+          <li>
+            <button
+              type="button"
+              class="menu-item"
+              [class.active]="seccion() === recurso.clave"
+              (click)="irA(recurso.clave)"
+            >
+              <i class="fa-solid" [class]="recurso.icono"></i> <span>{{ recurso.titulo }}</span>
+            </button>
+          </li>
+        }
+        @if (esAdmin()) {
+          <li>
+            <a class="menu-item" routerLink="/auditoria">
+              <i class="fa-solid fa-clipboard-list"></i> <span>Auditoría</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button type="button" class="btn-secondary btn-block text-danger" (click)="cerrarSesion()">
+        <i class="fa-solid fa-power-off"></i> <span>Cerrar sesión</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="content-wrapper">
+    <header class="top-navbar">
+      <div class="page-title">
+        <h1>{{ titulo() }}</h1>
+      </div>
+
+      <div class="top-navbar-actions">
+        @if (baseConectada() !== null) {
+          <div class="api-status-badge" [class]="baseConectada() ? 'success' : 'error'">
+            <i class="fa-solid fa-database"></i>
+            <span>{{ baseConectada() ? 'Base conectada' : 'Base no disponible' }}</span>
+          </div>
+        }
+
+        <div class="user-profile">
+          <div class="avatar"><i class="fa-solid fa-user-gear"></i></div>
+          <div class="user-datos">
+            <span>{{ usuario()?.nombre }}</span>
+            <small class="text-muted">{{ usuario()?.rol }}</small>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="views-container">
+      @if (recursoActivo(); as recurso) {
+        <app-tabla-tramites [recurso]="recurso" />
+      } @else {
+        <app-resumen />
+      }
+    </div>
+  </main>
+</div>

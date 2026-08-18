@@ -1,0 +1,30 @@
+<section class="vista">
+  <div class="grid-stats">
+    @for (recurso of recursos; track recurso.clave) {
+      <article class="stat-card" [class]="'p-' + recurso.clave">
+        <div class="stat-icon"><i class="fa-solid" [class]="recurso.icono"></i></div>
+        <div class="stat-info">
+          <h3>{{ recurso.titulo }}</h3>
+          @if (cargando()) {
+            <p class="stat-number"><i class="fa-solid fa-spinner fa-spin"></i></p>
+          } @else {
+            <p class="stat-number">{{ conteoDe(recurso.clave) }}</p>
+          }
+        </div>
+      </article>
+    }
+  </div>
+
+  <div class="dashboard-banner">
+    <div class="banner-content">
+      <h2>De una hoja de cálculo compartida a un sistema con trazabilidad</h2>
+      <p>
+        Los cuatro tipos de trámite cuelgan ahora de un mismo cliente, así que una persona
+        con expedientes en varias hojas deja de estar duplicada. Las credenciales de las
+        cuentas de los clientes se guardan cifradas y cada consulta queda asentada en la
+        bitácora de auditoría.
+      </p>
+    </div>
+    <div class="banner-ill"><i class="fa-solid fa-shield-halved"></i></div>
+  </div>
+</section>

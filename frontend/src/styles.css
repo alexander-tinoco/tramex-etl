@@ -768,3 +768,425 @@ tr:hover td {
         grid-column: span 1;
     }
 }
+
+/* ===========================================================================
+   COMPONENTES DEL PANEL REFACTORIZADO
+   ===========================================================================
+   Estilos de los componentes en que se dividio el dashboard. Reutilizan las
+   variables del sistema de diseno definidas arriba, para que la interfaz siga
+   siendo una sola pieza y no dos generaciones superpuestas.
+   =========================================================================== */
+
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.contenido-pleno {
+    width: 100%;
+}
+
+/* -- Barra de acciones de las tablas ------------------------------------- */
+
+.barra-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.barra-acciones .search-box {
+    flex: 1 1 260px;
+}
+
+.interruptor {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.9rem;
+}
+
+.interruptor input {
+    accent-color: var(--color-primary);
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+}
+
+/* -- Tablas -------------------------------------------------------------- */
+
+.columna-acciones {
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* Una fila dada de baja sigue siendo legible pero se distingue de un vistazo:
+   el borrado es logico y conviene que se note que ese registro ya no cuenta. */
+.fila-archivada {
+    opacity: 0.55;
+}
+
+.fila-archivada td {
+    text-decoration: line-through;
+    text-decoration-color: var(--text-muted);
+}
+
+.fila-archivada .columna-acciones {
+    text-decoration: none;
+}
+
+.etiqueta {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.etiqueta-archivado {
+    background: hsla(215, 15%, 55%, 0.18);
+    color: var(--text-muted);
+}
+
+.etiqueta-info {
+    background: hsla(190, 85%, 50%, 0.15);
+    color: var(--color-secondary);
+}
+
+.etiqueta-advertencia {
+    background: hsla(38, 92%, 55%, 0.18);
+    color: hsl(38, 92%, 62%);
+}
+
+.etiqueta-alerta {
+    background: hsla(354, 70%, 54%, 0.18);
+    color: var(--color-danger-hover);
+}
+
+.celda-detalle {
+    max-width: 22rem;
+    overflow-wrap: anywhere;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* -- Paginacion ---------------------------------------------------------- */
+
+.paginacion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.paginacion-controles {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.paginacion-controles button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* -- Formularios y campos ------------------------------------------------ */
+
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+
+.campo > span {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.campo .requerido {
+    color: var(--color-danger);
+    font-style: normal;
+}
+
+.campo-en-linea {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0;
+}
+
+.campo-control {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 0.85rem;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    transition: border-color 0.2s ease;
+}
+
+.campo-control:focus-within {
+    border-color: var(--color-primary);
+}
+
+.campo-control > i {
+    color: var(--text-muted);
+}
+
+.campo-control input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    padding: 0.75rem 0;
+    font-size: 0.95rem;
+}
+
+.campo input,
+.campo select {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    padding: 0.7rem 0.85rem;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.campo input:focus,
+.campo select:focus {
+    border-color: var(--color-primary);
+}
+
+.campo input:disabled {
+    opacity: 0.6;
+}
+
+/* La credencial se muestra en fuente monoespaciada: distinguir una l de una I
+   o un 0 de una O importa cuando hay que teclearla en otro sitio. */
+.credencial input {
+    font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Code', monospace;
+    letter-spacing: 0.06em;
+}
+
+.rejilla-formulario {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 1rem;
+}
+
+.campo-ancho {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+    .rejilla-formulario {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* -- Botones de icono ---------------------------------------------------- */
+
+.boton-icono {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.45rem;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.boton-icono:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+}
+
+.boton-icono.peligro:hover {
+    color: var(--color-danger-hover);
+}
+
+/* -- Modales ------------------------------------------------------------- */
+
+.modal-fondo {
+    position: fixed;
+    inset: 0;
+    background: hsla(224, 30%, 6%, 0.72);
+    backdrop-filter: blur(3px);
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    z-index: 50;
+}
+
+.modal {
+    width: min(38rem, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+}
+
+.modal-angosto {
+    width: min(26rem, 100%);
+}
+
+.modal-cabecera,
+.modal-pie {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.15rem 1.4rem;
+}
+
+.modal-cabecera {
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-cabecera h3 {
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.modal-cuerpo {
+    padding: 1.4rem;
+}
+
+.modal-pie {
+    justify-content: flex-end;
+    border-top: 1px solid var(--border-color);
+}
+
+/* -- Avisos -------------------------------------------------------------- */
+
+.alerta {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.8rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    margin: 0 1.4rem 1rem;
+}
+
+form > .alerta,
+.vista > .alerta {
+    margin: 0 0 1rem;
+}
+
+.alerta-error {
+    background: hsla(354, 70%, 54%, 0.14);
+    color: var(--color-danger-hover);
+    border: 1px solid hsla(354, 70%, 54%, 0.3);
+}
+
+.alerta-aviso {
+    background: hsla(38, 92%, 55%, 0.14);
+    color: hsl(38, 92%, 68%);
+    border: 1px solid hsla(38, 92%, 55%, 0.3);
+}
+
+.nota-auditoria {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-top: 1rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+/* -- Login --------------------------------------------------------------- */
+
+.login-screen {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background:
+        radial-gradient(circle at 15% 20%, hsla(263, 70%, 55%, 0.16), transparent 45%),
+        radial-gradient(circle at 85% 80%, hsla(190, 85%, 50%, 0.12), transparent 45%),
+        var(--bg-main);
+}
+
+.login-card {
+    width: min(24rem, 100%);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: 2.2rem 1.9rem;
+}
+
+.login-brand {
+    text-align: center;
+    margin-bottom: 1.8rem;
+}
+
+.login-brand .icon-brand {
+    font-size: 2.2rem;
+    color: var(--color-primary);
+}
+
+.login-brand h1 {
+    margin-top: 0.5rem;
+    font-size: 1.7rem;
+}
+
+.login-nota {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    margin-top: 1.5rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+/* -- Perfil de usuario en la barra superior ------------------------------ */
+
+.user-datos {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.user-datos small {
+    font-size: 0.72rem;
+    text-transform: capitalize;
+}
+
+/* -- Tarjetas del resumen ------------------------------------------------ */
+
+.stat-card.p-master_tramex .stat-icon { background: hsla(263, 70%, 55%, 0.18); color: hsl(263, 70%, 70%); }
+.stat-card.p-global_entry .stat-icon { background: hsla(212, 90%, 55%, 0.18); color: hsl(212, 90%, 70%); }
+.stat-card.p-pasaportes .stat-icon { background: hsla(172, 70%, 45%, 0.18); color: hsl(172, 70%, 60%); }
+.stat-card.p-canada .stat-icon { background: hsla(20, 90%, 55%, 0.18); color: hsl(20, 90%, 68%); }
+
+/* La navegacion lateral usa botones (son acciones, no enlaces), asi que hay
+   que devolverles el aspecto que tenian como elementos de lista. */
+.sidebar-menu .menu-item {
+    width: 100%;
+    background: transparent;
+    border: none;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    color: inherit;
+    text-decoration: none;
+}
