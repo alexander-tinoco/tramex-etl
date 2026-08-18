@@ -9,10 +9,12 @@ Las credenciales de acceso a la API se toman de variables de entorno:
 No se usa una tabla de usuarios para mantener la simplicidad.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+
 from app.config import settings
 
 SECRET_KEY: str = settings.api_secret_key
@@ -29,10 +31,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 # Funciones de token
 # ---------------------------------------------------------------------------
 
+
 def create_access_token(data: dict) -> str:
     """Crea un JWT firmado con expiración de ACCESS_TOKEN_EXPIRE_HOURS horas."""
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
+    expire = datetime.now(UTC) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
     to_encode["exp"] = expire
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -53,5 +56,5 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
         if username is None:
             raise credentials_exception
         return username
-    except JWTError:
-        raise credentials_exception
+    except JWTError as exc:
+        raise credentials_exception from exc

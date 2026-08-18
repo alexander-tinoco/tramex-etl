@@ -1,1 +1,1 @@
-# Paquete de routers de la aplicación Tramex API
+"""Routers HTTP de la API."""

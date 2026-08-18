@@ -33,3 +33,7 @@ dist/
 # Logs y temporales
 *.log
 .DS_Store
+
+# Metadatos de build de paquetes Python
+*.egg-info/
+build/

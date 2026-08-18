@@ -34,7 +34,7 @@ class JSONFormatter(logging.Formatter):
 def setup_logging() -> None:
     """Configura el logger raíz para utilizar el formateador estructurado JSON."""
     root_logger = logging.getLogger()
-    
+
     # Remover handlers previos para evitar duplicidad de salidas
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
@@ -42,7 +42,7 @@ def setup_logging() -> None:
     # Configurar handler de consola estándar
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(JSONFormatter())
-    
+
     root_logger.addHandler(console_handler)
     root_logger.setLevel(logging.INFO)
 

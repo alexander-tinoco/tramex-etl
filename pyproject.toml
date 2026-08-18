@@ -1,0 +1,53 @@
+# Configuracion compartida de las herramientas de Python del monorepo.
+# Ruff, mypy y pytest la descubren desde la raiz, de modo que el backend, el
+# ETL y el paquete compartido se rigen por las mismas reglas.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "venv", "node_modules", "frontend", "*/alembic/versions/d419612ba5db_*"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "C4",   # comprehensions
+    "RUF",  # reglas propias de ruff
+]
+ignore = [
+    # `id` como nombre de parametro es el vocabulario natural de un repositorio
+    # CRUD y coincide con el nombre de la columna.
+    "A002",
+    # Las cadenas largas de los mensajes de error en espanol superan el limite
+    # con frecuencia y partirlas las vuelve ilegibles.
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Las migraciones se generan y se leen como scripts, no como libreria.
+"backend/alembic/**" = ["E402", "F401"]
+# Los tests declaran datos de ejemplo extensos a proposito.
+"**/tests/**" = ["S101"]
+
+[tool.ruff.lint.flake8-bugbear]
+# `Depends`, `Query` y compania se llaman en los valores por defecto por diseno:
+# asi es como FastAPI declara la inyeccion de dependencias.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Security",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tramex_shared", "helpers"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
