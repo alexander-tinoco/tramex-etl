@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from prometheus_client import CollectorRegistry, Counter, Histogram, multiprocess
+from prometheus_client import CollectorRegistry, Counter, Histogram
 from prometheus_client.core import REGISTRY
 
 #: Cubetas ajustadas a un CRUD sobre PostgreSQL: la mayoria de las peticiones
@@ -82,7 +82,13 @@ def normalizar_ruta(ruta: str, parametros: Mapping[str, object]) -> str:
 
 
 def registro() -> CollectorRegistry:
-    """Registro de metricas activo."""
-    if multiprocess is None:  # pragma: no cover - depende del despliegue
-        return REGISTRY
+    """
+    Registro de metricas activo.
+
+    Es el registro global de la libreria. Con varios *workers* de uvicorn cada
+    proceso expone sus propios contadores, asi que Prometheus vera una serie
+    por replica; para consolidarlos habria que activar el modo multiproceso de
+    prometheus_client, lo que exige un directorio compartido y no aporta nada
+    mientras el despliegue escale por contenedores y no por procesos.
+    """
     return REGISTRY

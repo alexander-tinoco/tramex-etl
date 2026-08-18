@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 from fastapi import Request
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from app.models import LogAuditoria, NivelAuditoria, Usuario
@@ -179,6 +181,11 @@ def purgar_anteriores_a(db: Session, dias: int) -> int:
     sirve como evidencia.
     """
     corte = datetime.now(UTC) - timedelta(days=dias)
-    resultado = db.execute(delete(LogAuditoria).where(LogAuditoria.ocurrido_en < corte))
+    # `rowcount` es propio de CursorResult; el tipo generico de `execute` no lo
+    # declara, aunque para un DELETE siempre lo sea en tiempo de ejecucion.
+    resultado = cast(
+        "CursorResult[Any]",
+        db.execute(delete(LogAuditoria).where(LogAuditoria.ocurrido_en < corte)),
+    )
     db.commit()
     return resultado.rowcount or 0

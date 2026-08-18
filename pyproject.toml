@@ -4,7 +4,7 @@
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 extend-exclude = [".venv", "venv", "node_modules", "frontend", "*/alembic/versions/d419612ba5db_*"]
 
 [tool.ruff.lint]
@@ -25,6 +25,13 @@ ignore = [
     # Las cadenas largas de los mensajes de error en espanol superan el limite
     # con frecuencia y partirlas las vuelve ilegibles.
     "E501",
+    # Sintaxis de genericos de PEP 695 (`class CRUDBase[M, C, U]`). No se adopta
+    # porque los TypeVar de la capa de repositorio se comparten entre modulos
+    # (`app.crud.tramites` los importa de `app.crud.base` para tipar su
+    # subclase), y los parametros de tipo de PEP 695 tienen alcance de clase y
+    # no se pueden reutilizar asi.
+    "UP046",
+    "UP047",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -51,3 +58,63 @@ known-first-party = ["app", "tramex_shared", "helpers"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+# ---------------------------------------------------------------------------
+# mypy
+# ---------------------------------------------------------------------------
+# No se activa el modo estricto: obligaria a anotar hasta el ultimo detalle de
+# SQLAlchemy y FastAPI, que ya infieren mucho por su cuenta, y el ruido acabaria
+# tapando los avisos que si importan. Lo que si se exige es que las funciones
+# anotadas cuadren y que no queden ignores obsoletos.
+[tool.mypy]
+python_version = "3.12"
+files = ["backend/app", "etl", "shared/tramex_shared"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+no_implicit_optional = true
+check_untyped_defs = true
+ignore_missing_imports = true
+exclude = "(\\.venv|node_modules|alembic/versions)"
+
+[[tool.mypy.overrides]]
+# Las migraciones son scripts generados y revisados a mano; anotarlas no aporta.
+module = "alembic.*"
+ignore_errors = true
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    # Los doctests de `shared` y del ETL documentan y verifican a la vez las
+    # reglas de normalizacion; ejecutarlos evita que el ejemplo y el codigo
+    # se separen con el tiempo.
+    "--doctest-modules",
+]
+testpaths = ["backend/tests", "etl/tests"]
+python_files = ["test_*.py"]
+filterwarnings = [
+    "ignore::DeprecationWarning:starlette.*",
+    "ignore::UserWarning:starlette.*",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["backend/app", "etl/helpers", "shared/tramex_shared"]
+omit = ["*/alembic/*", "*/tests/*", "*/conftest.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# El umbral existe para que la cobertura no baje en silencio. La version
+# anterior generaba el reporte pero nunca fallaba por el.
+fail_under = 85
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

@@ -42,10 +42,29 @@ class TimestampMixin:
     eliminado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
 
 
-class IngestaMixin:
-    """Columnas que hacen reproducible e idempotente la carga desde el ETL."""
+class RegistroBase(Base, TimestampMixin):
+    """
+    Base abstracta de toda tabla que participa del pipeline de ingesta.
 
+    Declara las columnas comunes en un solo lugar: identificador, nombre, las
+    dos huellas de identidad y las marcas de tiempo. Es `__abstract__`, asi que
+    SQLAlchemy no crea ninguna tabla para ella.
+
+    Ademas de evitar repetir seis columnas en cinco modelos, existe por una
+    razon de tipos: los repositorios genericos operan sobre `eliminado_en`,
+    `clave_natural` e `id`, y con la base declarativa pelada el verificador no
+    puede saber que esas columnas existen. Con esta base, el `TypeVar` de
+    `CRUDBase` queda acotado a algo que si las declara.
+    """
+
+    __abstract__ = True
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    nombre: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+
+    #: Huella de los campos identificadores. Objetivo del ON CONFLICT del ETL.
     clave_natural: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    #: Huella del contenido completo, para detectar si algo cambio de verdad.
     hash_fila: Mapped[str] = mapped_column(Text, nullable=False)
 
 
@@ -74,14 +93,12 @@ def indice_clave_natural(tabla: str) -> Index:
 # ---------------------------------------------------------------------------
 
 
-class Cliente(Base, TimestampMixin, IngestaMixin):
+class Cliente(RegistroBase):
     """Persona que contrata uno o mas tramites con la agencia."""
 
     __tablename__ = "clientes"
     __table_args__ = (indice_clave_natural("clientes"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    nombre: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     apellido: Mapped[str | None] = mapped_column(Text, nullable=True)
     correo_electronico: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     telefono: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -110,7 +127,7 @@ class Cliente(Base, TimestampMixin, IngestaMixin):
 # ---------------------------------------------------------------------------
 
 
-class MasterTramex(Base, TimestampMixin, IngestaMixin):
+class MasterTramex(RegistroBase):
     """Tramite principal (visa americana y afines)."""
 
     __tablename__ = "master_tramex"
@@ -119,11 +136,9 @@ class MasterTramex(Base, TimestampMixin, IngestaMixin):
         indice_clave_natural("master_tramex"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     cliente_id: Mapped[int] = mapped_column(
         ForeignKey("clientes.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    nombre: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     id_solicitud: Mapped[str | None] = mapped_column(Text, nullable=True)
     telefono: Mapped[str | None] = mapped_column(Text, nullable=True)
     numero_pasaporte: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -140,7 +155,7 @@ class MasterTramex(Base, TimestampMixin, IngestaMixin):
 # ---------------------------------------------------------------------------
 
 
-class GlobalEntry(Base, TimestampMixin, IngestaMixin):
+class GlobalEntry(RegistroBase):
     """Tramite de Global Entry."""
 
     __tablename__ = "global_entry"
@@ -149,11 +164,9 @@ class GlobalEntry(Base, TimestampMixin, IngestaMixin):
         indice_clave_natural("global_entry"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     cliente_id: Mapped[int] = mapped_column(
         ForeignKey("clientes.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    nombre: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     apellido: Mapped[str | None] = mapped_column(Text, nullable=True)
     correo_electronico: Mapped[str | None] = mapped_column(Text, nullable=True)
     numero_pasaporte: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -167,7 +180,7 @@ class GlobalEntry(Base, TimestampMixin, IngestaMixin):
 # ---------------------------------------------------------------------------
 
 
-class Pasaporte(Base, TimestampMixin, IngestaMixin):
+class Pasaporte(RegistroBase):
     """Tramite de expedicion o renovacion de pasaporte."""
 
     __tablename__ = "pasaportes"
@@ -176,11 +189,9 @@ class Pasaporte(Base, TimestampMixin, IngestaMixin):
         indice_clave_natural("pasaportes"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     cliente_id: Mapped[int] = mapped_column(
         ForeignKey("clientes.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    nombre: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     apellido: Mapped[str | None] = mapped_column(Text, nullable=True)
     telefono: Mapped[str | None] = mapped_column(Text, nullable=True)
     lugar_cita: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -197,7 +208,7 @@ class Pasaporte(Base, TimestampMixin, IngestaMixin):
 # ---------------------------------------------------------------------------
 
 
-class Canada(Base, TimestampMixin, IngestaMixin):
+class Canada(RegistroBase):
     """Tramite de visa o residencia canadiense (cuenta IRCC)."""
 
     __tablename__ = "canada"
@@ -206,11 +217,9 @@ class Canada(Base, TimestampMixin, IngestaMixin):
         indice_clave_natural("canada"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     cliente_id: Mapped[int] = mapped_column(
         ForeignKey("clientes.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    nombre: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     cuenta_ircc: Mapped[str | None] = mapped_column(Text, nullable=True)
     telefono: Mapped[str | None] = mapped_column(Text, nullable=True)
     numero_pasaporte: Mapped[str | None] = mapped_column(Text, nullable=True)

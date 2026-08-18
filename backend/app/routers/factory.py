@@ -13,7 +13,7 @@ aplica a los cuatro por construccion, sin que ninguno se quede atras.
 # y aqui los esquemas llegan como parametros de la fabrica. Diferirlas las
 # convertiria en cadenas que FastAPI no podria resolver.
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
@@ -88,7 +88,7 @@ def crear_router_tramite(
 
     @router.get(
         "/{registro_id}",
-        response_model=esquema_response,  # type: ignore[valid-type]
+        response_model=esquema_response,
         summary=f"Obtener un registro de {nombre_recurso}",
     )
     def obtener(registro_id: int, db: Annotated[Session, Depends(get_db)]):
@@ -96,7 +96,7 @@ def crear_router_tramite(
 
     @router.post(
         "/",
-        response_model=esquema_response,  # type: ignore[valid-type]
+        response_model=esquema_response,
         status_code=status.HTTP_201_CREATED,
         summary=f"Crear un registro de {nombre_recurso}",
     )
@@ -120,7 +120,7 @@ def crear_router_tramite(
 
     @router.patch(
         "/{registro_id}",
-        response_model=esquema_response,  # type: ignore[valid-type]
+        response_model=esquema_response,
         summary=f"Actualizar parcialmente un registro de {nombre_recurso}",
     )
     def actualizar(
@@ -131,7 +131,9 @@ def crear_router_tramite(
         usuario: UsuarioActual,
     ):
         registro = _obtener_o_404(db, registro_id)
-        campos = sorted(datos.model_dump(exclude_unset=True))
+        # `datos` llega como el esquema concreto del recurso; se acota a
+        # BaseModel para poder leer los campos realmente enviados.
+        campos = sorted(cast(BaseModel, datos).model_dump(exclude_unset=True))
         actualizado = crud.update(db, db_obj=registro, obj_in=datos)
         auditoria.registrar(
             db,
@@ -182,7 +184,7 @@ def crear_router_tramite(
 
     @router.post(
         "/{registro_id}/restaurar",
-        response_model=esquema_response,  # type: ignore[valid-type]
+        response_model=esquema_response,
         summary=f"Reactivar un registro de {nombre_recurso} dado de baja",
     )
     def restaurar(

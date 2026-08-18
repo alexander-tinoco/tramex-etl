@@ -144,13 +144,12 @@ def _clasificar(
     permite confiar en que reprocesar el archivo no altero nada.
     """
     claves = [registro["clave_natural"] for registro in registros]
-    previos = dict(
-        conexion.execute(
-            select(tabla.c.clave_natural, tabla.c.hash_fila).where(
-                tabla.c.clave_natural.in_(claves), tabla.c.eliminado_en.is_(None)
-            )
-        ).all()
-    )
+    filas = conexion.execute(
+        select(tabla.c.clave_natural, tabla.c.hash_fila).where(
+            tabla.c.clave_natural.in_(claves), tabla.c.eliminado_en.is_(None)
+        )
+    ).all()
+    previos: dict[str, str] = {fila[0]: fila[1] for fila in filas}
 
     nuevos = actualizados = iguales = 0
     for registro in registros:

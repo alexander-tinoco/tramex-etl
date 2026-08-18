@@ -18,10 +18,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import fernet
-from app.database import Base
+from app.models import RegistroBase
 from tramex_shared import DefinicionEntidad, calcular_clave_natural, calcular_hash_fila
 
-ModelType = TypeVar("ModelType", bound=Base)
+#: Acotado a `RegistroBase` y no a la base declarativa pelada: los metodos de
+#: este repositorio leen `id`, `nombre`, `clave_natural` y `eliminado_en`, y
+#: solo esa base garantiza que esas columnas existan.
+ModelType = TypeVar("ModelType", bound=RegistroBase)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
@@ -104,7 +107,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if buscar:
             consulta = consulta.where(self.model.nombre.ilike(f"%{buscar}%"))
         if cliente_id is not None and hasattr(self.model, "cliente_id"):
-            consulta = consulta.where(self.model.cliente_id == cliente_id)
+            # `cliente_id` existe en las cuatro tablas de tramite pero no en
+            # `clientes`, que es la raiz; de ahi la comprobacion previa y este
+            # silenciador acotado a esa linea.
+            consulta = consulta.where(self.model.cliente_id == cliente_id)  # type: ignore[attr-defined]
 
         total = db.scalar(select(func.count()).select_from(consulta.subquery())) or 0
         registros: Sequence[ModelType] = db.scalars(

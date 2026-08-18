@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "tramex-shared"
 version = "1.0.0"
 description = "Reglas de identidad de registros compartidas entre el pipeline ETL y la API de Tramex."
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = []
 
 [tool.setuptools.packages.find]

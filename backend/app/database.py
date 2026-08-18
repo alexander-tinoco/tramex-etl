@@ -2,6 +2,8 @@
 Configuración de SQLAlchemy: motor y sesión de base de datos.
 """
 
+from typing import Any
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -11,7 +13,7 @@ from app.config import settings
 # Motor y fábrica de sesiones con pooling dinámico según el dialecto de BD
 # ---------------------------------------------------------------------------
 
-engine_kwargs = {"pool_pre_ping": True}
+engine_kwargs: dict[str, Any] = {"pool_pre_ping": True}
 
 # El pool de conexiones avanzado es propio de PostgreSQL
 if settings.database_url.startswith("postgresql"):
