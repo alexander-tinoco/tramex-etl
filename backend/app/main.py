@@ -12,8 +12,9 @@ import time
 from typing import Annotated
 
 import sentry_sdk
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -23,6 +24,7 @@ from app.database import get_db
 from app.logging_config import setup_logging
 from app.routers import admin, auth, clientes, tramites
 from app.security import get_current_user
+from app.services import metricas
 
 setup_logging()
 logger = logging.getLogger("tramex_api")
@@ -84,12 +86,56 @@ app = FastAPI(
 )
 
 
+#: Cabeceras que endurecen el comportamiento del navegador. La API responde
+#: JSON, no HTML, pero el dashboard consume desde el mismo origen a traves del
+#: proxy inverso y una respuesta de error mal interpretada si puede ejecutarse.
+CABECERAS_DE_SEGURIDAD = {
+    # Impide que el navegador adivine el tipo de contenido y trate una
+    # respuesta JSON como si fuera HTML o un script.
+    "X-Content-Type-Options": "nosniff",
+    # Ninguna respuesta de la API debe cargarse dentro de un marco: es la
+    # defensa contra clickjacking.
+    "X-Frame-Options": "DENY",
+    # No filtrar la URL completa (que lleva identificadores de registro) a
+    # sitios externos al navegar desde aqui.
+    "Referrer-Policy": "no-referrer",
+    # La API no necesita camara, microfono ni geolocalizacion.
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+    # Nada de la API debe ejecutarse ni incrustarse como documento.
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+}
+
+
 @app.middleware("http")
-async def registrar_peticiones(request: Request, call_next):
-    """Emite una linea de log estructurada por peticion, con su latencia."""
+async def observar_peticiones(request: Request, call_next):
+    """
+    Emite log estructurado, alimenta las metricas y anade las cabeceras.
+
+    Los tres controles viven en el mismo middleware porque los tres necesitan
+    envolver la peticion completa; separarlos en tres capas solo anadiria saltos.
+    """
     inicio = time.perf_counter()
     respuesta = await call_next(request)
     duracion = time.perf_counter() - inicio
+
+    # La plantilla de la ruta ("/api/v1/canada/{registro_id}") y no la URL
+    # concreta: si no, cada registro de la base generaria su propia serie.
+    ruta = metricas.normalizar_ruta(request.url.path, request.scope.get("path_params") or {})
+
+    metricas.peticiones_totales.labels(
+        metodo=request.method, ruta=ruta, codigo=str(respuesta.status_code)
+    ).inc()
+    metricas.duracion_peticiones.labels(metodo=request.method, ruta=ruta).observe(duracion)
+
+    for cabecera, valor in CABECERAS_DE_SEGURIDAD.items():
+        respuesta.headers.setdefault(cabecera, valor)
+    if settings.entorno == "production":
+        # Solo en produccion: en local se trabaja sobre http y esta cabecera
+        # dejaria el navegador forzando https contra un servidor que no lo habla.
+        respuesta.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+
     logger.info(
         "%s %s -> %s",
         request.method,
@@ -99,6 +145,7 @@ async def registrar_peticiones(request: Request, call_next):
             "client": request.client.host if request.client else "desconocido",
             "method": request.method,
             "path": request.url.path,
+            "route": ruta,
             "status_code": respuesta.status_code,
             "duration": round(duracion, 4),
         },
@@ -182,3 +229,20 @@ def health(db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
             detail="La base de datos no esta disponible.",
         ) from exc
     return {"status": "ok", "database": "connected", "version": settings.version}
+
+
+@app.get(
+    "/metrics",
+    tags=["Salud"],
+    summary="Metricas en formato Prometheus",
+    include_in_schema=False,
+)
+def metricas_prometheus() -> Response:
+    """
+    Expone los contadores e histogramas de la aplicacion.
+
+    No requiere sesion porque Prometheus raspa sin credenciales, pero tampoco
+    revela datos: son agregados sin identificadores de cliente. En un despliegue
+    real este puerto no deberia publicarse fuera de la red interna.
+    """
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)

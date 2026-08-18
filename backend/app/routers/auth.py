@@ -28,7 +28,7 @@ from app.security import (
     obtener_ip,
     verificar_contrasena,
 )
-from app.services import auditoria, limitador
+from app.services import auditoria, limitador, metricas
 from app.services.auditoria import Accion
 
 logger = logging.getLogger("tramex_api.auth")
@@ -83,6 +83,7 @@ def login(
             request=request,
             detalle={"motivo": "limite_por_ip"},
         )
+        metricas.intentos_de_login.labels(resultado="bloqueado_por_ip").inc()
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Demasiados intentos desde este origen. Intenta mas tarde.",
@@ -99,6 +100,7 @@ def login(
             request=request,
             detalle={"motivo": "cuenta_bloqueada", "intentos": estado.intentos},
         )
+        metricas.intentos_de_login.labels(resultado="cuenta_bloqueada").inc()
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
@@ -119,6 +121,7 @@ def login(
             request=request,
             detalle={"intentos_en_ventana": veredicto.intentos},
         )
+        metricas.intentos_de_login.labels(resultado="fallido").inc()
         # El mensaje no distingue "no existe" de "contrasena incorrecta": decirlo
         # permitiria enumerar que cuentas son validas.
         raise HTTPException(
@@ -127,6 +130,7 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    metricas.intentos_de_login.labels(resultado="exitoso").inc()
     limitador.registrar_exito(correo)
     crud_usuario.registrar_acceso(db, usuario=usuario)
     auditoria.registrar(db, accion=Accion.LOGIN_EXITOSO, usuario=usuario, request=request)

@@ -24,7 +24,7 @@ from app.database import get_db
 from app.models import NivelAuditoria
 from app.schemas import ContrasenaResponse, PaginatedResponse
 from app.security import UsuarioActual
-from app.services import auditoria
+from app.services import auditoria, metricas
 from app.services.auditoria import Accion
 
 logger = logging.getLogger("tramex_api.tramites")
@@ -255,6 +255,7 @@ def crear_router_tramite(
                     nivel=NivelAuditoria.ALERTA,
                     request=request,
                 )
+                metricas.credenciales_consultadas.labels(recurso=tabla, resultado="ilegible").inc()
                 logger.error("Fallo de descifrado", exc_info=exc)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -264,6 +265,10 @@ def crear_router_tramite(
                         "llave o restaurado un respaldo cifrado con otra."
                     ),
                 ) from exc
+
+            metricas.credenciales_consultadas.labels(
+                recurso=tabla, resultado="ok" if contrasena else "sin_credencial"
+            ).inc()
 
             asiento = auditoria.registrar(
                 db,
