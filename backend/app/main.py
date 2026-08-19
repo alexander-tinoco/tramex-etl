@@ -1,8 +1,8 @@
 """
-Punto de entrada de la API de Tramex.
+Entry point of the Tramex API.
 
-Ensambla la aplicacion FastAPI: observabilidad (logs estructurados y Sentry),
-politica de CORS, routers versionados y sondas de salud.
+Assembles the FastAPI application: observability (structured logs and
+Sentry), CORS policy, versioned routers and health probes.
 """
 
 from __future__ import annotations
@@ -35,31 +35,31 @@ if settings.sentry_dsn:
         environment=settings.entorno,
         traces_sample_rate=settings.sentry_traces_sample_rate,
         profiles_sample_rate=settings.sentry_traces_sample_rate,
-        # Los cuerpos de peticion pueden contener contrasenas de clientes.
+        # Request bodies can contain client passwords.
         send_default_pii=False,
     )
-    logger.info("Sentry inicializado", extra={"entorno": settings.entorno})
+    logger.info("Sentry initialized", extra={"entorno": settings.entorno})
 
 
 DESCRIPCION = """
-API de gestion de tramites migratorios de la agencia Tramex.
+Tramex agency immigration tramite management API.
 
-Sustituye la hoja de calculo compartida con la que operaba el equipo: centraliza
-clientes y tramites en PostgreSQL, cifra las credenciales de las cuentas de los
-clientes con Fernet y deja rastro auditable de cada acceso a datos sensibles.
+Replaces the shared spreadsheet the team used to operate from: centralizes
+clients and tramites in PostgreSQL, encrypts client account credentials with
+Fernet, and leaves an auditable trail of every access to sensitive data.
 
-**Autenticacion.** Todos los recursos de negocio exigen sesion iniciada.
-`POST /api/v1/auth/token` deja la sesion en una cookie `httpOnly` (lo que usa el
-dashboard) y devuelve tambien el token en el cuerpo, para Swagger, scripts e
-integraciones que lo envian en `Authorization: Bearer <token>`.
+**Authentication.** Every business resource requires an active session.
+`POST /api/v1/auth/token` leaves the session in an `httpOnly` cookie (what the
+dashboard uses) and also returns the token in the body, for Swagger, scripts
+and integrations that send it as `Authorization: Bearer <token>`.
 
-**Roles.** `operador` gestiona tramites y puede consultar credenciales de
-clientes; `admin` ademas administra usuarios, consulta la bitacora de auditoria
-y ejecuta la politica de retencion.
+**Roles.** `operador` manages tramites and can look up client credentials;
+`admin` additionally manages users, browses the audit log, and runs the
+retention policy.
 
-**Auditoria.** Cada descifrado de una credencial queda asentado en
-`logs_auditoria` con el usuario, la fecha y el registro consultado. Lo que nunca
-se registra es la credencial en si.
+**Auditing.** Every time a credential is decrypted, it's recorded in
+`logs_auditoria` with the user, the date and the record that was looked up.
+What's never logged is the credential itself.
 """
 
 app = FastAPI(
@@ -69,46 +69,44 @@ app = FastAPI(
     contact={"name": "Alexander Tinoco", "url": "https://github.com/alexander-tinoco/tramex-etl"},
     license_info={"name": "MIT", "url": "https://opensource.org/licenses/MIT"},
     openapi_tags=[
-        {"name": "Salud", "description": "Sondas de disponibilidad y diagnostico."},
-        {"name": "Auth", "description": "Emision y verificacion de sesiones."},
+        {"name": "Salud", "description": "Availability and diagnostic probes."},
+        {"name": "Auth", "description": "Session issuance and verification."},
         {
             "name": "Administracion",
-            "description": (
-                "Usuarios, bitacora de auditoria y politica de retencion. Requiere rol `admin`."
-            ),
+            "description": ("Users, audit log, and retention policy. Requires the `admin` role."),
         },
-        {"name": "Clientes", "description": "Entidad raiz: personas y sus tramites."},
-        {"name": "Master Tramex", "description": "Tramites de visa americana y afines."},
-        {"name": "Global Entry", "description": "Tramites de Global Entry."},
-        {"name": "Pasaportes", "description": "Citas de expedicion y renovacion de pasaporte."},
-        {"name": "Canada", "description": "Tramites con cuenta IRCC."},
+        {"name": "Clientes", "description": "Root entity: people and their tramites."},
+        {"name": "Master Tramex", "description": "US visa tramites and related processes."},
+        {"name": "Global Entry", "description": "Global Entry tramites."},
+        {"name": "Pasaportes", "description": "Passport issuance and renewal appointments."},
+        {"name": "Canada", "description": "Tramites with an IRCC account."},
     ],
 )
 
 
-#: Cabeceras que endurecen el comportamiento del navegador. La API responde
-#: JSON, no HTML, pero el dashboard consume desde el mismo origen a traves del
-#: proxy inverso y una respuesta de error mal interpretada si puede ejecutarse.
+#: Headers that harden the browser's behavior. The API responds with JSON,
+#: not HTML, but the dashboard consumes it from the same origin through the
+#: reverse proxy, and a misinterpreted error response can still execute.
 CABECERAS_DE_SEGURIDAD = {
-    # Impide que el navegador adivine el tipo de contenido y trate una
-    # respuesta JSON como si fuera HTML o un script.
+    # Stops the browser from guessing the content type and treating a JSON
+    # response as if it were HTML or a script.
     "X-Content-Type-Options": "nosniff",
-    # Ninguna respuesta de la API debe cargarse dentro de un marco: es la
-    # defensa contra clickjacking.
+    # No API response should load inside a frame: this is the clickjacking
+    # defense.
     "X-Frame-Options": "DENY",
-    # No filtrar la URL completa (que lleva identificadores de registro) a
-    # sitios externos al navegar desde aqui.
+    # Don't leak the full URL (which carries record identifiers) to sites
+    # external to the browser when navigating away from here.
     "Referrer-Policy": "no-referrer",
-    # La API no necesita camara, microfono ni geolocalizacion.
+    # The API needs no camera, microphone, or geolocation.
     "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-    # Nada de la API debe ejecutarse ni incrustarse como documento.
+    # Nothing from the API should execute or be embedded as a document.
     "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
 }
 
-#: Rutas que devuelven HTML propio en lugar de JSON: la documentacion
-#: interactiva. Swagger UI y ReDoc cargan sus recursos desde un CDN, asi que la
-#: politica cerrada de arriba las dejaria en blanco. Se les aplica una politica
-#: propia, todavia restrictiva, en vez de relajar la de toda la API.
+#: Routes that return their own HTML instead of JSON: the interactive
+#: documentation. Swagger UI and ReDoc load their assets from a CDN, so the
+#: locked-down policy above would leave them blank. They get their own,
+#: still-restrictive policy, instead of relaxing the one for the whole API.
 RUTAS_DE_DOCUMENTACION = frozenset({"/docs", "/redoc", "/docs/oauth2-redirect"})
 
 CSP_DOCUMENTACION = (
@@ -125,17 +123,18 @@ CSP_DOCUMENTACION = (
 @app.middleware("http")
 async def observar_peticiones(request: Request, call_next):
     """
-    Emite log estructurado, alimenta las metricas y anade las cabeceras.
+    Emits a structured log entry, feeds the metrics, and adds the headers.
 
-    Los tres controles viven en el mismo middleware porque los tres necesitan
-    envolver la peticion completa; separarlos en tres capas solo anadiria saltos.
+    All three concerns live in the same middleware because all three need to
+    wrap the entire request; splitting them into three layers would only add
+    hops.
     """
     inicio = time.perf_counter()
     respuesta = await call_next(request)
     duracion = time.perf_counter() - inicio
 
-    # La plantilla de la ruta ("/api/v1/canada/{registro_id}") y no la URL
-    # concreta: si no, cada registro de la base generaria su propia serie.
+    # The route template ("/api/v1/canada/{registro_id}"), not the concrete
+    # URL: otherwise every record in the database would generate its own series.
     ruta = metricas.normalizar_ruta(request.url.path, request.scope.get("path_params") or {})
 
     metricas.peticiones_totales.labels(
@@ -148,8 +147,8 @@ async def observar_peticiones(request: Request, call_next):
     if request.url.path in RUTAS_DE_DOCUMENTACION:
         respuesta.headers["Content-Security-Policy"] = CSP_DOCUMENTACION
     if settings.entorno == "production":
-        # Solo en produccion: en local se trabaja sobre http y esta cabecera
-        # dejaria el navegador forzando https contra un servidor que no lo habla.
+        # Production only: locally, work happens over http, and this header
+        # would leave the browser forcing https against a server that doesn't speak it.
         respuesta.headers.setdefault(
             "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
         )
@@ -160,7 +159,7 @@ async def observar_peticiones(request: Request, call_next):
         request.url.path,
         respuesta.status_code,
         extra={
-            "client": request.client.host if request.client else "desconocido",
+            "client": request.client.host if request.client else "unknown",
             "method": request.method,
             "path": request.url.path,
             "route": ruta,
@@ -184,9 +183,9 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 
-#: La autenticacion se declara una sola vez por router en lugar de repetirse en
-#: cada endpoint: asi un endpoint nuevo nace protegido por omision, en vez de
-#: quedar abierto si alguien olvida la dependencia.
+#: Authentication is declared once per router instead of repeated on every
+#: endpoint: that way a new endpoint is born protected by default, instead of
+#: staying open if someone forgets the dependency.
 PROTEGIDO = [Depends(get_current_user)]
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
@@ -220,31 +219,31 @@ app.include_router(
 
 
 # ---------------------------------------------------------------------------
-# Salud
+# Health
 # ---------------------------------------------------------------------------
 
 
-@app.get("/", tags=["Salud"], summary="Identificacion del servicio")
+@app.get("/", tags=["Salud"], summary="Service identification")
 def raiz() -> dict[str, str]:
-    """Responde sin tocar la base de datos; util como sonda de vivacidad."""
+    """Responds without touching the database; useful as a liveness probe."""
     return {"status": "ok", "message": f"Tramex API v{settings.version}"}
 
 
-@app.get("/health", tags=["Salud"], summary="Sonda de disponibilidad")
+@app.get("/health", tags=["Salud"], summary="Availability probe")
 def health(db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
     """
-    Sonda de preparacion: verifica que la base de datos responda.
+    Readiness probe: checks that the database responds.
 
-    Devuelve 503 cuando la base no esta disponible, para que el orquestador
-    saque la instancia de rotacion en lugar de enviarle trafico que fallara.
+    Returns 503 when the database is unavailable, so the orchestrator pulls
+    the instance out of rotation instead of sending it traffic that will fail.
     """
     try:
         db.execute(text("SELECT 1"))
     except SQLAlchemyError as exc:
-        logger.error("Sonda de salud fallida", exc_info=exc)
+        logger.error("Health probe failed", exc_info=exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="La base de datos no esta disponible.",
+            detail="The database is not available.",
         ) from exc
     return {"status": "ok", "database": "connected", "version": settings.version}
 
@@ -252,15 +251,16 @@ def health(db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
 @app.get(
     "/metrics",
     tags=["Salud"],
-    summary="Metricas en formato Prometheus",
+    summary="Metrics in Prometheus format",
     include_in_schema=False,
 )
 def metricas_prometheus() -> Response:
     """
-    Expone los contadores e histogramas de la aplicacion.
+    Exposes the application's counters and histograms.
 
-    No requiere sesion porque Prometheus raspa sin credenciales, pero tampoco
-    revela datos: son agregados sin identificadores de cliente. En un despliegue
-    real este puerto no deberia publicarse fuera de la red interna.
+    Doesn't require a session because Prometheus scrapes without credentials,
+    but it doesn't reveal data either: these are aggregates with no client
+    identifiers. In a real deployment this port shouldn't be published
+    outside the internal network.
     """
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)

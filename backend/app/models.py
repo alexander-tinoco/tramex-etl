@@ -1,23 +1,23 @@
 """
-Modelos ORM de SQLAlchemy.
+SQLAlchemy ORM models.
 
-El modelo relacional gira alrededor de la entidad `Cliente`: una persona que
-contrata a la agencia puede tener simultaneamente un tramite de pasaporte, uno
-de Global Entry y uno de Canada. En la hoja de calculo original esa relacion
-era implicita (el mismo nombre repetido en cuatro pestanas distintas); aqui es
-explicita mediante claves foraneas.
+The relational model revolves around the `Cliente` entity: a person who
+contracts the agency can simultaneously have a passport tramite, a Global
+Entry one, and a Canada one. In the original spreadsheet that relationship
+was implicit (the same name repeated across four different tabs); here it's
+explicit via foreign keys.
 
-Convenciones transversales a todas las tablas de tramite:
+Conventions shared across all tramite tables:
 
-- `clave_natural`  Huella estable de los campos que identifican al registro en
-                   el archivo de origen. Es UNIQUE y permite que el ETL sea
-                   idempotente mediante `INSERT ... ON CONFLICT DO UPDATE`.
-- `hash_fila`      Huella de *todos* los campos de negocio en texto plano. Si
-                   no cambia entre dos corridas del ETL, la fila se deja
-                   intacta (evita reescrituras y re-cifrados innecesarios).
-- `eliminado_en`   Borrado logico. Los datos personales nunca se destruyen de
-                   inmediato: se marcan y se purgan segun la politica de
-                   retencion documentada en docs/decisions/0005.
+- `clave_natural`  Stable fingerprint of the fields that identify the record
+                   in the source file. It's UNIQUE and lets the ETL be
+                   idempotent via `INSERT ... ON CONFLICT DO UPDATE`.
+- `hash_fila`      Fingerprint of *all* the plain-text business fields. If it
+                   doesn't change between two ETL runs, the row is left
+                   untouched (avoids unnecessary rewrites and re-encryption).
+- `eliminado_en`   Soft delete. Personal data is never destroyed immediately:
+                   it's marked and purged according to the retention policy
+                   documented in docs/decisions/0005.
 """
 
 import enum
@@ -41,7 +41,7 @@ from app.database import Base
 
 
 class TimestampMixin:
-    """Marcas de tiempo y borrado logico compartidas por todas las tablas."""
+    """Timestamps and soft delete shared by every table."""
 
     cargado_en: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
@@ -54,17 +54,17 @@ class TimestampMixin:
 
 class RegistroBase(Base, TimestampMixin):
     """
-    Base abstracta de toda tabla que participa del pipeline de ingesta.
+    Abstract base for every table that takes part in the ingestion pipeline.
 
-    Declara las columnas comunes en un solo lugar: identificador, nombre, las
-    dos huellas de identidad y las marcas de tiempo. Es `__abstract__`, asi que
-    SQLAlchemy no crea ninguna tabla para ella.
+    Declares the common columns in one place: identifier, name, the two
+    identity fingerprints, and the timestamps. It's `__abstract__`, so
+    SQLAlchemy doesn't create any table for it.
 
-    Ademas de evitar repetir seis columnas en cinco modelos, existe por una
-    razon de tipos: los repositorios genericos operan sobre `eliminado_en`,
-    `clave_natural` e `id`, y con la base declarativa pelada el verificador no
-    puede saber que esas columnas existen. Con esta base, el `TypeVar` de
-    `CRUDBase` queda acotado a algo que si las declara.
+    Besides avoiding repeating six columns across five models, it exists for
+    a typing reason: the generic repositories operate on `eliminado_en`,
+    `clave_natural` and `id`, and with the bare declarative base the checker
+    can't know those columns exist. With this base, `CRUDBase`'s `TypeVar` is
+    bounded to something that does declare them.
     """
 
     __abstract__ = True
@@ -72,24 +72,24 @@ class RegistroBase(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     nombre: Mapped[str] = mapped_column(Text, nullable=False, index=True)
 
-    #: Huella de los campos identificadores. Objetivo del ON CONFLICT del ETL.
+    #: Fingerprint of the identifying fields. Target of the ETL's ON CONFLICT.
     clave_natural: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    #: Huella del contenido completo, para detectar si algo cambio de verdad.
+    #: Fingerprint of the full content, to detect whether anything actually changed.
     hash_fila: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 def indice_trigramas(tabla: str) -> Index:
     """
-    Indice GIN de trigramas sobre el nombre, para las busquedas parciales.
+    Trigram GIN index on the name, for partial-match searches.
 
-    Los listados filtran con `ILIKE '%texto%'`, y un indice B-tree no puede
-    servir esa consulta porque el comodin va al inicio: PostgreSQL acabaria
-    recorriendo la tabla entera. `pg_trgm` si la resuelve.
+    Listings filter with `ILIKE '%text%'`, and a B-tree index can't serve
+    that query because the wildcard is at the start: PostgreSQL would end up
+    scanning the whole table. `pg_trgm` can resolve it.
 
-    Se declara en el modelo, y no solo en la migracion, para que la deteccion de
-    deriva de la integracion continua no lo interprete como un indice sobrante.
-    En dialectos que no son PostgreSQL los argumentos especificos se ignoran y
-    queda un indice ordinario, inofensivo para las pruebas.
+    Declared on the model, not only in the migration, so continuous
+    integration's drift detection doesn't read it as a stray index. On
+    dialects other than PostgreSQL the dialect-specific arguments are
+    ignored and it becomes an ordinary index, harmless for tests.
     """
     return Index(
         f"ix_{tabla}_nombre_trgm",
@@ -101,14 +101,14 @@ def indice_trigramas(tabla: str) -> Index:
 
 def indice_clave_natural(tabla: str) -> Index:
     """
-    Indice unico *parcial* sobre la clave natural de los registros activos.
+    *Partial* unique index on the natural key of active records.
 
-    La unicidad se restringe a `eliminado_en IS NULL` a proposito. Un UNIQUE
-    total impediria conservar el historial: la carga original, que hacia
-    `INSERT` ciego, dejo filas duplicadas en la base, y al archivarlas seguirian
-    ocupando su clave e impedirian volver a insertar la version buena. Con el
-    indice parcial pueden coexistir un registro activo y cualquier cantidad de
-    versiones archivadas de la misma identidad.
+    Uniqueness is deliberately restricted to `eliminado_en IS NULL`. A full
+    UNIQUE constraint would prevent keeping history: the original load, which
+    did a blind `INSERT`, left duplicate rows in the database, and archiving
+    them would still occupy their key and block re-inserting the correct
+    version. With the partial index, one active record and any number of
+    archived versions of the same identity can coexist.
     """
     return Index(
         f"uq_{tabla}_clave_natural_activa",
@@ -120,12 +120,12 @@ def indice_clave_natural(tabla: str) -> Index:
 
 
 # ---------------------------------------------------------------------------
-# clientes — raiz del modelo relacional
+# clientes — root of the relational model
 # ---------------------------------------------------------------------------
 
 
 class Cliente(RegistroBase):
-    """Persona que contrata uno o mas tramites con la agencia."""
+    """Person who contracts one or more tramites with the agency."""
 
     __tablename__ = "clientes"
     __table_args__ = (
@@ -162,7 +162,7 @@ class Cliente(RegistroBase):
 
 
 class MasterTramex(RegistroBase):
-    """Tramite principal (visa americana y afines)."""
+    """Main tramite (US visa and related processes)."""
 
     __tablename__ = "master_tramex"
     __table_args__ = (
@@ -191,7 +191,7 @@ class MasterTramex(RegistroBase):
 
 
 class GlobalEntry(RegistroBase):
-    """Tramite de Global Entry."""
+    """Global Entry tramite."""
 
     __tablename__ = "global_entry"
     __table_args__ = (
@@ -217,7 +217,7 @@ class GlobalEntry(RegistroBase):
 
 
 class Pasaporte(RegistroBase):
-    """Tramite de expedicion o renovacion de pasaporte."""
+    """Passport issuance or renewal tramite."""
 
     __tablename__ = "pasaportes"
     __table_args__ = (
@@ -233,8 +233,8 @@ class Pasaporte(RegistroBase):
     telefono: Mapped[str | None] = mapped_column(Text, nullable=True)
     lugar_cita: Mapped[str | None] = mapped_column(Text, nullable=True)
     fecha_cita: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
-    # El Excel de origen contiene celdas de fecha con texto libre ("MARZO").
-    # Se preserva el valor original en vez de descartarlo silenciosamente.
+    # The source Excel file contains date cells with free-form text ("MARZO").
+    # The original value is preserved instead of silently discarding it.
     fecha_cita_original: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     cliente: Mapped["Cliente"] = relationship(back_populates="pasaportes")
@@ -246,7 +246,7 @@ class Pasaporte(RegistroBase):
 
 
 class Canada(RegistroBase):
-    """Tramite de visa o residencia canadiense (cuenta IRCC)."""
+    """Canadian visa or residency tramite (IRCC account)."""
 
     __tablename__ = "canada"
     __table_args__ = (
@@ -267,47 +267,47 @@ class Canada(RegistroBase):
 
 
 # ---------------------------------------------------------------------------
-# usuarios — operadoras y administradores del sistema
+# usuarios — system operators and administrators
 # ---------------------------------------------------------------------------
 
 
 class Rol(enum.StrEnum):
     """
-    Roles del sistema.
+    System roles.
 
-    Solo dos, porque el equipo real son dos figuras: quien atiende tramites y
-    quien administra. Anadir mas roles sin una necesidad concreta produce una
-    matriz de permisos que nadie mantiene.
+    Only two, because the real team is two figures: whoever handles tramites
+    and whoever administers. Adding more roles without a concrete need
+    produces a permissions matrix nobody maintains.
     """
 
-    #: Gestiona usuarios, consulta la bitacora de auditoria y purga registros.
+    #: Manages users, browses the audit log, and purges records.
     ADMIN = "admin"
-    #: Opera los tramites del dia a dia, incluida la consulta de credenciales.
+    #: Operates day-to-day tramites, including looking up credentials.
     OPERADOR = "operador"
 
 
 class Usuario(Base, TimestampMixin):
     """
-    Persona que accede al sistema.
+    Person who accesses the system.
 
-    Sustituye al par de variables de entorno `API_USERNAME` / `API_PASSWORD`
-    con el que antes se autenticaba un unico administrador compartido. Con un
-    usuario por persona, la bitacora de auditoria puede decir *quien* consulto
-    la credencial de un cliente, que es justamente el punto de auditarla.
+    Replaces the pair of environment variables `API_USERNAME` / `API_PASSWORD`
+    previously used to authenticate a single shared administrator. With one
+    user per person, the audit log can say *who* looked up a client's
+    credential, which is exactly the point of auditing it.
     """
 
     __tablename__ = "usuarios"
     __table_args__ = (UniqueConstraint("correo_electronico", name="uq_usuarios_correo"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    # La unicidad se declara como restriccion con nombre explicito en
-    # `__table_args__`, no con `unique=True` aqui: asi el nombre coincide con el
-    # de la migracion y la deteccion de deriva de la CI no la ve como distinta.
-    # Tampoco lleva `index=True`, porque la propia restriccion crea su indice.
+    # Uniqueness is declared as a named constraint in `__table_args__`, not
+    # with `unique=True` here: that way the name matches the migration's, and
+    # CI's drift detection doesn't read it as different.
+    # It also has no `index=True`, because the constraint itself creates its index.
     correo_electronico: Mapped[str] = mapped_column(Text, nullable=False)
     nombre: Mapped[str] = mapped_column(Text, nullable=False)
-    #: Hash bcrypt. La columna se llama asi, y no "contrasena", para que quede
-    #: explicito en el esquema que aqui nunca hay texto plano.
+    #: bcrypt hash. The column is named this way, not "contrasena", so the
+    #: schema makes explicit that there's never plain text here.
     contrasena_hash: Mapped[str] = mapped_column(Text, nullable=False)
     rol: Mapped[Rol] = mapped_column(
         SAEnum(Rol, name="rol_usuario", values_callable=lambda e: [m.value for m in e]),
@@ -323,12 +323,12 @@ class Usuario(Base, TimestampMixin):
 
 
 # ---------------------------------------------------------------------------
-# logs_auditoria — rastro de acceso a datos sensibles
+# logs_auditoria — trail of access to sensitive data
 # ---------------------------------------------------------------------------
 
 
 class NivelAuditoria(enum.StrEnum):
-    """Severidad del evento, para poder filtrar la bitacora."""
+    """Severity of the event, to allow filtering the audit log."""
 
     INFO = "INFO"
     ADVERTENCIA = "ADVERTENCIA"
@@ -337,16 +337,16 @@ class NivelAuditoria(enum.StrEnum):
 
 class LogAuditoria(Base):
     """
-    Bitacora inmutable de eventos sensibles.
+    Immutable log of sensitive events.
 
-    Existe por el dominio: el sistema guarda credenciales de cuentas
-    gubernamentales de clientes reales. Descifrar una de ellas es la operacion
-    mas delicada de la API y, sin este registro, nadie podria responder quien
-    la consulto, cuando ni de que cliente.
+    Exists because of the domain: the system stores credentials for real
+    clients' government accounts. Decrypting one of them is the most
+    delicate operation in the API, and without this record nobody could
+    answer who looked it up, when, or for which client.
 
-    La tabla no tiene borrado logico ni actualizacion a proposito: una bitacora
-    que se puede editar no sirve como bitacora. La retencion se aplica
-    purgando por antiguedad, nunca corrigiendo asientos.
+    The table deliberately has no soft delete or update: a log that can be
+    edited isn't a log. Retention is applied by purging by age, never by
+    correcting entries.
     """
 
     __tablename__ = "logs_auditoria"
@@ -359,7 +359,7 @@ class LogAuditoria(Base):
     ocurrido_en: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False, index=True
     )
-    #: Se conserva aunque el usuario se elimine: un asiento sin autor no sirve.
+    #: Kept even if the user is deleted: an entry with no author is useless.
     usuario_id: Mapped[int | None] = mapped_column(
         ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -379,6 +379,6 @@ class LogAuditoria(Base):
     )
     direccion_ip: Mapped[str | None] = mapped_column(Text, nullable=True)
     agente_usuario: Mapped[str | None] = mapped_column(Text, nullable=True)
-    #: Contexto adicional del evento. Nunca contiene credenciales: lo que se
-    #: registra es *que se consulto*, jamas *que se obtuvo*.
+    #: Extra context for the event. Never contains credentials: what's
+    #: recorded is *what was looked up*, never *what was obtained*.
     detalle: Mapped[str | None] = mapped_column(Text, nullable=True)

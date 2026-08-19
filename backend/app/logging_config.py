@@ -5,12 +5,12 @@ from typing import Any
 
 class JSONFormatter(logging.Formatter):
     """
-    Formateador de logs personalizado que convierte la salida estándar a formato JSON.
-    Facilita la agregación y el análisis de logs en herramientas externas.
+    Custom log formatter that converts the standard output into JSON.
+    Makes it easier to aggregate and analyze logs in external tools.
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        # Estructura básica del log JSON
+        # Basic structure of the JSON log
         log_record: dict[str, Any] = {
             "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
             "level": record.levelname,
@@ -18,11 +18,11 @@ class JSONFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
-        # Incluir traza de excepciones si existen
+        # Include exception traceback if present
         if record.exc_info:
             log_record["exception"] = self.formatException(record.exc_info)
 
-        # Mapeo dinámico de atributos adicionales pasados al log (ej. en peticiones HTTP)
+        # Dynamic mapping of extra attributes passed to the log call (e.g. on HTTP requests)
         extra_keys = ["client", "method", "path", "status_code", "duration"]
         for key in extra_keys:
             if hasattr(record, key):
@@ -32,21 +32,21 @@ class JSONFormatter(logging.Formatter):
 
 
 def setup_logging() -> None:
-    """Configura el logger raíz para utilizar el formateador estructurado JSON."""
+    """Configures the root logger to use the structured JSON formatter."""
     root_logger = logging.getLogger()
 
-    # Remover handlers previos para evitar duplicidad de salidas
+    # Remove previous handlers to avoid duplicate output
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
 
-    # Configurar handler de consola estándar
+    # Set up the standard console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(JSONFormatter())
 
     root_logger.addHandler(console_handler)
     root_logger.setLevel(logging.INFO)
 
-    # También re-formateamos los logs por defecto de uvicorn para coherencia
+    # Also reformat uvicorn's default logs for consistency
     for logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access"]:
         logger = logging.getLogger(logger_name)
         logger.handlers = []
