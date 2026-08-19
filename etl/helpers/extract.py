@@ -1,10 +1,10 @@
 """
-Extraccion: lectura de las hojas del archivo de origen.
+Extraction: reading the sheets from the source file.
 
-La unica responsabilidad de este modulo es entregar un DataFrame con las
-columnas esperadas ya renombradas. No limpia ni valida contenido; de eso se
-encarga `transform`. Separarlo permite que la transformacion se pruebe con
-DataFrames construidos a mano, sin necesidad de un Excel.
+This module's only responsibility is to hand back a DataFrame with the
+expected columns already renamed. It doesn't clean or validate content;
+that's `transform`'s job. Separating them lets the transformation be tested
+with hand-built DataFrames, without needing an Excel file.
 """
 
 from __future__ import annotations
@@ -19,18 +19,18 @@ logger = logging.getLogger("etl.extract")
 
 
 class ErrorDeEstructura(Exception):
-    """El archivo de origen no tiene la forma que el pipeline espera."""
+    """The source file doesn't have the shape the pipeline expects."""
 
 
 @dataclass(frozen=True)
 class HojaOrigen:
     """
-    Describe donde vive cada hoja y como se llaman sus columnas.
+    Describes where each sheet lives and what its columns are called.
 
-    `fila_encabezado` existe porque las hojas no son homogeneas: la principal
-    arrastra cuatro filas de titulos y logotipos antes del encabezado real. El
-    mapa de columnas conserva los nombres tal cual aparecen en el archivo,
-    espacios finales incluidos, porque asi es como llegan.
+    `fila_encabezado` exists because the sheets aren't uniform: the main one
+    carries four rows of titles and logos before the real header. The column
+    map keeps the names exactly as they appear in the file, trailing spaces
+    included, because that's how they arrive.
     """
 
     nombre_hoja: str
@@ -39,14 +39,14 @@ class HojaOrigen:
     columnas: dict[str, str]
 
 
-#: Configuracion de las cuatro hojas que el pipeline procesa. El resto del
-#: archivo (numeros de cuenta que no son credenciales, codigos de respaldo,
-#: hojas de vacaciones) se ignora deliberadamente.
+#: Configuration for the four sheets the pipeline processes. The rest of the
+#: file (account numbers that aren't credentials, backup codes, vacation
+#: sheets) is deliberately ignored.
 HOJAS = (
     HojaOrigen(
         nombre_hoja="Master Tramex",
         tabla_destino="master_tramex",
-        # El encabezado real vive en la quinta fila de la hoja.
+        # The real header lives on the sheet's fifth row.
         fila_encabezado=4,
         columnas={
             "NOMBRE": "nombre",
@@ -68,8 +68,8 @@ HOJAS = (
             "Apellido ": "apellido",
             "Correo electrónico": "correo_electronico",
             "Número de pasaporte": "numero_pasaporte",
-            # En la practica esta columna guarda la contrasena de la cuenta,
-            # no un numero de cuenta. Se trata como credencial y se cifra.
+            # In practice this column holds the account password, not an
+            # account number. It's treated as a credential and encrypted.
             "Número de la cuenta": "contrasena",
         },
     ),
@@ -94,7 +94,7 @@ HOJAS = (
             "Cuenta IRCC": "cuenta_ircc",
             "Telefono": "telefono",
             "N°Pasaporte ": "numero_pasaporte",
-            # Igual que en Global entry: "Cuenta Cita" es la credencial.
+            # Same as in Global entry: "Cuenta Cita" is the credential.
             "Cuenta Cita": "contrasena",
         },
     ),
@@ -105,22 +105,22 @@ HOJAS_POR_TABLA = {hoja.tabla_destino: hoja for hoja in HOJAS}
 
 def _normalizar_encabezados(columnas: pd.Index) -> dict[str, str]:
     """
-    Empareja los encabezados reales con los esperados de forma tolerante.
+    Matches the real headers to the expected ones tolerantly.
 
-    Los nombres del archivo llevan espacios sobrantes y acentos inconsistentes
-    que cambian entre revisiones de la hoja. Comparar por una forma reducida
-    evita que el pipeline se rompa porque alguien borro un espacio final.
+    The names in the file carry extra spaces and inconsistent accents that
+    change between revisions of the sheet. Comparing by a reduced form keeps
+    the pipeline from breaking because someone removed a trailing space.
     """
     return {str(columna).strip().lower(): columna for columna in columnas}
 
 
 def leer_hoja(ruta_excel: str | Path, hoja: HojaOrigen) -> pd.DataFrame:
     """
-    Lee una hoja y devuelve un DataFrame con las columnas ya renombradas.
+    Reads a sheet and returns a DataFrame with the columns already renamed.
 
-    Lanza `ErrorDeEstructura` si falta alguna columna esperada: es preferible
-    detener la carga a insertar miles de filas con un campo silenciosamente
-    vacio porque alguien renombro una columna.
+    Raises `ErrorDeEstructura` if any expected column is missing: it's better
+    to stop the load than to insert thousands of rows with a silently empty
+    field because someone renamed a column.
     """
     marco = pd.read_excel(ruta_excel, sheet_name=hoja.nombre_hoja, header=hoja.fila_encabezado)
     disponibles = _normalizar_encabezados(marco.columns)
@@ -136,22 +136,22 @@ def leer_hoja(ruta_excel: str | Path, hoja: HojaOrigen) -> pd.DataFrame:
 
     if faltantes:
         raise ErrorDeEstructura(
-            f"La hoja '{hoja.nombre_hoja}' no tiene las columnas {faltantes}. "
-            f"Encabezados encontrados: {list(marco.columns)}"
+            f"Sheet '{hoja.nombre_hoja}' is missing columns {faltantes}. "
+            f"Headers found: {list(marco.columns)}"
         )
 
     marco = marco.rename(columns=renombres)[list(hoja.columnas.values())]
-    logger.info("Hoja '%s': %d fila(s) leidas", hoja.nombre_hoja, len(marco))
+    logger.info("Sheet '%s': %d row(s) read", hoja.nombre_hoja, len(marco))
     return marco
 
 
 def leer_archivo(
     ruta_excel: str | Path, tablas: tuple[str, ...] | None = None
 ) -> dict[str, pd.DataFrame]:
-    """Lee todas las hojas configuradas (o el subconjunto indicado)."""
+    """Reads all configured sheets (or the given subset)."""
     ruta = Path(ruta_excel)
     if not ruta.is_file():
-        raise ErrorDeEstructura(f"No existe el archivo de origen: {ruta}")
+        raise ErrorDeEstructura(f"Source file does not exist: {ruta}")
 
     seleccion = HOJAS if tablas is None else tuple(HOJAS_POR_TABLA[t] for t in tablas)
     return {hoja.tabla_destino: leer_hoja(ruta, hoja) for hoja in seleccion}

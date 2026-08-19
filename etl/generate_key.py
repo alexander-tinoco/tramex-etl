@@ -1,19 +1,19 @@
 """
-Genera una llave de cifrado para el campo de contraseñas.
+Generates an encryption key for the password field.
 
-Uso:
+Usage:
     python generate_key.py
 
-Guarda el resultado como variable de entorno TRAMEX_FERNET_KEY
-(en tu gestor de secretos, NUNCA en el código ni en el repositorio).
-Si pierdes esta llave, las contraseñas cifradas ya guardadas no se
-podrán volver a leer, así que respáldala en un lugar seguro
-(ej. Vaultwarden, un vault de la empresa) y no solo en el .env local.
+Save the result as the TRAMEX_FERNET_KEY environment variable
+(in your secrets manager, NEVER in the code or the repository).
+If you lose this key, credentials already encrypted with it can never
+be read again, so back it up somewhere safe (e.g. Vaultwarden, a
+company vault) and not only in the local .env file.
 """
 
 from cryptography.fernet import Fernet
 
 if __name__ == "__main__":
     key = Fernet.generate_key().decode()
-    print("Nueva llave generada. Guárdala como TRAMEX_FERNET_KEY:\n")
+    print("New key generated. Save it as TRAMEX_FERNET_KEY:\n")
     print(key)

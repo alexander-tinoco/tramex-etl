@@ -1,9 +1,9 @@
 """
-Pruebas de la fase de transformacion.
+Tests for the transformation phase.
 
-Se construyen DataFrames a mano en lugar de leer un Excel: la transformacion es
-pura y debe poder probarse sin el archivo real, que ademas contiene datos
-personales y no puede versionarse.
+DataFrames are built by hand instead of reading an Excel file: the
+transformation is pure and must be testable without the real file, which
+also holds personal data and can't be versioned.
 """
 
 import pandas as pd
@@ -31,7 +31,7 @@ def test_limpia_cada_campo_con_su_limpiador():
 
 
 def test_descarta_filas_sin_nombre():
-    """En el archivo de origen las filas sin nombre son separadores y totales."""
+    """In the source file, rows with no name are separators and totals."""
     marco = pd.DataFrame(
         {
             "nombre": ["Ana Lopez", None, "   ", "Jorge Monroy"],
@@ -71,10 +71,10 @@ def test_calcula_clave_natural_y_hash_por_registro():
 
 def test_el_hash_cambia_cuando_cambia_la_contrasena():
     """
-    La credencial participa del hash en texto plano.
+    The credential participates in the hash in plaintext.
 
-    Si no lo hiciera, cambiar solo la contrasena en el archivo no se detectaria
-    como novedad y la carga nunca la actualizaria.
+    If it didn't, changing only the password in the file wouldn't be
+    detected as a change and the load would never update it.
     """
 
     def construir(contrasena):
@@ -100,7 +100,7 @@ def test_el_hash_cambia_cuando_cambia_la_contrasena():
 
 
 def test_colapsa_duplicados_dentro_del_mismo_archivo():
-    """Dos capturas de la misma persona con distinto espaciado son una sola fila."""
+    """Two captures of the same person with different spacing are a single row."""
     marco = pd.DataFrame(
         {
             "nombre": ["José Ramírez", "  jose   ramirez ", "Ana Lopez"],
@@ -138,7 +138,7 @@ def test_pasaportes_separa_fecha_valida_de_texto_libre():
 
 
 def test_transformar_es_determinista():
-    """Dos corridas sobre la misma entrada producen exactamente lo mismo."""
+    """Two runs over the same input produce exactly the same result."""
     marco = pd.DataFrame(
         {
             "nombre": ["Ana Lopez"],

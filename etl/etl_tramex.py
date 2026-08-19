@@ -1,26 +1,26 @@
 """
-Pipeline ETL de Tramex: del archivo Excel operativo a la base de datos.
+Tramex ETL pipeline: from the operational Excel file to the database.
 
-Procesa unicamente las hojas `Master Tramex`, `Global entry`, `Pasaportes` y
-`Canada`. El resto del archivo (numeros de cuenta que no son credenciales,
-codigos de respaldo, hojas de vacaciones) se ignora deliberadamente.
+Processes only the `Master Tramex`, `Global entry`, `Pasaportes` and `Canada`
+sheets. The rest of the file (account numbers that aren't credentials, backup
+codes, vacation sheets) is deliberately ignored.
 
-Propiedades del pipeline:
+Pipeline properties:
 
-* **Idempotente.** Cada fila tiene una clave natural derivada de sus campos
-  identificadores; la carga usa `INSERT ... ON CONFLICT DO UPDATE`, de modo que
-  reprocesar el mismo archivo no duplica nada.
-* **Transaccional.** Las cuatro hojas entran en una sola transaccion: si algo
-  falla, la base queda como estaba.
-* **Sin reescrituras inutiles.** Una fila cuyo contenido no cambio no se toca,
-  lo que ademas evita volver a cifrar credenciales intactas.
-* **Seguro.** Las credenciales se cifran con Fernet antes de persistirse y
-  nunca se imprimen, ni siquiera en modo depuracion.
+* **Idempotent.** Every row has a natural key derived from its identifying
+  fields; the load uses `INSERT ... ON CONFLICT DO UPDATE`, so reprocessing
+  the same file never duplicates anything.
+* **Transactional.** The four sheets go in as a single transaction: if
+  anything fails, the database is left as it was.
+* **No pointless rewrites.** A row whose content hasn't changed isn't
+  touched, which also avoids re-encrypting credentials that are unchanged.
+* **Secure.** Credentials are encrypted with Fernet before being persisted
+  and are never printed, not even in debug mode.
 
-Uso:
+Usage:
 
-    export DATABASE_URL="postgresql+psycopg2://usuario:clave@host:5432/tramex"
-    export TRAMEX_FERNET_KEY="<generada con generate_key.py>"
+    export DATABASE_URL="postgresql+psycopg2://user:password@host:5432/tramex"
+    export TRAMEX_FERNET_KEY="<generated with generate_key.py>"
 
     python -m etl.etl_tramex raw-data/TRAMEX.xlsx
     python -m etl.etl_tramex raw-data/TRAMEX.xlsx --simulacion
@@ -52,62 +52,62 @@ logger = logging.getLogger("etl")
 
 
 def construir_parser() -> argparse.ArgumentParser:
-    """Define la interfaz de linea de comandos del pipeline."""
+    """Defines the pipeline's command-line interface."""
     parser = argparse.ArgumentParser(
         prog="etl_tramex",
-        description="Carga el archivo operativo de Tramex en la base de datos.",
+        description="Loads the Tramex operational file into the database.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("archivo", type=Path, help="Ruta al archivo .xlsx de origen.")
+    parser.add_argument("archivo", type=Path, help="Path to the source .xlsx file.")
     parser.add_argument(
         "--modo",
         choices=("upsert", "reemplazar"),
         default="upsert",
         help=(
-            "upsert (por omision) concilia el archivo con lo que ya existe. "
-            "reemplazar archiva todo lo vigente antes de cargar, para reconstruir "
-            "el estado desde cero."
+            "upsert (default) reconciles the file with what already exists. "
+            "reemplazar archives everything currently active before loading, to "
+            "rebuild the state from scratch."
         ),
     )
     parser.add_argument(
         "--lote",
         type=int,
         default=1000,
-        help="Cuantas filas se escriben por sentencia (por omision 1000).",
+        help="How many rows are written per statement (default 1000).",
     )
     parser.add_argument(
         "--solo",
         nargs="+",
         choices=tuple(HOJAS_POR_TABLA),
         metavar="TABLA",
-        help="Procesa solo las hojas indicadas en lugar de las cuatro.",
+        help="Processes only the sheets given instead of all four.",
     )
     parser.add_argument(
         "--simulacion",
         action="store_true",
         help=(
-            "Ejecuta la carga completa y revierte la transaccion al final. "
-            "Informa exactamente que cambiaria, sin cambiar nada."
+            "Runs the full load and rolls back the transaction at the end. "
+            "Reports exactly what would change, without changing anything."
         ),
     )
     parser.add_argument(
         "--nivel-log",
         default="INFO",
         choices=("DEBUG", "INFO", "WARNING", "ERROR"),
-        help="Verbosidad de la salida.",
+        help="Output verbosity.",
     )
     return parser
 
 
 def imprimir_resumen(resumen: ResumenCarga) -> None:
-    """Escribe el resultado de la corrida en un formato legible de un vistazo."""
-    encabezado = "SIMULACION (no se escribio nada)" if resumen.simulacion else "CARGA COMPLETADA"
+    """Writes the run's result in a format that's legible at a glance."""
+    encabezado = "DRY RUN (nothing was written)" if resumen.simulacion else "LOAD COMPLETE"
     ancho = 66
     print()
     print("=" * ancho)
     print(f" {encabezado}")
     print("=" * ancho)
-    print(f" {'tabla':<18}{'nuevos':>10}{'actualizados':>15}{'sin cambios':>15}")
+    print(f" {'table':<18}{'new':>10}{'updated':>15}{'unchanged':>15}")
     print("-" * ancho)
     print(
         f" {'clientes':<18}{resumen.clientes.insertados:>10}"
@@ -119,22 +119,22 @@ def imprimir_resumen(resumen: ResumenCarga) -> None:
             f"{detalle.actualizados:>15}{detalle.sin_cambios:>15}"
         )
     print("-" * ancho)
-    print(f" Duracion: {resumen.duracion_segundos} s")
+    print(f" Duration: {resumen.duracion_segundos} s")
     if not resumen.hubo_cambios:
-        print(" Sin novedades: el archivo ya estaba conciliado con la base.")
+        print(" No changes: the file was already reconciled with the database.")
     print("=" * ancho)
     print()
 
 
 def ejecutar(argumentos: argparse.Namespace) -> ResumenCarga:
-    """Orquesta las tres fases del pipeline."""
+    """Orchestrates the pipeline's three phases."""
     cargar_dotenv()
     configurar_logging(argumentos.nivel_log)
 
     url = obtener_url_base_de_datos()
     fernet = obtener_fernet()
 
-    logger.info("Leyendo %s", argumentos.archivo)
+    logger.info("Reading %s", argumentos.archivo)
     marcos = leer_archivo(argumentos.archivo, tuple(argumentos.solo) if argumentos.solo else None)
 
     registros = {tabla: transformar(tabla, marco) for tabla, marco in marcos.items()}
@@ -154,17 +154,17 @@ def ejecutar(argumentos: argparse.Namespace) -> ResumenCarga:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Punto de entrada. Devuelve el codigo de salida del proceso."""
+    """Entry point. Returns the process exit code."""
     argumentos = construir_parser().parse_args(argv)
     try:
         resumen = ejecutar(argumentos)
     except (ErrorDeConfiguracion, ErrorDeEstructura, ErrorDeCarga) as exc:
-        # Errores esperables y accionables: se informan sin volcar una traza
-        # que no le dice nada a quien opera el pipeline.
+        # Expected, actionable errors: reported without dumping a traceback
+        # that tells the pipeline operator nothing useful.
         logger.error("%s", exc)
         return 1
     except Exception:
-        logger.exception("El pipeline fallo de forma inesperada; no se escribio nada")
+        logger.exception("The pipeline failed unexpectedly; nothing was written")
         return 2
 
     imprimir_resumen(resumen)

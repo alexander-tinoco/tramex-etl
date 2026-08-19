@@ -1,9 +1,9 @@
 """
-Pruebas de las funciones de limpieza.
+Tests for the cleaning functions.
 
-Los casos no son inventados: reproducen la suciedad real del archivo operativo
-(telefonos con formato libre, celdas de fecha con texto, correos multiples en
-una sola celda, centinelas de vacio escritos a mano).
+The cases aren't invented: they reproduce the real messiness of the
+operational file (free-format phone numbers, date cells with text, multiple
+emails in a single cell, hand-typed empty sentinels).
 """
 
 from datetime import date, datetime
@@ -44,7 +44,7 @@ class TestLimpiarTelefono:
             ("447 114 8272", "4471148272"),
             ("+52 55 1234 5678", "525512345678"),
             ("447-114-8272 ext 5", "44711482725"),
-            # Los telefonos leidos como numero llegan con decimal flotante.
+            # Phone numbers read as a number arrive with a trailing float decimal.
             (4471148272.0, "4471148272"),
         ],
     )
@@ -56,7 +56,7 @@ class TestLimpiarTelefono:
         assert limpiar_telefono(entrada) is None
 
     def test_no_asume_longitud_fija(self):
-        """El archivo mezcla numeros locales e internacionales a proposito."""
+        """The file deliberately mixes local and international numbers."""
         assert limpiar_telefono("5512345678") == "5512345678"
         assert limpiar_telefono("+1 (305) 555 0199") == "13055550199"
 
@@ -66,7 +66,7 @@ class TestLimpiarCorreo:
         assert limpiar_correo("  Jorge@Example.COM ") == "jorge@example.com"
 
     def test_toma_el_primero_cuando_la_celda_trae_varios(self):
-        """Una celda con dos correos no debe descartarse entera."""
+        """A cell with two emails shouldn't be discarded entirely."""
         assert limpiar_correo("uno@example.com, dos@example.com") == "uno@example.com"
 
     @pytest.mark.parametrize(
@@ -88,10 +88,10 @@ class TestLimpiarPasaporte:
     )
     def test_converge_variantes_del_mismo_numero(self, entrada, esperado):
         """
-        Es el identificador del que depende la resolucion de identidad.
+        This is the identifier identity resolution depends on.
 
-        Si "g33 961340" y "G33961340" no convergieran, la misma persona se
-        partiria en dos clientes distintos.
+        If "g33 961340" and "G33961340" didn't converge, the same person
+        would split into two different clients.
         """
         assert limpiar_pasaporte(entrada) == esperado
 
@@ -115,9 +115,10 @@ class TestParsearFecha:
     @pytest.mark.parametrize("entrada", ["MARZO", "pendiente", "ya fue", "proxima semana"])
     def test_preserva_el_texto_libre_en_vez_de_descartarlo(self, entrada):
         """
-        Perder estas celdas seria perder informacion que la operadora si usa.
+        Losing these cells would mean losing information the operator actually uses.
 
-        El contrato es explicito: o hay fecha, o hay texto original, nunca ambos.
+        The contract is explicit: either there's a date, or there's original
+        text, never both.
         """
         fecha, original = parsear_fecha(entrada)
         assert fecha is None

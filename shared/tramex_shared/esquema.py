@@ -1,20 +1,20 @@
 """
-Definicion declarativa de las entidades de negocio.
+Declarative definition of the business entities.
 
-El ETL y la API comparten estas definiciones para derivar `clave_natural` y
-`hash_fila` de la misma forma. Cada entidad declara:
+The ETL and the API share these definitions to derive `clave_natural` and
+`hash_fila` the same way. Each entity declares:
 
 `campos_clave`
-    Columnas que identifican al registro. Cambiar esta lista cambia todas las
-    claves naturales existentes, asi que constituye una migracion de datos.
+    Columns that identify the record. Changing this list changes every
+    existing natural key, so it amounts to a data migration.
 
 `campos_negocio`
-    Columnas cuyo contenido representa el dato real. Alimentan `hash_fila`.
+    Columns whose content represents the actual data. They feed `hash_fila`.
 
 `campo_secreto`
-    Nombre del campo en texto plano que debe cifrarse antes de persistirse
-    (o `None` si la entidad no maneja credenciales). Participa en `hash_fila`
-    en claro pero jamas se almacena sin cifrar.
+    Name of the plaintext field that must be encrypted before persisting
+    (or `None` if the entity doesn't handle credentials). It participates
+    in `hash_fila` in plaintext but is never stored unencrypted.
 """
 
 from __future__ import annotations
@@ -24,13 +24,13 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class DefinicionEntidad:
-    """Reglas de identidad y de contenido de una tabla de negocio."""
+    """Identity and content rules for a business table."""
 
     tabla: str
     campos_clave: tuple[str, ...]
     campos_negocio: tuple[str, ...]
     campo_secreto: str | None = None
-    #: Columnas administrativas que nunca participan del hash de contenido.
+    #: Administrative columns that never participate in the content hash.
     campos_ignorados: tuple[str, ...] = field(
         default=(
             "id",
@@ -47,9 +47,9 @@ class DefinicionEntidad:
 
 CLIENTES = DefinicionEntidad(
     tabla="clientes",
-    # Una persona se identifica por su nombre completo mas el primer dato duro
-    # disponible. El pasaporte es el identificador fuerte; el correo actua como
-    # respaldo cuando el Excel no traia numero de pasaporte.
+    # A person is identified by their full name plus the first hard
+    # identifier available. The passport is the strong identifier; email
+    # acts as a fallback when the Excel file had no passport number.
     campos_clave=("nombre", "apellido", "numero_pasaporte", "correo_electronico"),
     campos_negocio=(
         "nombre",
@@ -115,7 +115,7 @@ CANADA = DefinicionEntidad(
     campo_secreto="contrasena",
 )
 
-#: Indice por nombre de tabla, para resolver la definicion en tiempo de ejecucion.
+#: Index by table name, to resolve the definition at runtime.
 ENTIDADES: dict[str, DefinicionEntidad] = {
     definicion.tabla: definicion
     for definicion in (CLIENTES, MASTER_TRAMEX, GLOBAL_ENTRY, PASAPORTES, CANADA)

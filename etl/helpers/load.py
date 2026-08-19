@@ -1,24 +1,24 @@
 """
-Carga idempotente y transaccional.
+Idempotent, transactional load.
 
-Este modulo resuelve el defecto mas grave que tenia el pipeline: la version
-anterior hacia `to_sql(..., if_exists="append")`, de modo que reprocesar el
-mismo archivo duplicaba toda la base, y cargaba hoja por hoja sin transaccion,
-de modo que un fallo en la tercera hoja dejaba las dos primeras a medias.
+This module fixes the most serious flaw the pipeline had: the previous
+version did `to_sql(..., if_exists="append")`, so reprocessing the same file
+duplicated the entire database, and it loaded sheet by sheet with no
+transaction, so a failure on the third sheet left the first two half-loaded.
 
-Ahora:
+Now:
 
-* Toda la carga ocurre dentro de **una sola transaccion**. Si algo falla, la
-  base queda exactamente como estaba.
-* Cada fila se escribe con `INSERT ... ON CONFLICT (clave_natural) DO UPDATE`,
-  apuntando al indice unico parcial de registros activos. Reprocesar el mismo
-  archivo no duplica nada.
-* El `DO UPDATE` solo se aplica si `hash_fila` cambio, asi que una corrida sin
-  novedades no reescribe filas ni vuelve a cifrar credenciales.
+* The whole load happens inside **a single transaction**. If anything fails,
+  the database is left exactly as it was.
+* Every row is written with `INSERT ... ON CONFLICT (clave_natural) DO
+  UPDATE`, targeting the partial unique index over active records.
+  Reprocessing the same file never duplicates anything.
+* The `DO UPDATE` only applies if `hash_fila` changed, so a run with no
+  changes doesn't rewrite rows or re-encrypt credentials.
 
-El esquema no se define aqui: lo posee Alembic (en el backend) y este modulo lo
-**refleja**. Duplicar las definiciones de tabla seria una segunda fuente de
-verdad que tarde o temprano divergiria.
+The schema isn't defined here: Alembic (in the backend) owns it, and this
+module **mirrors** it. Duplicating the table definitions would be a second
+source of truth that would eventually drift out of sync.
 """
 
 from __future__ import annotations
@@ -47,18 +47,18 @@ logger = logging.getLogger("etl.load")
 
 TABLAS_TRAMITE = ("master_tramex", "global_entry", "pasaportes", "canada")
 
-#: Columnas que nunca se sobrescriben en un `DO UPDATE`: la identidad no cambia
-#: (es la condicion del conflicto) y la fecha de alta debe conservarse.
+#: Columns that are never overwritten in a `DO UPDATE`: identity doesn't
+#: change (it's the conflict condition) and the creation date must be kept.
 COLUMNAS_INMUTABLES = frozenset({"id", "clave_natural", "cargado_en"})
 
 
 class ErrorDeCarga(Exception):
-    """La carga no pudo completarse; la transaccion se revierte entera."""
+    """The load couldn't complete; the whole transaction is rolled back."""
 
 
 @dataclass
 class ResumenTabla:
-    """Conteo del efecto de la carga sobre una tabla."""
+    """Count of the load's effect on a table."""
 
     insertados: int = 0
     actualizados: int = 0
@@ -69,15 +69,12 @@ class ResumenTabla:
         return self.insertados + self.actualizados + self.sin_cambios
 
     def __str__(self) -> str:
-        return (
-            f"{self.insertados} nuevo(s), {self.actualizados} actualizado(s), "
-            f"{self.sin_cambios} sin cambios"
-        )
+        return f"{self.insertados} new, {self.actualizados} updated, {self.sin_cambios} unchanged"
 
 
 @dataclass
 class ResumenCarga:
-    """Resultado completo de una corrida del pipeline."""
+    """Full result of a pipeline run."""
 
     por_tabla: dict[str, ResumenTabla] = field(default_factory=dict)
     clientes: ResumenTabla = field(default_factory=ResumenTabla)
@@ -91,17 +88,17 @@ class ResumenCarga:
 
 
 def _en_lotes(secuencia: list[dict[str, Any]], tamano: int) -> Iterator[list[dict[str, Any]]]:
-    """Parte una lista en lotes, para no armar sentencias de tamano ilimitado."""
+    """Splits a list into batches, to avoid building statements of unbounded size."""
     for inicio in range(0, len(secuencia), tamano):
         yield secuencia[inicio : inicio + tamano]
 
 
 def reflejar_tablas(engine: Engine) -> dict[str, Table]:
     """
-    Carga las definiciones de tabla desde la base viva.
+    Loads the table definitions from the live database.
 
-    Si falta alguna, es senal de que las migraciones no se han aplicado; se
-    prefiere un error explicito a una carga que fallaria a la mitad.
+    If any is missing, it's a sign the migrations haven't been applied; an
+    explicit error is preferable to a load that would fail halfway through.
     """
     metadatos = MetaData()
     esperadas = ("clientes", *TABLAS_TRAMITE)
@@ -109,26 +106,26 @@ def reflejar_tablas(engine: Engine) -> dict[str, Table]:
         metadatos.reflect(bind=engine, only=esperadas)
     except Exception as exc:
         raise ErrorDeCarga(
-            "No se pudo leer el esquema de la base de datos. Aplica las migraciones "
-            "antes de cargar: `cd backend && alembic upgrade head`."
+            "Could not read the database schema. Apply the migrations before "
+            "loading: `cd backend && alembic upgrade head`."
         ) from exc
 
     faltantes = [nombre for nombre in esperadas if nombre not in metadatos.tables]
     if faltantes:
-        raise ErrorDeCarga(f"Faltan tablas en la base de datos: {faltantes}.")
+        raise ErrorDeCarga(f"Missing tables in the database: {faltantes}.")
     return {nombre: metadatos.tables[nombre] for nombre in esperadas}
 
 
 def _constructor_de_insert(conexion: Connection):
-    """Elige el `INSERT` con soporte de `ON CONFLICT` del dialecto activo."""
+    """Picks the `INSERT` with `ON CONFLICT` support for the active dialect."""
     dialecto = conexion.dialect.name
     if dialecto == "postgresql":
         return insert_postgresql
     if dialecto == "sqlite":
         return insert_sqlite
     raise ErrorDeCarga(
-        f"El dialecto '{dialecto}' no soporta upsert por clave natural. "
-        "El pipeline requiere PostgreSQL (produccion) o SQLite (pruebas)."
+        f"Dialect '{dialecto}' does not support upsert by natural key. "
+        "The pipeline requires PostgreSQL (production) or SQLite (tests)."
     )
 
 
@@ -136,12 +133,12 @@ def _clasificar(
     conexion: Connection, tabla: Table, registros: list[dict[str, Any]]
 ) -> tuple[int, int, int]:
     """
-    Cuenta cuantos registros son nuevos, cuantos cambian y cuantos no.
+    Counts how many records are new, how many change, and how many don't.
 
-    Se consulta el estado previo antes de escribir porque ni PostgreSQL ni
-    SQLite distinguen de forma portable un INSERT de un UPDATE en el resultado
-    de un upsert, y un resumen honesto de la corrida es justamente lo que
-    permite confiar en que reprocesar el archivo no altero nada.
+    The previous state is queried before writing because neither PostgreSQL
+    nor SQLite portably distinguish an INSERT from an UPDATE in an upsert's
+    result, and an honest summary of the run is exactly what lets you trust
+    that reprocessing the file changed nothing.
     """
     claves = [registro["clave_natural"] for registro in registros]
     filas = conexion.execute(
@@ -166,7 +163,7 @@ def _clasificar(
 def _upsert(
     conexion: Connection, tabla: Table, registros: list[dict[str, Any]], tamano_lote: int
 ) -> ResumenTabla:
-    """Escribe los registros con upsert por clave natural, en lotes."""
+    """Writes the records with upsert by natural key, in batches."""
     resumen = ResumenTabla()
     if not registros:
         return resumen
@@ -191,8 +188,8 @@ def _upsert(
             for columna in valores[0]
             if columna not in COLUMNAS_INMUTABLES
         }
-        # Reprocesar el archivo debe poder reactivar un registro archivado sin
-        # dejar dos copias vivas de la misma identidad.
+        # Reprocessing the file must be able to reactivate an archived record
+        # without leaving two live copies of the same identity.
         actualizables["eliminado_en"] = None
         actualizables["actualizado_en"] = text("CURRENT_TIMESTAMP")
 
@@ -201,8 +198,9 @@ def _upsert(
                 index_elements=["clave_natural"],
                 index_where=text("eliminado_en IS NULL"),
                 set_=actualizables,
-                # Sin cambios reales no se toca la fila: evita reescrituras
-                # masivas y, sobre todo, volver a cifrar credenciales intactas.
+                # With no real changes, the row isn't touched: this avoids
+                # mass rewrites and, above all, re-encrypting unchanged
+                # credentials.
                 where=tabla.c.hash_fila != sentencia.excluded.hash_fila,
             )
         )
@@ -217,18 +215,18 @@ def _resolver_clientes(
     tamano_lote: int,
 ) -> tuple[dict[str, int], ResumenTabla]:
     """
-    Da de alta a las personas y devuelve el mapa `clave_cliente -> id`.
+    Registers the people and returns the `clave_cliente -> id` map.
 
-    Aplica la misma estrategia de dos pasadas que la API: primero las
-    proyecciones con identificador duro (pasaporte o correo), que son las que
-    definen quien es quien, y despues las que no lo tienen, que se enganchan
-    por nombre canonico solo si apuntan a una unica persona conocida. Ante un
-    nombre ambiguo se crea una persona nueva: unir despues dos expedientes que
-    quedaron sueltos es trivial, separar dos que se fusionaron por error no.
+    Applies the same two-pass strategy as the API: first the projections
+    with a hard identifier (passport or email), which are the ones that
+    define who's who, and then the ones without one, which are attached by
+    canonical name only if they point to a single known person. An ambiguous
+    name creates a new person instead: merging two records that were left
+    separate later is trivial, splitting two that were merged by mistake is
+    not.
 
-    El mapa devuelto incluye tambien las claves debiles resueltas por alias, de
-    modo que quien llama pueda buscar por la clave del registro sin saber como
-    se resolvio.
+    The returned map also includes the weak keys resolved by alias, so the
+    caller can look up by a record's key without knowing how it was resolved.
     """
     existentes = conexion.execute(
         select(
@@ -248,7 +246,7 @@ def _resolver_clientes(
 
     campos = ENTIDADES["clientes"].campos_negocio
     nuevos: dict[str, dict[str, Any]] = {}
-    #: Claves debiles que apuntan a la clave de otra persona ya conocida.
+    #: Weak keys that point to the key of another already-known person.
     alias: dict[str, str] = {}
 
     for debiles in (False, True):
@@ -285,7 +283,7 @@ def _resolver_clientes(
         ).all()
         ids_por_clave.update({fila.clave_natural: fila.id for fila in recien})
 
-    # Los alias se resuelven al final, cuando las personas nuevas ya tienen id.
+    # Aliases are resolved last, once the new people already have an id.
     for clave_debil, destino in alias.items():
         ids_por_clave[clave_debil] = ids_por_clave[destino]
 
@@ -302,23 +300,23 @@ def cargar(
     simulacion: bool = False,
 ) -> ResumenCarga:
     """
-    Persiste los registros transformados dentro de una unica transaccion.
+    Persists the transformed records inside a single transaction.
 
-    `modo="reemplazar"` archiva todo lo que hay antes de cargar, para
-    reconstruir el estado desde cero a partir del archivo. `simulacion=True`
-    ejecuta la carga completa y revierte al final: sirve para saber exactamente
-    que cambiaria una corrida sin llegar a cambiarlo.
+    `modo="reemplazar"` archives everything that exists before loading, to
+    rebuild the state from scratch from the file. `simulacion=True` runs the
+    full load and rolls back at the end: it's for finding out exactly what a
+    run would change without actually changing it.
     """
     if modo not in {"upsert", "reemplazar"}:
-        raise ErrorDeCarga(f"Modo de carga desconocido: {modo!r}.")
+        raise ErrorDeCarga(f"Unknown load mode: {modo!r}.")
 
     tablas = reflejar_tablas(engine)
     resumen = ResumenCarga(simulacion=simulacion)
     inicio = time.perf_counter()
 
-    # `engine.begin()` abre una transaccion unica: o entra todo el archivo, o
-    # no entra nada. La version anterior cargaba hoja por hoja y podia dejar la
-    # base a medias.
+    # `engine.begin()` opens a single transaction: either the whole file goes
+    # in, or none of it does. The previous version loaded sheet by sheet and
+    # could leave the database half-loaded.
     with engine.begin() as conexion:
         if modo == "reemplazar":
             for nombre in TABLAS_TRAMITE:
@@ -328,7 +326,7 @@ def cargar(
                     .where(tablas[nombre].c.eliminado_en.is_(None))
                     .values(eliminado_en=text("CURRENT_TIMESTAMP"))
                 )
-            logger.info("Modo reemplazar: registros vigentes archivados antes de la carga")
+            logger.info("Replace mode: active records archived before loading")
 
         proyecciones = [
             {campo: registro.get(campo) for campo in ENTIDADES["clientes"].campos_negocio}
@@ -338,7 +336,7 @@ def cargar(
         clientes_por_clave, resumen.clientes = _resolver_clientes(
             conexion, tablas["clientes"], proyecciones, tamano_lote
         )
-        logger.info("Clientes: %s", resumen.clientes)
+        logger.info("Clients: %s", resumen.clientes)
 
         for nombre, registros in registros_por_tabla.items():
             definicion = ENTIDADES[nombre]
@@ -359,10 +357,10 @@ def cargar(
             logger.info("%s: %s", nombre, resumen.por_tabla[nombre])
 
         if simulacion:
-            # Se revierte todo: la simulacion debe poder ejecutarse contra la
-            # base real sin dejar rastro.
+            # Everything is rolled back: the dry run must be able to execute
+            # against the real database without leaving a trace.
             conexion.rollback()
-            logger.warning("Simulacion: la transaccion se revirtio, nada se escribio")
+            logger.warning("Dry run: the transaction was rolled back, nothing was written")
 
     resumen.duracion_segundos = round(time.perf_counter() - inicio, 3)
     return resumen
