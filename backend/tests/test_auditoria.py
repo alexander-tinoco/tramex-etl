@@ -1,9 +1,9 @@
 """
-Pruebas de la bitacora de auditoria y del control por roles.
+Tests for the audit log and role-based access control.
 
-El sistema custodia credenciales de cuentas gubernamentales de clientes reales.
-Que se pueda responder *quien* consulto *que cuenta* y *cuando* no es un extra:
-es lo que hace defendible que la API pueda descifrarlas.
+The system holds credentials for real clients' government accounts. Being
+able to answer *who* looked up *which account* and *when* isn't an extra:
+it's what makes it defensible that the API can decrypt them at all.
 """
 
 from datetime import UTC
@@ -74,7 +74,7 @@ class TestConsultaDeCredenciales:
         assert respuesta.status_code == 200
         cuerpo = respuesta.json()
         assert cuerpo["contrasena"] == "CredencialDelCliente1"
-        # La respuesta indica en que asiento quedo registrada la consulta.
+        # The response indicates which audit entry the lookup was recorded in.
         assert cuerpo["auditoria_id"] > 0
 
         asiento = _asientos(client_admin, accion=Accion.CREDENCIAL_CONSULTADA)[0]
@@ -95,11 +95,12 @@ class TestConsultaDeCredenciales:
 
     def test_un_criptograma_ilegible_devuelve_500_y_se_asienta(self, client, client_admin, session):
         """
-        Antes esto devolvia "sin contrasena" en silencio.
+        This used to silently return "no password".
 
-        Confundir "este registro no tiene credencial" con "hay un criptograma
-        que no abre" oculta una llave rotada o un respaldo restaurado con otra
-        llave, justo cuando hay credenciales de clientes en juego.
+        Confusing "this record has no credential" with "there's a
+        ciphertext that won't open" hides a rotated key or a backup
+        restored with a different one — exactly when client credentials
+        are on the line.
         """
         from app.models import MasterTramex
 
@@ -110,7 +111,7 @@ class TestConsultaDeCredenciales:
 
         respuesta = client.get(f"/api/v1/master-tramex/{registro['id']}/password")
         assert respuesta.status_code == 500
-        assert "llave" in respuesta.json()["detail"].lower()
+        assert "key" in respuesta.json()["detail"].lower()
 
         asiento = _asientos(client_admin, accion=Accion.CREDENCIAL_ILEGIBLE)[0]
         assert asiento["nivel"] == "ALERTA"
@@ -144,7 +145,7 @@ class TestRoles:
         )
 
     def test_una_operadora_si_puede_operar_tramites(self, client):
-        """El control por rol no debe estorbar el trabajo diario."""
+        """Role-based access control shouldn't get in the way of daily work."""
         assert client.get("/api/v1/master-tramex/").status_code == 200
         assert _crear_tramite(client)["id"] > 0
 
@@ -164,7 +165,7 @@ class TestGestionDeUsuarios:
             },
         )
         assert respuesta.status_code == 201
-        # El correo se normaliza para que no existan dos cuentas equivalentes.
+        # The email is normalized so two equivalent accounts can't exist.
         assert respuesta.json()["correo_electronico"] == "nueva.operadora@example.com"
         assert respuesta.json()["rol"] == "operador"
         assert "contrasena" not in respuesta.text
@@ -189,7 +190,7 @@ class TestGestionDeUsuarios:
         assert respuesta.status_code == 422
 
     def test_no_se_puede_dejar_el_sistema_sin_administradores(self, client_admin, session):
-        """Recuperarse de eso exigiria editar la base a mano."""
+        """Recovering from that would require editing the database by hand."""
         from app.models import Rol, Usuario
 
         admin = session.query(Usuario).filter_by(correo_electronico=CORREO_ADMIN).one()
@@ -221,7 +222,7 @@ class TestRetencion:
             "/api/v1/admin/retencion/ejecutar", params={"confirmar": "true"}
         ).json()
         assert resultado["total_purgado"] == 0
-        # Sigue archivado, no destruido.
+        # Still archived, not destroyed.
         assert client.get("/api/v1/master-tramex/?incluir_eliminados=true").json()["total"] == 1
 
     def test_purga_lo_archivado_hace_mas_del_periodo_de_retencion(

@@ -1,13 +1,13 @@
 """
-Bitacora de auditoria.
+Audit log.
 
-Registra los eventos sensibles del sistema en `logs_auditoria`. El caso que
-justifica su existencia es el descifrado de credenciales de clientes: es la
-operacion mas delicada de la API y, sin rastro, nadie puede responder quien
-consulto que cuenta y cuando.
+Records the system's sensitive events in `logs_auditoria`. The case that
+justifies its existence is decrypting client credentials: it's the API's
+most delicate operation, and without a trace nobody can answer who looked
+up which account and when.
 
-Regla invariable: **se registra que se consulto, nunca que se obtuvo.** Ningun
-asiento contiene contrasenas, tokens ni cookies.
+Invariant rule: **it records that something was looked up, never what was
+obtained.** No entry ever contains passwords, tokens, or cookies.
 """
 
 from __future__ import annotations
@@ -28,12 +28,11 @@ logger = logging.getLogger("tramex_api.auditoria")
 
 class Accion:
     """
-    Vocabulario cerrado de acciones auditables.
+    Closed vocabulary of auditable actions.
 
-    Se declara como constantes en lugar de escribir cadenas sueltas en cada
-    llamada para que la bitacora sea consultable: buscar por
-    `CREDENCIAL_CONSULTADA` debe devolver todos los casos, no los que alguien
-    escribio sin errata.
+    Declared as constants instead of writing loose strings at each call site
+    so the log stays queryable: searching for `CREDENCIAL_CONSULTADA` should
+    return every case, not just the ones someone typed without a typo.
     """
 
     LOGIN_EXITOSO = "login_exitoso"
@@ -52,7 +51,7 @@ class Accion:
     CONTRASENA_CAMBIADA = "contrasena_cambiada"
 
 
-#: Campos que jamas deben aparecer en el detalle de un asiento.
+#: Fields that must never appear in an entry's detail.
 CAMPOS_PROHIBIDOS = frozenset(
     {"contrasena", "password", "token", "cookie", "authorization", "contrasena_cifrada"}
 )
@@ -60,11 +59,11 @@ CAMPOS_PROHIBIDOS = frozenset(
 
 def _sanear(detalle: dict[str, object] | None) -> str | None:
     """
-    Serializa el detalle descartando cualquier campo sensible.
+    Serializes the detail, discarding any sensitive field.
 
-    Es una red de seguridad, no una excusa para pasar secretos: si un campo
-    prohibido llega hasta aqui, se descarta y se deja constancia en el log de
-    aplicacion para que se corrija el punto de llamada.
+    This is a safety net, not an excuse to pass secrets through: if a
+    forbidden field makes it this far, it's dropped and logged to the
+    application log so the call site gets fixed.
     """
     if not detalle:
         return None
@@ -72,7 +71,7 @@ def _sanear(detalle: dict[str, object] | None) -> str | None:
     for clave, valor in detalle.items():
         if clave.lower() in CAMPOS_PROHIBIDOS:
             logger.error(
-                "Se intento auditar un campo sensible; fue descartado", extra={"campo": clave}
+                "Attempted to audit a sensitive field; it was discarded", extra={"campo": clave}
             )
             continue
         limpio[clave] = valor
@@ -95,11 +94,11 @@ def registrar(
     detalle: dict[str, object] | None = None,
 ) -> LogAuditoria:
     """
-    Asienta un evento en la bitacora y lo emite tambien al log estructurado.
+    Records an event in the audit log and also emits it to the structured log.
 
-    Se escribe en los dos sitios a proposito: la tabla permite consultar el
-    historial desde la aplicacion, y el log estructurado permite alertar en el
-    agregador sin depender de que alguien mire la tabla.
+    It's written to both places on purpose: the table lets the application
+    query the history, and the structured log lets alerting fire in the
+    aggregator without depending on someone watching the table.
     """
     asiento = LogAuditoria(
         usuario_id=usuario.id if usuario else None,
@@ -150,7 +149,7 @@ def consultar(
     nivel: NivelAuditoria | None = None,
     desde: datetime | None = None,
 ) -> tuple[list[LogAuditoria], int]:
-    """Lista la bitacora, de lo mas reciente a lo mas antiguo."""
+    """Lists the audit log, most recent first."""
     from sqlalchemy import func
 
     consulta = select(LogAuditoria)
@@ -174,15 +173,15 @@ def consultar(
 
 def purgar_anteriores_a(db: Session, dias: int) -> int:
     """
-    Elimina asientos mas antiguos que el periodo de retencion.
+    Deletes entries older than the retention period.
 
-    Es la unica forma legitima de que desaparezca un asiento: la bitacora no
-    admite edicion ni borrado individual, porque una bitacora corregible no
-    sirve como evidencia.
+    It's the only legitimate way for an entry to disappear: the audit log
+    doesn't support editing or deleting individual entries, because an
+    editable log doesn't hold up as evidence.
     """
     corte = datetime.now(UTC) - timedelta(days=dias)
-    # `rowcount` es propio de CursorResult; el tipo generico de `execute` no lo
-    # declara, aunque para un DELETE siempre lo sea en tiempo de ejecucion.
+    # `rowcount` belongs to CursorResult; `execute`'s generic return type
+    # doesn't declare it, though for a DELETE it's always there at runtime.
     resultado = cast(
         "CursorResult[Any]",
         db.execute(delete(LogAuditoria).where(LogAuditoria.ocurrido_en < corte)),

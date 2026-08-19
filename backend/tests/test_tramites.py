@@ -1,10 +1,10 @@
 """
-Pruebas del CRUD de los cuatro recursos de tramite.
+Tests for the CRUD of the four tramite resources.
 
-Los cuatro se generan con la misma fabrica, asi que el comportamiento comun se
-ejercita de forma parametrizada en vez de repetir el mismo bloque cuatro veces.
-Lo especifico de cada recurso (campos propios, presencia o ausencia de
-credencial) se prueba aparte.
+All four are generated from the same factory, so the shared behavior is
+exercised in a parametrized way instead of repeating the same block four
+times. What's specific to each resource (its own fields, presence or
+absence of a credential) is tested separately.
 """
 
 from datetime import UTC
@@ -62,7 +62,7 @@ IDS = list(RECURSOS)
 
 @pytest.fixture(params=IDS)
 def recurso(request):
-    """Cada prueba parametrizada recibe el nombre del recurso y su carga util."""
+    """Each parametrized test receives the resource name and its payload."""
     nombre = request.param
     return nombre, dict(RECURSOS[nombre]["payload"]), RECURSOS[nombre]["tiene_credencial"]
 
@@ -76,7 +76,7 @@ def test_ciclo_crud_completo(client, recurso):
     cuerpo = creado.json()
     assert cuerpo["nombre"] == payload["nombre"]
     assert cuerpo["cliente_id"] > 0
-    # La credencial jamas viaja en las respuestas ordinarias.
+    # The credential never travels in ordinary responses.
     assert "contrasena" not in cuerpo
     assert "contrasena_cifrada" not in cuerpo
     assert "clave_natural" not in cuerpo
@@ -114,7 +114,7 @@ def test_borrado_es_logico_y_reversible(client, recurso):
 
     client.delete(f"{base}/{registro_id}")
 
-    # Fuera de los listados ordinarios, pero conservado.
+    # Out of the ordinary listings, but preserved.
     assert client.get(f"{base}/").json()["total"] == 0
     ocultos = client.get(f"{base}/?incluir_eliminados=true").json()
     assert ocultos["total"] == 1
@@ -154,7 +154,7 @@ def test_ciclo_de_la_credencial_cifrada(client, recurso):
     base = f"/api/v1/{nombre}"
 
     if not tiene_credencial:
-        # Pasaportes no maneja credenciales: el endpoint no debe existir.
+        # Pasaportes doesn't handle credentials: the endpoint shouldn't exist.
         registro_id = client.post(f"{base}/", json=payload).json()["id"]
         assert client.get(f"{base}/{registro_id}/password").status_code == 404
         return
@@ -171,10 +171,11 @@ def test_ciclo_de_la_credencial_cifrada(client, recurso):
 
 def test_patch_parcial_no_borra_los_campos_omitidos(client):
     """
-    Un PATCH que omite un campo debe dejarlo intacto.
+    A PATCH that omits a field must leave it untouched.
 
-    Es la diferencia entre "no envie este campo" y "envie este campo como null",
-    que son intenciones distintas y no deben confundirse.
+    It's the difference between "I didn't send this field" and "I sent
+    this field as null", which are different intentions and shouldn't be
+    conflated.
     """
     creado = client.post(
         "/api/v1/master-tramex/",
@@ -193,7 +194,7 @@ def test_patch_parcial_no_borra_los_campos_omitidos(client):
     assert actualizado["cita"] == "2026-09-01"
     assert actualizado["telefono"] == "4471148272"
     assert actualizado["tramite"] == "VISA B1/B2"
-    # La credencial tampoco debe perderse al no mencionarla.
+    # The credential shouldn't be lost either, from not mentioning it.
     contrasena = client.get(f"/api/v1/master-tramex/{creado['id']}/password").json()
     assert contrasena["contrasena"] == "Secreta123"
 
@@ -212,10 +213,10 @@ def test_patch_con_null_explicito_si_borra_el_campo(client):
 
 def test_pasaporte_conserva_la_fecha_en_texto_libre(client):
     """
-    El Excel original trae celdas de fecha con texto como "MARZO".
+    The original Excel file has date cells with text like "MARZO".
 
-    El pipeline las preserva en `fecha_cita_original` en vez de descartarlas, y
-    la API debe respetar esa distincion.
+    The pipeline preserves them in `fecha_cita_original` instead of
+    discarding them, and the API must respect that distinction.
     """
     creado = client.post(
         "/api/v1/pasaportes/",
@@ -237,16 +238,16 @@ def test_paginacion_reporta_el_total_real(client):
 
 
 def test_limite_de_pagina_esta_acotado(client):
-    """Un `limit` desmedido debe rechazarse, no volcar la tabla entera."""
+    """An oversized `limit` must be rejected, not dump the whole table."""
     assert client.get("/api/v1/canada/?limit=100000").status_code == 422
 
 
 class TestOrdenDeListado:
     """
-    El tablero de la pantalla inicial pregunta «qué ha pasado hoy».
+    The home screen's board asks "what happened today".
 
-    Por omisión el listado ordena por identificador, que es estable y sirve
-    para paginar un catálogo; para el tablero hace falta lo último tocado.
+    By default the listing sorts by identifier, which is stable and works
+    for paginating a catalog; the board needs whatever was touched last.
     """
 
     def test_por_omision_ordena_por_identificador(self, client):
@@ -264,9 +265,10 @@ class TestOrdenDeListado:
         antiguo = client.post("/api/v1/canada/", json={"nombre": "Antiguo"}).json()
         nuevo = client.post("/api/v1/canada/", json={"nombre": "Nuevo"}).json()
 
-        # La marca de tiempo se fija a mano: CURRENT_TIMESTAMP tiene resolución
-        # de un segundo, así que dos altas seguidas comparten instante y la
-        # prueba mediría el desempate por id, no el orden que se quiere probar.
+        # The timestamp is set by hand: CURRENT_TIMESTAMP has one-second
+        # resolution, so two records created back to back share an instant
+        # and the test would measure the id tiebreak, not the order it's
+        # meant to test.
         ahora = datetime.now(UTC)
         session.get(Canada, nuevo["id"]).actualizado_en = ahora - timedelta(hours=2)
         session.get(Canada, antiguo["id"]).actualizado_en = ahora

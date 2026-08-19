@@ -1,20 +1,20 @@
 """
-Limitacion de intentos: fuerza bruta y saturacion del endpoint de login.
+Attempt limiting: brute force and saturation of the login endpoint.
 
-El login era el punto mas expuesto de la API: publico, sin limite de intentos y
-sin bloqueo. Cualquiera podia probar contrasenas indefinidamente.
+Login was the API's most exposed point: public, with no attempt limit and
+no lockout. Anyone could try passwords indefinitely.
 
-Se implementan dos controles complementarios:
+Two complementary controls are implemented:
 
-* **Bloqueo por cuenta.** Tras N fallos consecutivos en una ventana, esa cuenta
-  queda bloqueada aunque el atacante rote de IP.
-* **Limite por IP.** Acota el ritmo de peticiones desde un mismo origen, lo que
-  frena el barrido de muchas cuentas distintas.
+* **Account lockout.** After N consecutive failures in a window, that
+  account gets locked even if the attacker rotates IPs.
+* **Per-IP limit.** Caps the request rate from a single origin, which
+  slows down sweeping many different accounts.
 
-El contador vive en Redis cuando esta configurado, para que varias replicas
-compartan el estado. Sin Redis se usa un respaldo en memoria del proceso: sirve
-en desarrollo y pruebas, pero no coordina replicas, y por eso la configuracion
-exige Redis en produccion.
+The counter lives in Redis when configured, so several replicas share the
+state. Without Redis, an in-process memory fallback is used: it works for
+development and tests, but doesn't coordinate replicas, which is why the
+configuration requires Redis in production.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ logger = logging.getLogger("tramex_api.limitador")
 
 @dataclass
 class Veredicto:
-    """Resultado de consultar el limitador."""
+    """Result of querying the limiter."""
 
     permitido: bool
     intentos: int = 0
@@ -39,7 +39,7 @@ class Veredicto:
 
 
 class AlmacenDeContadores(Protocol):
-    """Contrato minimo que necesita el limitador de su almacen."""
+    """Minimal contract the limiter needs from its store."""
 
     def incrementar(self, clave: str, ttl_segundos: int) -> int: ...
 
@@ -53,11 +53,11 @@ class AlmacenDeContadores(Protocol):
 @dataclass
 class AlmacenEnMemoria:
     """
-    Respaldo en memoria del proceso.
+    In-process memory fallback.
 
-    Deliberadamente simple: no hay hilo de limpieza, las entradas caducadas se
-    descartan al leerlas. Para el volumen de un endpoint de login es suficiente
-    y evita una dependencia mas en desarrollo.
+    Deliberately simple: there's no cleanup thread, expired entries are
+    dropped when read. For the volume of a login endpoint that's enough,
+    and it avoids one more dependency in development.
     """
 
     _datos: dict[str, tuple[int, float]] = field(default_factory=dict)
@@ -74,9 +74,9 @@ class AlmacenEnMemoria:
     def incrementar(self, clave: str, ttl_segundos: int) -> int:
         entrada = self._vigente(clave)
         if entrada is None:
-            # La ventana arranca con el primer fallo y no se renueva con los
-            # siguientes: de lo contrario un atacante constante la extenderia
-            # para siempre y la cuenta nunca se desbloquearia.
+            # The window starts on the first failure and isn't renewed by
+            # later ones: otherwise a persistent attacker would extend it
+            # forever and the account would never unlock.
             self._datos[clave] = (1, time.monotonic() + ttl_segundos)
             return 1
         conteo, expira = entrada
@@ -96,7 +96,7 @@ class AlmacenEnMemoria:
 
 
 class AlmacenRedis:
-    """Contadores compartidos entre replicas."""
+    """Counters shared across replicas."""
 
     def __init__(self, url: str) -> None:
         import redis
@@ -106,7 +106,7 @@ class AlmacenRedis:
     def incrementar(self, clave: str, ttl_segundos: int) -> int:
         tuberia = self._cliente.pipeline()
         tuberia.incr(clave)
-        # `nx` deja intacto el vencimiento si la ventana ya estaba abierta.
+        # `nx` leaves the expiration untouched if the window was already open.
         tuberia.expire(clave, ttl_segundos, nx=True)
         conteo, _ = tuberia.execute()
         return int(conteo)
@@ -126,13 +126,14 @@ def _construir_almacen() -> AlmacenDeContadores:
     if settings.redis_url:
         try:
             almacen = AlmacenRedis(settings.redis_url)
-            logger.info("Limitador respaldado por Redis")
+            logger.info("Limiter backed by Redis")
             return almacen
         except Exception as exc:
-            # Que Redis no responda no debe tumbar la API, pero si debe verse:
-            # el sistema queda operando con un control degradado.
-            logger.error("No se pudo conectar a Redis; se usara memoria local", exc_info=exc)
-    logger.warning("Limitador en memoria: no coordina varias replicas")
+            # Redis being unreachable shouldn't take the API down, but it
+            # must be visible: the system keeps running with a degraded
+            # control.
+            logger.error("Could not connect to Redis; falling back to local memory", exc_info=exc)
+    logger.warning("Limiter running in memory: does not coordinate multiple replicas")
     return AlmacenEnMemoria()
 
 
@@ -140,7 +141,7 @@ _almacen: AlmacenDeContadores | None = None
 
 
 def obtener_almacen() -> AlmacenDeContadores:
-    """Devuelve el almacen activo, creandolo la primera vez."""
+    """Returns the active store, creating it the first time."""
     global _almacen
     if _almacen is None:
         _almacen = _construir_almacen()
@@ -148,7 +149,7 @@ def obtener_almacen() -> AlmacenDeContadores:
 
 
 def reiniciar_almacen(almacen: AlmacenDeContadores | None = None) -> None:
-    """Sustituye el almacen. Pensado para aislar las pruebas entre si."""
+    """Replaces the store. Meant to isolate tests from each other."""
     global _almacen
     _almacen = almacen
 
@@ -162,7 +163,7 @@ def _clave_ip(ip: str) -> str:
 
 
 def estado_de_cuenta(correo: str) -> Veredicto:
-    """Consulta si una cuenta esta bloqueada, sin contar un intento nuevo."""
+    """Checks whether an account is locked, without counting a new attempt."""
     almacen = obtener_almacen()
     clave = _clave_cuenta(correo)
     intentos = almacen.leer(clave)
@@ -172,7 +173,7 @@ def estado_de_cuenta(correo: str) -> Veredicto:
 
 
 def registrar_fallo(correo: str, ip: str) -> Veredicto:
-    """Cuenta un intento fallido y devuelve el estado resultante de la cuenta."""
+    """Counts a failed attempt and returns the account's resulting state."""
     almacen = obtener_almacen()
     ttl = settings.ventana_bloqueo_minutos * 60
     intentos = almacen.incrementar(_clave_cuenta(correo), ttl)
@@ -180,7 +181,7 @@ def registrar_fallo(correo: str, ip: str) -> Veredicto:
 
     if intentos >= settings.intentos_maximos_login:
         logger.warning(
-            "Cuenta bloqueada por intentos fallidos",
+            "Account locked due to failed attempts",
             extra={"intentos": intentos, "ventana_minutos": settings.ventana_bloqueo_minutos},
         )
         return Veredicto(False, intentos, almacen.ttl(_clave_cuenta(correo)))
@@ -188,16 +189,16 @@ def registrar_fallo(correo: str, ip: str) -> Veredicto:
 
 
 def registrar_exito(correo: str) -> None:
-    """Un login correcto limpia el contador de la cuenta."""
+    """A successful login clears the account's counter."""
     obtener_almacen().borrar(_clave_cuenta(correo))
 
 
 def estado_de_ip(ip: str) -> Veredicto:
     """
-    Limite por origen.
+    Per-origin limit.
 
-    El umbral es mas alto que el de cuenta porque una oficina entera puede
-    compartir IP publica y un dia de trabajo normal acumula varios logins.
+    The threshold is higher than the per-account one because a whole office
+    can share a public IP, and a normal workday racks up several logins.
     """
     almacen = obtener_almacen()
     clave = _clave_ip(ip)

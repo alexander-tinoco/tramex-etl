@@ -1,17 +1,17 @@
-"""Anade usuarios con roles y la bitacora de auditoria.
+"""Adds users with roles and the audit log.
 
 Revision ID: b2c3d4e5f6a7
 Revises: a1b2c3d4e5f6
 Create Date: 2026-08-17 10:20:00.000000
 
-Sustituye la autenticacion basada en dos variables de entorno
-(`API_USERNAME` / `API_PASSWORD`) por una tabla de usuarios con hash bcrypt y
-roles, y anade `logs_auditoria`.
+Replaces authentication based on two environment variables
+(`API_USERNAME` / `API_PASSWORD`) with a users table with bcrypt hashing
+and roles, and adds `logs_auditoria`.
 
-La bitacora es el motivo de fondo de todo el cambio: el sistema custodia
-credenciales de cuentas gubernamentales de clientes reales, y con una sola
-cuenta compartida era imposible responder quien consulto que cuenta. Un usuario
-por persona hace que la pregunta tenga respuesta.
+The audit log is the underlying reason for the whole change: the system
+holds credentials for real clients' government accounts, and with a single
+shared account it was impossible to answer who looked up which account.
+One user per person means the question has an answer.
 """
 
 from collections.abc import Sequence
@@ -29,9 +29,10 @@ NIVELES = ("INFO", "ADVERTENCIA", "ALERTA")
 
 
 def upgrade() -> None:
-    # En PostgreSQL, SQLAlchemy emite el CREATE TYPE del ENUM al crear la tabla
-    # que lo usa; cada tipo aparece en una sola tabla, asi que no hay conflicto.
-    # En SQLite el ENUM degrada a VARCHAR con una restriccion CHECK.
+    # On PostgreSQL, SQLAlchemy emits the ENUM's CREATE TYPE when creating
+    # the table that uses it; each type appears in only one table, so
+    # there's no conflict. On SQLite the ENUM degrades to VARCHAR with a
+    # CHECK constraint.
     rol = sa.Enum(*ROLES, name="rol_usuario")
     nivel = sa.Enum(*NIVELES, name="nivel_auditoria")
 
@@ -40,8 +41,8 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("correo_electronico", sa.Text(), nullable=False),
         sa.Column("nombre", sa.Text(), nullable=False),
-        # El nombre de la columna deja explicito en el esquema que aqui nunca
-        # hay texto plano.
+        # The column name makes it explicit in the schema that this never
+        # holds plaintext.
         sa.Column("contrasena_hash", sa.Text(), nullable=False),
         sa.Column("rol", rol, nullable=False, server_default="operador"),
         sa.Column("activo", sa.Boolean(), nullable=False, server_default=sa.true()),
@@ -59,8 +60,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("correo_electronico", name="uq_usuarios_correo"),
     )
-    # No se crea un indice aparte sobre el correo: la restriccion UNIQUE ya
-    # lleva el suyo, y duplicarlo solo anade escrituras en cada alta.
+    # No separate index is created on the email: the UNIQUE constraint
+    # already carries its own, and duplicating it only adds writes on
+    # every insert.
     op.create_index("ix_usuarios_eliminado_en", "usuarios", ["eliminado_en"])
 
     op.create_table(
@@ -72,9 +74,9 @@ def upgrade() -> None:
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
-        # SET NULL y no CASCADE: dar de baja a alguien no debe borrar el rastro
-        # de lo que hizo. Se conserva ademas el correo en texto para que el
-        # asiento siga siendo legible sin la fila del usuario.
+        # SET NULL, not CASCADE: deactivating someone must not erase the
+        # trace of what they did. The email is also kept as plain text so
+        # the entry stays legible without the user's row.
         sa.Column("usuario_id", sa.Integer(), nullable=True),
         sa.Column("usuario_correo", sa.Text(), nullable=True),
         sa.Column("accion", sa.Text(), nullable=False),
@@ -115,8 +117,8 @@ def downgrade() -> None:
     op.drop_table("usuarios")
 
     if conexion.dialect.name == "postgresql":
-        # Los tipos ENUM de PostgreSQL sobreviven al DROP TABLE, asi que hay que
-        # eliminarlos explicitamente. Si no, un `downgrade` seguido de un
-        # `upgrade` falla con "type already exists".
+        # PostgreSQL's ENUM types survive DROP TABLE, so they must be
+        # dropped explicitly. Otherwise a `downgrade` followed by an
+        # `upgrade` fails with "type already exists".
         sa.Enum(*NIVELES, name="nivel_auditoria").drop(conexion, checkfirst=True)
         sa.Enum(*ROLES, name="rol_usuario").drop(conexion, checkfirst=True)

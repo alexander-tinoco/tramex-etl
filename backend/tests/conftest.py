@@ -1,14 +1,14 @@
 """
-Fixtures compartidas de la suite del backend.
+Shared fixtures for the backend suite.
 
-Las pruebas corren contra SQLite en memoria: son rapidas, no requieren
-infraestructura y aislan cada caso. Las diferencias de dialecto relevantes
-(indices de trigramas, tipos propios de PostgreSQL) viven en la migracion y no
-en el codigo de aplicacion, por lo que no afectan a lo que aqui se ejercita.
+Tests run against SQLite in memory: they're fast, need no infrastructure,
+and isolate each case. The relevant dialect differences (trigram indexes,
+PostgreSQL-specific types) live in the migration, not in application code,
+so they don't affect what's exercised here.
 
-La autenticacion **no** se simula: los clientes de prueba inician sesion de
-verdad contra el endpoint real. Sustituirla por un override haria que la suite
-dejara de cubrir justamente la parte mas delicada del sistema.
+Authentication is **not** mocked: test clients really sign in against the
+real endpoint. Replacing it with an override would mean the suite stops
+covering exactly the most delicate part of the system.
 """
 
 import pytest
@@ -37,10 +37,10 @@ CORREO_OPERADOR = "operador@example.com"
 @event.listens_for(engine, "connect")
 def _activar_claves_foraneas(conexion_dbapi, _registro):
     """
-    SQLite ignora las claves foraneas salvo que se pidan explicitamente.
+    SQLite ignores foreign keys unless explicitly requested.
 
-    Sin esto las pruebas no detectarian una violacion de integridad que
-    PostgreSQL si rechazaria en produccion.
+    Without this, tests wouldn't catch an integrity violation that
+    PostgreSQL would reject in production.
     """
     cursor = conexion_dbapi.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
@@ -52,12 +52,12 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 @pytest.fixture(name="session")
 def session_fixture():
-    """Base limpia, con los dos usuarios de prueba ya sembrados."""
+    """Clean database, with the two test users already seeded."""
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
-    # Cada prueba parte con los contadores de intentos a cero; de lo contrario
-    # una prueba de fuerza bruta dejaria bloqueadas a las siguientes.
+    # Every test starts with the attempt counters at zero; otherwise a
+    # brute-force test would leave the following ones locked out.
     limitador.reiniciar_almacen(limitador.AlmacenEnMemoria())
 
     db = TestingSessionLocal()
@@ -89,11 +89,11 @@ def session_fixture():
 @pytest.fixture(name="fabrica_de_clientes")
 def fabrica_de_clientes_fixture(session):
     """
-    Crea clientes HTTP independientes sobre la misma base.
+    Creates independent HTTP clients against the same database.
 
-    Cada cliente lleva su propio almacen de cookies. Compartir una sola
-    instancia haria que iniciar sesion como administradora sobrescribiera la
-    sesion de la operadora, y las pruebas de roles dejarian de probar nada.
+    Each client carries its own cookie store. Sharing a single instance
+    would make signing in as the administrator overwrite the operator's
+    session, and the role tests would stop testing anything.
     """
     creados = []
 
@@ -123,17 +123,17 @@ def fabrica_de_clientes_fixture(session):
 
 @pytest.fixture(name="client_anonimo")
 def client_anonimo_fixture(fabrica_de_clientes):
-    """Cliente sin sesion iniciada."""
+    """Client with no session signed in."""
     return fabrica_de_clientes()
 
 
 @pytest.fixture(name="client")
 def client_fixture(fabrica_de_clientes):
-    """Cliente autenticado con rol `operador`, que es el uso habitual."""
+    """Client authenticated with the `operador` role, the usual case."""
     return fabrica_de_clientes(CORREO_OPERADOR)
 
 
 @pytest.fixture(name="client_admin")
 def client_admin_fixture(fabrica_de_clientes):
-    """Cliente autenticado con rol `admin`."""
+    """Client authenticated with the `admin` role."""
     return fabrica_de_clientes(CORREO_ADMIN)

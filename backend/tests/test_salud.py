@@ -1,4 +1,4 @@
-"""Sondas de salud."""
+"""Health probes."""
 
 
 def test_raiz_identifica_el_servicio(client):
