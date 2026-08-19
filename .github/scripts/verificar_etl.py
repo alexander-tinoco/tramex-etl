@@ -163,7 +163,7 @@ def main() -> int:
             "reprocessing the same file did not change any count (idempotency)",
         )
         afirmar(
-            "Sin novedades" in salida,
+            "No changes" in salida,
             "the pipeline reported that the file was already reconciled",
         )
 
