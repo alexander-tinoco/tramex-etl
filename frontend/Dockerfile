@@ -33,7 +33,7 @@ RUN npx ng build --configuration production
 # ---------------------------------------------------------------------------
 # Production stage: Nginx serving the static files
 # ---------------------------------------------------------------------------
-FROM nginx:1.27-alpine AS production
+FROM nginx:1.31-alpine AS production
 
 # The official image ships the unprivileged `nginx` user, but the master
 # process starts as root so it can listen on port 80. It's reconfigured to
