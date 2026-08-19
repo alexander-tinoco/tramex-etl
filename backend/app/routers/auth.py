@@ -82,9 +82,9 @@ def login(
             usuario_correo=correo,
             nivel=NivelAuditoria.ALERTA,
             request=request,
-            detalle={"motivo": "limite_por_ip"},
+            detalle={"reason": "rate_limited_by_ip"},
         )
-        metricas.intentos_de_login.labels(resultado="bloqueado_por_ip").inc()
+        metricas.intentos_de_login.labels(resultado="blocked_by_ip").inc()
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many attempts from this origin. Try again later.",
@@ -99,9 +99,9 @@ def login(
             usuario_correo=correo,
             nivel=NivelAuditoria.ALERTA,
             request=request,
-            detalle={"motivo": "cuenta_bloqueada", "intentos": estado.intentos},
+            detalle={"reason": "account_locked", "attempts": estado.intentos},
         )
-        metricas.intentos_de_login.labels(resultado="cuenta_bloqueada").inc()
+        metricas.intentos_de_login.labels(resultado="account_locked").inc()
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
@@ -120,9 +120,9 @@ def login(
             usuario_correo=correo,
             nivel=NivelAuditoria.ADVERTENCIA,
             request=request,
-            detalle={"intentos_en_ventana": veredicto.intentos},
+            detalle={"attempts_in_window": veredicto.intentos},
         )
-        metricas.intentos_de_login.labels(resultado="fallido").inc()
+        metricas.intentos_de_login.labels(resultado="failed").inc()
         # The message doesn't distinguish "doesn't exist" from "wrong
         # password": saying so would let someone enumerate which accounts
         # are valid.
@@ -132,7 +132,7 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    metricas.intentos_de_login.labels(resultado="exitoso").inc()
+    metricas.intentos_de_login.labels(resultado="successful").inc()
     limitador.registrar_exito(correo)
     crud_usuario.registrar_acceso(db, usuario=usuario)
     auditoria.registrar(db, accion=Accion.LOGIN_EXITOSO, usuario=usuario, request=request)
@@ -185,7 +185,7 @@ def cambiar_contrasena(
             usuario=usuario,
             nivel=NivelAuditoria.ADVERTENCIA,
             request=request,
-            detalle={"operacion": "cambio_de_contrasena"},
+            detalle={"operation": "password_change"},
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="The current password doesn't match."

@@ -5,27 +5,33 @@ import { AsientoAuditoria } from '../../models/api.model';
 import { formatearFechaHora, formatearTexto } from '../../shared/formato';
 import { PictogramaComponent } from '../../shared/pictograma.component';
 
-/** Acciones por las que tiene sentido filtrar la bitacora. */
+/**
+ * Actions worth filtering the audit log by.
+ *
+ * `valor` mirrors the backend's `Accion` string literals verbatim (used as
+ * the `accion` query parameter); only `etiqueta`, the display label, is
+ * translated.
+ */
 const ACCIONES = [
-  { valor: '', etiqueta: 'Todas las acciones' },
-  { valor: 'credencial_consultada', etiqueta: 'Credenciales consultadas' },
-  { valor: 'credencial_ilegible', etiqueta: 'Credenciales ilegibles' },
-  { valor: 'login_exitoso', etiqueta: 'Inicios de sesión' },
-  { valor: 'login_fallido', etiqueta: 'Inicios fallidos' },
-  { valor: 'login_bloqueado', etiqueta: 'Cuentas bloqueadas' },
-  { valor: 'registro_creado', etiqueta: 'Altas' },
-  { valor: 'registro_actualizado', etiqueta: 'Modificaciones' },
-  { valor: 'registro_archivado', etiqueta: 'Bajas' },
-  { valor: 'registro_purgado', etiqueta: 'Purgas' },
+  { valor: '', etiqueta: 'All actions' },
+  { valor: 'credencial_consultada', etiqueta: 'Credentials viewed' },
+  { valor: 'credencial_ilegible', etiqueta: 'Unreadable credentials' },
+  { valor: 'login_exitoso', etiqueta: 'Successful logins' },
+  { valor: 'login_fallido', etiqueta: 'Failed logins' },
+  { valor: 'login_bloqueado', etiqueta: 'Blocked accounts' },
+  { valor: 'registro_creado', etiqueta: 'Records created' },
+  { valor: 'registro_actualizado', etiqueta: 'Records updated' },
+  { valor: 'registro_archivado', etiqueta: 'Records archived' },
+  { valor: 'registro_purgado', etiqueta: 'Records purged' },
 ];
 
 const TAMANO_PAGINA = 25;
 
 /**
- * Bitacora de auditoria (solo administradores).
+ * Audit log (admins only).
  *
- * Es la pantalla que hace verificable la promesa del sistema: que cada acceso
- * a una credencial de cliente queda registrado y se puede consultar despues.
+ * This is the screen that makes the system's promise verifiable: that every
+ * access to a client credential is recorded and can be reviewed later.
  */
 @Component({
   selector: 'app-panel-auditoria',
@@ -69,7 +75,7 @@ export class PanelAuditoriaComponent {
         },
         error: () => {
           this.cargando.set(false);
-          this.error.set('No se pudo cargar la bitácora.');
+          this.error.set('Could not load the audit log.');
         },
       });
   }
@@ -104,5 +110,24 @@ export class PanelAuditoriaComponent {
       default:
         return 'info';
     }
+  }
+
+  /** Display label for a level; falls back to the raw value for anything unmapped. */
+  etiquetaNivel(nivel: string): string {
+    switch (nivel) {
+      case 'ALERTA':
+        return 'Alert';
+      case 'ADVERTENCIA':
+        return 'Warning';
+      case 'INFO':
+        return 'Info';
+      default:
+        return nivel;
+    }
+  }
+
+  /** Display label for an action code, reusing the same map as the filter. */
+  etiquetaAccion(valor: string): string {
+    return ACCIONES.find((accion) => accion.valor === valor)?.etiqueta ?? valor;
   }
 }

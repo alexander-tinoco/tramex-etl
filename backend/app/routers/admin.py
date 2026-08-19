@@ -90,7 +90,7 @@ def crear_usuario(
         recurso="usuarios",
         registro_id=usuario.id,
         request=request,
-        detalle={"correo_creado": usuario.correo_electronico, "rol": usuario.rol.value},
+        detalle={"email_created": usuario.correo_electronico, "role": usuario.rol.value},
     )
     return usuario
 
@@ -222,9 +222,9 @@ def ejecutar_retencion(
         nivel=NivelAuditoria.ALERTA,
         request=request,
         detalle={
-            "dias_retencion": settings.dias_retencion,
-            "registros_purgados": total,
-            "asientos_purgados": asientos,
+            "retention_days": settings.dias_retencion,
+            "records_purged": total,
+            "entries_purged": asientos,
         },
     )
 
