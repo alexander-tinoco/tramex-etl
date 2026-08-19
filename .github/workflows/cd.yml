@@ -31,7 +31,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Authenticate to the registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRO }}
           username: ${{ github.actor }}
@@ -140,7 +140,7 @@ jobs:
       # visibility, so the pull (and the whole scan) fails until someone
       # authenticates.
       - name: Authenticate to the registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRO }}
           username: ${{ github.actor }}
