@@ -1,14 +1,14 @@
 """
-Transformacion: de DataFrame crudo a registros listos para persistir.
+Transformation: from a raw DataFrame to records ready to persist.
 
-Todas las funciones de este modulo son puras: reciben un DataFrame y devuelven
-una lista de diccionarios. No tocan la base de datos, no cifran nada y no
-dependen del entorno, de modo que la logica de negocio con mas casos raros del
-pipeline se puede probar sin infraestructura.
+Every function in this module is pure: it takes a DataFrame and returns a
+list of dictionaries. None of them touch the database, encrypt anything, or
+depend on the environment, so the pipeline's business logic with the most
+edge cases can be tested without any infrastructure.
 
-El cifrado ocurre mas adelante, en la carga, y a proposito: `hash_fila` debe
-calcularse sobre el texto plano (Fernet produce un criptograma distinto en cada
-llamada, asi que compararlos siempre indicaria cambio).
+Encryption happens later, at load time, on purpose: `hash_fila` must be
+computed over the plaintext (Fernet produces a different ciphertext on every
+call, so comparing those would always report a change).
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from tramex_shared import ENTIDADES, calcular_clave_natural, calcular_hash_fila
 
 logger = logging.getLogger("etl.transform")
 
-#: Que limpiador aplicar a cada columna. Las no listadas usan `limpiar_texto`.
+#: Which cleaner to apply to each column. Columns not listed use `limpiar_texto`.
 LIMPIADORES: dict[str, Callable[[Any], Any]] = {
     "telefono": limpiar_telefono,
     "correo_electronico": limpiar_correo,
@@ -40,7 +40,7 @@ LIMPIADORES: dict[str, Callable[[Any], Any]] = {
 
 def limpiar_registro(fila: dict[str, Any]) -> dict[str, Any]:
     """
-    Aplica el limpiador correspondiente a cada campo de una fila.
+    Applies the matching cleaner to each field of a row.
 
     >>> limpiar_registro({"nombre": "  Ana  ", "telefono": "(447) 114-8272"})
     {'nombre': 'Ana', 'telefono': '4471148272'}
@@ -50,16 +50,16 @@ def limpiar_registro(fila: dict[str, Any]) -> dict[str, Any]:
 
 def transformar(tabla: str, marco: pd.DataFrame) -> list[dict[str, Any]]:
     """
-    Convierte el DataFrame de una hoja en registros normalizados y unicos.
+    Converts a sheet's DataFrame into normalized, unique records.
 
-    Devuelve cada fila con su `clave_natural` y su `hash_fila` ya calculados.
-    Las filas sin nombre se descartan: en el archivo de origen son separadores
-    visuales y totales, no clientes.
+    Returns each row with its `clave_natural` and `hash_fila` already
+    computed. Rows with no name are discarded: in the source file those are
+    visual separators and totals, not clients.
 
-    Cuando dos filas de la misma hoja producen la misma clave natural (por
-    ejemplo la misma persona capturada dos veces con distinto espaciado) se
-    conserva la ultima, que es la version mas reciente segun el orden del
-    archivo, y se registra el descarte.
+    When two rows from the same sheet produce the same natural key (for
+    example, the same person captured twice with different spacing), the
+    last one is kept, since it's the most recent version according to the
+    file's order, and the discard is logged.
     """
     definicion = ENTIDADES[tabla]
     registros: dict[str, dict[str, Any]] = {}
@@ -73,7 +73,7 @@ def transformar(tabla: str, marco: pd.DataFrame) -> list[dict[str, Any]]:
             descartadas_sin_nombre += 1
             continue
 
-        # La hoja de Pasaportes guarda fechas y texto libre en la misma celda.
+        # The Pasaportes sheet stores dates and free text in the same cell.
         if "fecha_cita_cruda" in fila:
             fecha, texto_original = parsear_fecha(cruda.get("fecha_cita_cruda"))
             fila.pop("fecha_cita_cruda")
@@ -94,18 +94,18 @@ def transformar(tabla: str, marco: pd.DataFrame) -> list[dict[str, Any]]:
 
     if descartadas_sin_nombre:
         logger.info(
-            "%s: %d fila(s) sin nombre descartadas (separadores o totales del archivo)",
+            "%s: %d row(s) with no name discarded (separators or totals in the file)",
             tabla,
             descartadas_sin_nombre,
         )
     if colapsadas:
         logger.warning(
-            "%s: %d fila(s) duplicadas dentro del archivo colapsadas por clave natural",
+            "%s: %d duplicate row(s) within the file collapsed by natural key",
             tabla,
             colapsadas,
         )
 
-    logger.info("%s: %d registro(s) listos", tabla, len(registros))
+    logger.info("%s: %d record(s) ready", tabla, len(registros))
     return list(registros.values())
 
 
@@ -113,11 +113,11 @@ def proyectar_clientes(
     registros_por_tabla: dict[str, list[dict[str, Any]]],
 ) -> list[dict[str, Any]]:
     """
-    Extrae los datos de persona presentes en los registros de tramite.
+    Extracts the person data present in the tramite records.
 
-    Devuelve una proyeccion por cada fila de tramite, sin deduplicar: la
-    resolucion de que proyecciones corresponden a la misma persona necesita
-    consultar la base y por lo tanto vive en la capa de carga, no aqui.
+    Returns one projection per tramite row, without deduplicating: resolving
+    which projections belong to the same person requires querying the
+    database, and therefore lives in the load layer, not here.
     """
     campos = ENTIDADES["clientes"].campos_negocio
     return [

@@ -1,9 +1,9 @@
 """
-Pruebas de la configuracion del pipeline.
+Tests for the pipeline's configuration.
 
-Cubren sobre todo los fallos: un pipeline que arranca con la configuracion
-equivocada puede escribir en la base que no era o guardar credenciales que
-despues la API no sabra descifrar.
+They cover failures above all: a pipeline that starts up with the wrong
+configuration can write to the wrong database or store credentials the API
+won't later be able to decrypt.
 """
 
 from __future__ import annotations
@@ -29,10 +29,10 @@ class TestUrlBaseDeDatos:
 
     def test_sin_variable_falla_en_vez_de_caer_a_sqlite(self, monkeypatch):
         """
-        La version anterior escribia en un `tramex.db` local si faltaba la URL.
+        The previous version wrote to a local `tramex.db` if the URL was missing.
 
-        Creer que se cargo la base real cuando en realidad se escribio un
-        archivo suelto es un fallo caro y dificil de notar.
+        Believing the real database was loaded when a loose local file was
+        actually written is an expensive failure that's hard to notice.
         """
         monkeypatch.delenv("DATABASE_URL", raising=False)
         with pytest.raises(ErrorDeConfiguracion, match="DATABASE_URL"):
@@ -52,7 +52,7 @@ class TestFernet:
 
     def test_una_llave_mal_formada_falla_al_arrancar(self, monkeypatch):
         """
-        Mejor detectarlo al inicio que a mitad de una carga de miles de filas.
+        Better to catch it at startup than halfway through a load of thousands of rows.
         """
         monkeypatch.setenv("TRAMEX_FERNET_KEY", "esto-no-es-una-llave")
         with pytest.raises(ErrorDeConfiguracion, match="base64"):
@@ -81,16 +81,16 @@ class TestDotenv:
 
         import os
 
-        # Las comillas del archivo no forman parte del valor.
+        # Quotes in the file aren't part of the value.
         assert os.environ["DATABASE_URL"] == "postgresql+psycopg2://u:p@host:5432/db"
         assert os.environ["TRAMEX_FERNET_KEY"] == "una-llave"
 
     def test_el_entorno_real_tiene_prioridad_sobre_el_archivo(self, tmp_path, monkeypatch):
         """
-        Es lo que permite que el mismo comando sirva en local y en un contenedor.
+        This is what lets the same command work locally and in a container.
 
-        En local lee el `.env`; en despliegue recibe secretos inyectados que no
-        deben quedar pisados por un archivo olvidado en la imagen.
+        Locally it reads the `.env`; in deployment it receives injected
+        secrets that must not be overwritten by a file left behind in the image.
         """
         archivo = tmp_path / ".env"
         archivo.write_text("DATABASE_URL=del-archivo\n", encoding="utf-8")

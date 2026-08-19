@@ -1,9 +1,10 @@
 """
-Pruebas de la fase de carga.
+Tests for the load phase.
 
-Aqui se verifica la propiedad que motivo la reescritura del pipeline: que
-reprocesar el mismo archivo no duplique nada. La version anterior usaba
-`to_sql(..., if_exists="append")` y duplicaba la base entera en cada corrida.
+This is where the property that motivated the pipeline's rewrite gets
+verified: that reprocessing the same file duplicates nothing. The previous
+version used `to_sql(..., if_exists="append")` and duplicated the entire
+database on every run.
 """
 
 from __future__ import annotations
@@ -53,7 +54,7 @@ class TestIdempotencia:
         assert segunda.por_tabla["master_tramex"].insertados == 0
         assert segunda.por_tabla["master_tramex"].sin_cambios == 1
         assert segunda.hubo_cambios is False
-        # La comprobacion que importa: sigue habiendo una sola fila.
+        # The check that matters: there's still only one row.
         assert _contar(engine, "master_tramex") == 1
 
     def test_tres_corridas_seguidas_dejan_el_mismo_estado(self, engine, fernet):
@@ -76,11 +77,11 @@ class TestIdempotencia:
 
     def test_una_fila_sin_cambios_no_vuelve_a_cifrar_la_credencial(self, engine, fernet):
         """
-        Fernet produce un criptograma distinto en cada llamada.
+        Fernet produces a different ciphertext on every call.
 
-        Si la carga reescribiera filas sin novedades, el criptograma cambiaria
-        en cada corrida sin que el dato haya cambiado, ensuciando el historial
-        y desperdiciando escrituras.
+        If the load rewrote unchanged rows, the ciphertext would change on
+        every run even though the data hadn't, polluting the history and
+        wasting writes.
         """
         marcos = {"master_tramex": _marco_master()}
         tablas = reflejar_tablas(engine)
@@ -156,10 +157,10 @@ class TestResolucionDeClientes:
 
     def test_una_hoja_sin_identificador_duro_se_engancha_por_nombre(self, engine, fernet):
         """
-        La hoja de Pasaportes no captura pasaporte ni correo.
+        The Pasaportes sheet captures neither passport nor email.
 
-        Sin la segunda pasada de resolucion quedaria desconectada del resto de
-        los tramites de la misma persona.
+        Without the second resolution pass it would end up disconnected from
+        the same person's other tramites.
         """
         marcos = {
             "global_entry": pd.DataFrame(
@@ -187,10 +188,10 @@ class TestResolucionDeClientes:
 
     def test_dos_homonimos_sin_identificador_no_se_fusionan(self, engine, fernet):
         """
-        Ante ambiguedad se prefiere separar.
+        Faced with ambiguity, keeping records separate is preferred.
 
-        Unir despues dos expedientes que quedaron sueltos es trivial; separar
-        dos que se fusionaron por error, no.
+        Merging two records that were left separate later is trivial;
+        splitting two that were merged by mistake is not.
         """
         marcos = {
             "global_entry": pd.DataFrame(
@@ -214,17 +215,17 @@ class TestResolucionDeClientes:
         }
         _cargar(engine, fernet, marcos)
 
-        # Dos personas identificables mas una tercera ambigua que no se fusiona.
+        # Two identifiable people plus a third, ambiguous one that isn't merged.
         assert _contar(engine, "clientes") == 3
 
 
 class TestTransaccionalidad:
     def test_un_fallo_a_mitad_de_carga_no_deja_datos_parciales(self, engine, fernet, monkeypatch):
         """
-        La version anterior cargaba hoja por hoja sin transaccion.
+        The previous version loaded sheet by sheet with no transaction.
 
-        Un fallo en la tercera hoja dejaba las dos primeras escritas, lo que
-        obligaba a limpiar a mano antes de reintentar.
+        A failure on the third sheet left the first two written, which
+        forced a manual cleanup before retrying.
         """
         import etl.helpers.load as modulo_load
 
@@ -233,10 +234,10 @@ class TestTransaccionalidad:
 
         def upsert_que_falla(conexion, tabla, registros, tamano_lote):
             llamadas["n"] += 1
-            # Falla al escribir la segunda tabla de tramite, ya con clientes y
-            # la primera tabla escritas dentro de la transaccion.
+            # Fails while writing the second tramite table, with clients and
+            # the first table already written inside the transaction.
             if llamadas["n"] == 3:
-                raise RuntimeError("fallo simulado a mitad de la carga")
+                raise RuntimeError("simulated failure halfway through the load")
             return upsert_original(conexion, tabla, registros, tamano_lote)
 
         monkeypatch.setattr(modulo_load, "_upsert", upsert_que_falla)
@@ -257,7 +258,7 @@ class TestTransaccionalidad:
         with pytest.raises(RuntimeError):
             _cargar(engine, fernet, marcos)
 
-        # Nada quedo escrito: ni clientes, ni la tabla que si alcanzo a cargarse.
+        # Nothing was written: not clients, not the table that did get to load.
         assert _contar(engine, "clientes") == 0
         assert _contar(engine, "master_tramex") == 0
         assert _contar(engine, "canada") == 0
@@ -266,9 +267,9 @@ class TestTransaccionalidad:
         resumen = _cargar(engine, fernet, {"master_tramex": _marco_master()}, simulacion=True)
 
         assert resumen.simulacion is True
-        # El resumen informa lo que habria pasado...
+        # The summary reports what would have happened...
         assert resumen.por_tabla["master_tramex"].insertados == 1
-        # ...pero la base sigue vacia.
+        # ...but the database is still empty.
         assert _contar(engine, "master_tramex") == 0
         assert _contar(engine, "clientes") == 0
 
@@ -292,11 +293,11 @@ class TestModos:
             ).all()
 
         assert activos == ["Nuevo"]
-        # El registro anterior no se destruye, solo se archiva.
+        # The previous record isn't destroyed, only archived.
         assert _contar(engine, "master_tramex") == 2
 
     def test_un_modo_desconocido_se_rechaza(self, engine, fernet):
-        with pytest.raises(ErrorDeCarga, match="Modo de carga desconocido"):
+        with pytest.raises(ErrorDeCarga, match="Unknown load mode"):
             _cargar(engine, fernet, {"master_tramex": _marco_master()}, modo="inventado")
 
 
@@ -304,5 +305,5 @@ def test_reflejar_tablas_falla_con_mensaje_util_si_faltan_migraciones(fernet):
     from sqlalchemy import create_engine
 
     vacio = create_engine("sqlite:///:memory:")
-    with pytest.raises(ErrorDeCarga, match="migraciones"):
+    with pytest.raises(ErrorDeCarga, match="migrations"):
         reflejar_tablas(vacio)

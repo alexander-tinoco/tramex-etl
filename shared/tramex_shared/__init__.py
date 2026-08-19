@@ -1,4 +1,4 @@
-"""Codigo compartido entre el pipeline ETL y la API de Tramex."""
+"""Code shared between the Tramex ETL pipeline and the API."""
 
 from tramex_shared.esquema import (
     CANADA,
