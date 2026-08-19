@@ -18,7 +18,7 @@ describe('ApiService', () => {
 
   afterEach(() => http.verify());
 
-  it('pagina con skip y limit', () => {
+  it('paginates with skip and limit', () => {
     servicio.listar<MasterTramex>('/master-tramex/', { skip: 20, limit: 10 }).subscribe();
 
     const peticion = http.expectOne((r) => r.url === '/api/v1/master-tramex/');
@@ -27,7 +27,7 @@ describe('ApiService', () => {
     peticion.flush({ total: 0, skip: 20, limit: 10, items: [] });
   });
 
-  it('omite el parámetro de búsqueda cuando está vacío', () => {
+  it('omits the search parameter when empty', () => {
     servicio.listar('/canada/', { buscar: undefined }).subscribe();
 
     const peticion = http.expectOne((r) => r.url === '/api/v1/canada/');
@@ -35,7 +35,7 @@ describe('ApiService', () => {
     peticion.flush({ total: 0, skip: 0, limit: 10, items: [] });
   });
 
-  it('codifica el término de búsqueda', () => {
+  it('encodes the search term', () => {
     servicio.listar('/canada/', { buscar: 'José Ramírez' }).subscribe();
 
     const peticion = http.expectOne((r) => r.url === '/api/v1/canada/');
@@ -43,7 +43,7 @@ describe('ApiService', () => {
     peticion.flush({ total: 0, skip: 0, limit: 10, items: [] });
   });
 
-  it('pide explícitamente los registros dados de baja cuando se solicita', () => {
+  it('explicitly requests archived records when asked for', () => {
     servicio.listar('/pasaportes/', { incluirEliminados: true }).subscribe();
 
     const peticion = http.expectOne((r) => r.url === '/api/v1/pasaportes/');
@@ -51,7 +51,7 @@ describe('ApiService', () => {
     peticion.flush({ total: 0, skip: 0, limit: 10, items: [] });
   });
 
-  it('el borrado usa DELETE, que en la API es una baja lógica', () => {
+  it('deleting uses DELETE, which in the API is a soft delete', () => {
     servicio.archivar('/master-tramex/', 7).subscribe();
 
     const peticion = http.expectOne('/api/v1/master-tramex/7');
@@ -59,22 +59,22 @@ describe('ApiService', () => {
     peticion.flush(null);
   });
 
-  it('la consulta de credencial devuelve el asiento de auditoría', (done) => {
+  it('the credential lookup returns the audit-log entry', (done) => {
     servicio.obtenerCredencial('/canada/', 3).subscribe((respuesta) => {
-      expect(respuesta.contrasena).toBe('clave-del-cliente');
+      expect(respuesta.contrasena).toBe('client-secret');
       expect(respuesta.auditoria_id).toBe(42);
       done();
     });
 
     http.expectOne('/api/v1/canada/3/password').flush({
-      contrasena: 'clave-del-cliente',
+      contrasena: 'client-secret',
       registro_id: 3,
       recurso: 'Canada',
       auditoria_id: 42,
     });
   });
 
-  it('todas las peticiones viajan con credenciales', () => {
+  it('every request travels with credentials', () => {
     servicio.listar('/canada/').subscribe();
     const peticion = http.expectOne((r) => r.url === '/api/v1/canada/');
     expect(peticion.request.withCredentials).toBeTrue();

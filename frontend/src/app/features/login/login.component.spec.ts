@@ -35,13 +35,13 @@ function crearComponente(parametros: Record<string, string> = {}): {
 describe('LoginComponent', () => {
   afterEach(() => TestBed.resetTestingModule());
 
-  it('se crea correctamente', () => {
+  it('creates successfully', () => {
     const { fixture } = crearComponente();
     fixture.detectChanges();
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('la contraseña arranca oculta y se puede revelar', () => {
+  it('the password starts hidden and can be revealed', () => {
     const { fixture } = crearComponente();
     const componente = fixture.componentInstance;
 
@@ -50,18 +50,18 @@ describe('LoginComponent', () => {
     expect(componente.mostrarContrasena()).toBeTrue();
   });
 
-  it('no envía nada si faltan credenciales', () => {
+  it('sends nothing if credentials are missing', () => {
     const { fixture, http } = crearComponente();
     fixture.componentInstance.enviar(new Event('submit'));
     http.expectNone('/api/v1/auth/token');
   });
 
-  it('navega al panel tras un inicio de sesión correcto', () => {
+  it('navigates to the panel after a successful sign-in', () => {
     const { fixture, http, router } = crearComponente();
     const componente = fixture.componentInstance;
 
-    componente.correo = 'operadora@example.com';
-    componente.contrasena = 'clave-larga-1234';
+    componente.correo = 'operator@example.com';
+    componente.contrasena = 'a-long-password-1234';
     componente.enviar(new Event('submit'));
 
     http.expectOne('/api/v1/auth/token').flush({
@@ -70,8 +70,8 @@ describe('LoginComponent', () => {
       expira_en_minutos: 480,
       usuario: {
         id: 1,
-        correo_electronico: 'operadora@example.com',
-        nombre: 'Operadora',
+        correo_electronico: 'operator@example.com',
+        nombre: 'Operator',
         rol: 'operador',
         activo: true,
         ultimo_acceso_en: null,
@@ -83,53 +83,53 @@ describe('LoginComponent', () => {
     expect(componente.cargando()).toBeFalse();
   });
 
-  it('muestra un mensaje claro ante credenciales incorrectas', () => {
+  it('shows a clear message on incorrect credentials', () => {
     const { fixture, http } = crearComponente();
     const componente = fixture.componentInstance;
 
-    componente.correo = 'operadora@example.com';
-    componente.contrasena = 'equivocada';
+    componente.correo = 'operator@example.com';
+    componente.contrasena = 'wrong';
     componente.enviar(new Event('submit'));
 
     http
       .expectOne('/api/v1/auth/token')
-      .flush({ detail: 'Credenciales incorrectas.' }, { status: 401, statusText: 'Unauthorized' });
+      .flush({ detail: 'Incorrect credentials.' }, { status: 401, statusText: 'Unauthorized' });
 
-    expect(componente.error()).toContain('incorrectos');
+    expect(componente.error()).toContain('Incorrect');
   });
 
-  it('distingue una cuenta bloqueada de unas credenciales incorrectas', () => {
-    // Decir "credenciales incorrectas" cuando la cuenta esta bloqueada haria
-    // que la persona siguiera probando contrasenas sin entender que pasa.
+  it('distinguishes a locked account from incorrect credentials', () => {
+    // Saying "incorrect credentials" while the account is locked would leave
+    // the person trying passwords without understanding what's going on.
     const { fixture, http } = crearComponente();
     const componente = fixture.componentInstance;
 
-    componente.correo = 'operadora@example.com';
-    componente.contrasena = 'clave-larga-1234';
+    componente.correo = 'operator@example.com';
+    componente.contrasena = 'a-long-password-1234';
     componente.enviar(new Event('submit'));
 
     http.expectOne('/api/v1/auth/token').flush(
-      { detail: 'Cuenta bloqueada temporalmente por intentos fallidos. Vuelve a intentar en 14 minuto(s).' },
+      { detail: 'Account temporarily locked due to failed attempts. Try again in 14 minute(s).' },
       { status: 429, statusText: 'Too Many Requests' },
     );
 
-    expect(componente.error()).toContain('bloqueada');
+    expect(componente.error()).toContain('locked');
   });
 
-  it('avisa cuando no hay conexión con el servidor', () => {
+  it('warns when there is no connection to the server', () => {
     const { fixture, http } = crearComponente();
     const componente = fixture.componentInstance;
 
-    componente.correo = 'operadora@example.com';
-    componente.contrasena = 'clave-larga-1234';
+    componente.correo = 'operator@example.com';
+    componente.contrasena = 'a-long-password-1234';
     componente.enviar(new Event('submit'));
 
     http.expectOne('/api/v1/auth/token').error(new ProgressEvent('error'), { status: 0 });
 
-    expect(componente.error()).toContain('conexión');
+    expect(componente.error()).toContain('connection');
   });
 
-  it('avisa cuando la sesión anterior expiró', () => {
+  it('warns when the previous session expired', () => {
     const { fixture } = crearComponente({ expirada: 'true' });
     expect(fixture.componentInstance.sesionExpirada()).toBeTrue();
   });

@@ -2,11 +2,11 @@ import { Component, input, output } from '@angular/core';
 import { NombrePictograma, PictogramaComponent } from './pictograma.component';
 
 /**
- * Dialogo de confirmacion reutilizable.
+ * Reusable confirmation dialog.
  *
- * Existe como componente propio porque el dashboard necesitaba tres dialogos
- * casi identicos (archivar, restaurar, confirmar salida) y los tres estaban
- * escritos a mano en la misma plantilla.
+ * Exists as its own component because the dashboard needed three nearly
+ * identical dialogs (archive, restore, confirm sign-out) and all three were
+ * hand-written inline in the same template.
  */
 @Component({
   selector: 'app-dialogo-confirmacion',
@@ -33,7 +33,7 @@ import { NombrePictograma, PictogramaComponent } from './pictograma.component';
           }
         </div>
         <footer class="ventanilla-pie">
-          <button type="button" class="boton secundario" (click)="cancelar.emit()">Cancelar</button>
+          <button type="button" class="boton secundario" (click)="cancelar.emit()">Cancel</button>
           <button
             type="button"
             [class]="peligroso() ? 'boton peligro' : 'boton'"
@@ -50,7 +50,7 @@ export class DialogoConfirmacionComponent {
   readonly titulo = input.required<string>();
   readonly mensaje = input.required<string>();
   readonly detalle = input<string>('');
-  readonly textoConfirmar = input<string>('Confirmar');
+  readonly textoConfirmar = input<string>('Confirm');
   readonly picto = input<NombrePictograma>('aviso');
   readonly peligroso = input<boolean>(false);
 

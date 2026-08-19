@@ -5,12 +5,11 @@ import { ConfiguracionRecurso } from '../../models/recursos.model';
 import { PictogramaComponent } from '../../shared/pictograma.component';
 
 /**
- * Formulario de alta y edicion, generado a partir de la configuracion del
- * recurso.
+ * Create/edit form, generated from the resource's configuration.
  *
- * No hay una plantilla por recurso: los campos, sus etiquetas y su tipo salen
- * de `RECURSOS`, de modo que anadir una columna es tocar un archivo y no cuatro
- * bloques de HTML.
+ * There is no per-resource template: the fields, their labels and their type
+ * come from `RECURSOS`, so adding a column means touching one file, not four
+ * blocks of HTML.
  */
 @Component({
   selector: 'app-formulario-tramite',
@@ -20,7 +19,7 @@ import { PictogramaComponent } from '../../shared/pictograma.component';
 })
 export class FormularioTramiteComponent {
   readonly recurso = input.required<ConfiguracionRecurso>();
-  /** Registro a editar, o `null` para un alta. */
+  /** Record being edited, or `null` for a new one. */
   readonly registro = input<Tramite | null>(null);
   readonly guardando = input<boolean>(false);
   readonly error = input<string>('');
@@ -32,8 +31,8 @@ export class FormularioTramiteComponent {
   readonly esEdicion = computed(() => this.registro() !== null);
 
   constructor() {
-    // Se rellena en el microtask siguiente para que las entradas ya esten
-    // resueltas cuando se lea el registro.
+    // Filled in on the next microtask so the inputs are already resolved by
+    // the time the record is read.
     queueMicrotask(() => this.precargar());
   }
 
@@ -41,9 +40,9 @@ export class FormularioTramiteComponent {
     const actual = this.registro();
     const iniciales: Record<string, string> = {};
     for (const campo of this.recurso().campos) {
-      // Las credenciales nunca se precargan: la API no las devuelve en las
-      // lecturas, y dejar el campo vacio comunica lo correcto (solo se
-      // sobrescribe si se escribe algo).
+      // Credentials are never preloaded: the API doesn't return them on
+      // reads, and leaving the field blank communicates the right thing (it
+      // is only overwritten if something is typed).
       if (campo.tipo === 'password' || !actual) {
         iniciales[campo.nombre] = '';
         continue;
@@ -71,16 +70,16 @@ export class FormularioTramiteComponent {
       const valor = (actuales[campo.nombre] ?? '').trim();
 
       if (campo.tipo === 'password') {
-        // Un campo de contrasena vacio significa "no la cambies". Enviar null
-        // borraria la credencial del cliente sin que nadie lo pidiera.
+        // An empty password field means "don't change it". Sending null
+        // would delete the client's credential without anyone asking for it.
         if (valor) {
           cuerpo[campo.nombre] = valor;
         }
         continue;
       }
 
-      // En edicion, un campo vaciado a proposito se envia como null para que
-      // la API lo borre; en un alta simplemente se omite.
+      // In edit mode, a field cleared on purpose is sent as null so the API
+      // deletes it; on create it's simply omitted.
       if (valor) {
         cuerpo[campo.nombre] = valor;
       } else if (this.esEdicion()) {

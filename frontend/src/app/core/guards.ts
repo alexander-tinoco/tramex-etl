@@ -4,12 +4,12 @@ import { catchError, map, of } from 'rxjs';
 import { AuthService } from './auth.service';
 
 /**
- * Exige sesion iniciada.
+ * Requires a signed-in session.
  *
- * Como la cookie es `httpOnly`, el guard no puede inspeccionarla: si el estado
- * aun no se ha resuelto (recarga de pagina, enlace directo), pregunta a la API.
- * Esta comprobacion no sustituye a la del servidor, que es la que realmente
- * protege los datos; aqui solo se evita mostrar una pantalla que fallaria.
+ * Since the cookie is `httpOnly`, the guard can't inspect it: if the state
+ * hasn't been resolved yet (page reload, direct link), it asks the API. This
+ * check doesn't replace the server's, which is what actually protects the
+ * data; here it only avoids showing a screen that would fail.
  */
 export const authGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
@@ -26,16 +26,16 @@ export const authGuard: CanActivateFn = () => {
 };
 
 /**
- * Exige rol de administrador.
+ * Requires the administrator role.
  *
- * Tiene que resolver la sesion por su cuenta, igual que `authGuard`. Angular
- * evalua los guards de una misma ruta **en paralelo**, no en cadena: al entrar
- * por enlace directo o recargar la pagina, este guard se ejecutaba antes de que
- * `authGuard` terminara de preguntar a la API y veia siempre "sin sesion", de
- * modo que rebotaba al panel incluso a una administradora legitima.
+ * It has to resolve the session on its own, just like `authGuard`. Angular
+ * evaluates the guards of a single route **in parallel**, not in a chain:
+ * entering via a direct link or reloading the page used to run this guard
+ * before `authGuard` finished asking the API, so it always saw "no session"
+ * and bounced even a legitimate administrator back to the panel.
  *
- * Es solo una comodidad de la interfaz: la API vuelve a comprobar el rol en
- * cada peticion, que es donde realmente se protegen los datos.
+ * It's only a convenience for the interface: the API checks the role again
+ * on every request, which is where the data is actually protected.
  */
 export const adminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);

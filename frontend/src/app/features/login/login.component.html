@@ -2,27 +2,27 @@
   <div class="acceso-placa">
     <div class="acceso-marca">
       <img src="marca/tramex-logotipo.png" alt="Tramex" width="416" height="462" />
-      <span class="oficio">Gestión de trámites migratorios</span>
+      <span class="oficio">Immigration tramite management</span>
     </div>
 
     <div class="acceso-cuerpo">
       @if (sesionExpirada()) {
         <div class="aviso atencion" role="status">
           <app-picto nombre="reloj" [tamano]="18" />
-          <span>Tu sesión expiró. Vuelve a iniciar sesión.</span>
+          <span>Your session expired. Please sign in again.</span>
         </div>
       }
 
       <form (submit)="enviar($event)" novalidate>
         <label class="campo">
-          <span class="nombre-campo">Correo electrónico</span>
+          <span class="nombre-campo">Email</span>
           <div class="campo-linea">
             <app-picto nombre="sobre" [tamano]="18" />
             <input
               type="email"
               name="correo"
               autocomplete="username"
-              placeholder="tu.correo@ejemplo.com"
+              placeholder="you@example.com"
               required
               [(ngModel)]="correo"
               [disabled]="cargando()"
@@ -31,7 +31,7 @@
         </label>
 
         <label class="campo">
-          <span class="nombre-campo">Contraseña</span>
+          <span class="nombre-campo">Password</span>
           <div class="campo-linea">
             <app-picto nombre="candado" [tamano]="18" />
             <input
@@ -47,7 +47,7 @@
               type="button"
               class="boton-icono"
               (click)="alternarVisibilidad()"
-              [attr.aria-label]="mostrarContrasena() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+              [attr.aria-label]="mostrarContrasena() ? 'Hide password' : 'Show password'"
             >
               <app-picto [nombre]="mostrarContrasena() ? 'ocultar' : 'ver'" [tamano]="18" />
             </button>
@@ -63,9 +63,9 @@
 
         <button type="submit" class="boton bloque" [disabled]="cargando()">
           @if (cargando()) {
-            <span>Verificando…</span>
+            <span>Verifying…</span>
           } @else {
-            <span>Entrar</span>
+            <span>Sign in</span>
           }
         </button>
       </form>
@@ -74,8 +74,8 @@
     <p class="acceso-nota">
       <app-picto nombre="escudo" [tamano]="16" />
       <span>
-        Cada consulta de una credencial de cliente queda asentada en la bitácora
-        de auditoría con tu usuario, la fecha y el registro consultado.
+        Every client-credential lookup is logged in the audit trail with your user, the
+        date and the record that was viewed.
       </span>
     </p>
   </div>

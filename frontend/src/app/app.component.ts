@@ -12,10 +12,10 @@ export class AppComponent implements OnInit {
   private readonly auth = inject(AuthService);
 
   ngOnInit(): void {
-    // La cookie de sesion es `httpOnly` y por tanto invisible para el
-    // navegador: la unica forma de saber si hay sesion tras recargar la pagina
-    // es preguntarle a la API. Un 401 aqui es una respuesta normal (no hay
-    // sesion), no un error, y el interceptor lo trata como tal.
+    // The session cookie is `httpOnly` and therefore invisible to the
+    // browser: the only way to know whether there's a session after
+    // reloading the page is to ask the API. A 401 here is a normal response
+    // (no session), not an error, and the interceptor treats it as such.
     this.auth.cargarSesion().subscribe({ error: () => undefined });
   }
 }

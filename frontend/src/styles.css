@@ -1,91 +1,90 @@
 /* ===========================================================================
-   TRAMEX · Sistema visual
-   Señalética de sala de control migratorio.
+   TRAMEX · Visual system
+   Signage for a border-control room.
 
-   La sala es de hormigón claro y los carteles son paneles esmaltados en el
-   verde petróleo del logotipo. Nada aquí decora: cada color, cada regla y cada
-   peso tipográfico responde a una pregunta que se hace la operadora —dónde
-   estoy, qué fila es esta, qué pasa si toco esto— y a una escena de uso real:
-   ocho horas frente a la pantalla en la oficina, y a veces de pie en la fila
-   del consulado con el teléfono en la mano.
+   The room is light concrete and the panels are enameled in the petroleum
+   green of the logo. Nothing here decorates: every color, every rule, and
+   every font weight answers a question the operator is actually asking —
+   where am I, which row is this, what happens if I touch this — and a real
+   scene of use: eight hours in front of the screen at the office, and
+   sometimes standing in a consulate line with the phone in hand.
    =========================================================================== */
 
 /* ---------------------------------------------------------------------------
-   1. FICHAS
-   Los cuatro colores salen medidos del logotipo, no estimados a ojo.
+   1. TOKENS
+   The four colors are measured from the logo, not eyeballed.
    --------------------------------------------------------------------------- */
 
 :root {
-    /* -- La sala ---------------------------------------------------------
-       Hormigón, no crema. El fondo lleva una pizca de verde para pertenecer
-       a la familia del petróleo, pero se mantiene frío: es arquitectura, no
-       papel. Claro y no oscuro porque la jornada transcurre alternando con
-       portales consulares blancos, y porque la escena del móvil ocurre al
-       sol. */
+    /* -- The room ----------------------------------------------------------
+       Concrete, not cream. The background carries a hint of green to belong
+       to the petroleum family, but stays cold: it's architecture, not paper.
+       Light rather than dark because the workday alternates with white
+       consular portals, and because the mobile scene happens in daylight. */
     --sala: #f2f4f3;
     --sala-hueco: #e8ecea;
     --sala-honda: #dde3e1;
     --regla: #cdd6d3;
     --regla-fina: #e0e6e4;
 
-    /* -- Los paneles -----------------------------------------------------
-       Verde petróleo: el 37 % del logotipo. Es el color del cartel colgado
-       del techo, y aquí ocupa regiones enteras —el riel, las cabeceras—
-       nunca acentos sueltos sobre un fondo neutro. */
+    /* -- The panels ----------------------------------------------------------
+       Petroleum green: 37% of the logo. It's the color of the sign hanging
+       from the ceiling, and here it fills whole regions — the rail, the
+       headers — never loose accents on a neutral background. */
     --panel: #003c48;
     --panel-hondo: #002d36;
     --panel-alto: #0a4d5a;
     --panel-tinta: #eef3f2;
     --panel-tinta-tenue: #9db6bb;
 
-    /* -- El carril -------------------------------------------------------
-       Verde salvia: el 23 % del logotipo, el relleno del globo. Marca el
-       carril que te toca: sección activa, fila seleccionada, confirmación. */
+    /* -- The lane ----------------------------------------------------------
+       Sage green: 23% of the logo, the fill of the globe. Marks the lane
+       that belongs to you: active section, selected row, confirmation. */
     --carril: #84c0a8;
     --carril-hondo: #3f7f68;
     --carril-tinta: #1f5647;
     --carril-vela: #e4f0ea;
 
-    /* -- El acero --------------------------------------------------------
-       El azul del wordmark. Estructura secundaria y texto de apoyo. */
+    /* -- The steel ----------------------------------------------------------
+       The blue of the wordmark. Secondary structure and supporting text. */
     --acero: #185868;
     --acero-claro: #4c7f8c;
 
-    /* -- El cordón -------------------------------------------------------
-       Dorado. Son 42 píxeles del logotipo: su color más raro, y aquí está
-       reservado en exclusiva a una sola cosa —revelar la credencial de un
-       cliente—. Ninguna otra pieza de la interfaz puede usarlo, así que
-       cuando aparece significa siempre lo mismo. */
+    /* -- The cord ----------------------------------------------------------
+       Gold. It's 42 pixels of the logo: its rarest color, and here it's
+       reserved exclusively for one thing — revealing a client's credential.
+       No other piece of the interface may use it, so when it appears it
+       always means the same thing. */
     --cordon: #a8862e;
     --cordon-vivo: #c8b060;
     --cordon-vela: #f7f1de;
 
-    /* -- Carriles de estado ----------------------------------------------
-       La señalética codifica por carril. El ámbar es claramente naranja y el
-       rojo claramente rojo, para que ninguno se confunda con el cordón. */
+    /* -- Status lanes ----------------------------------------------------
+       Signage codes by lane. Amber is clearly orange and red clearly red,
+       so neither is mistaken for the cord. */
     --ambar: #a9641b;
     --ambar-vela: #fbf0e2;
     --rojo: #9e2b25;
     --rojo-vela: #fbeceb;
 
-    /* -- Tinta -----------------------------------------------------------
-       Nunca gris puro: el texto secundario se tiñe del petróleo del mundo. */
+    /* -- Ink ----------------------------------------------------------
+       Never pure gray: secondary text is tinted with the world's petroleum. */
     --tinta: #0d2429;
     --tinta-media: #3d5a60;
     --tinta-tenue: #6c868c;
 
-    /* -- Tipografía ------------------------------------------------------
-       Barlow Semi Condensed rotula (señalética de transporte, condensada por
-       naturaleza, que es lo que pide una tabla densa). Atkinson Hyperlegible
-       lee. Su mono sostiene todo dato que se transcribe a mano a otro portal:
-       fue diseñada para distinguir l/I/1 y 0/O, y aquí eso evita un viaje
-       perdido. Ninguna de las dos es decorativa. */
+    /* -- Typography ------------------------------------------------------
+       Barlow Semi Condensed labels (transit signage, condensed by nature,
+       which is what a dense table calls for). Atkinson Hyperlegible reads.
+       Its mono variant carries every value transcribed by hand to another
+       portal: it was designed to distinguish l/I/1 and 0/O, and here that
+       avoids a lost trip. Neither is decorative. */
     --rotulo: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
     --lectura: 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
     --dato: 'Atkinson Hyperlegible Mono', 'SFMono-Regular', ui-monospace, monospace;
 
-    /* -- Métrica ---------------------------------------------------------
-       Un solo ritmo de espaciado en todo el sistema. */
+    /* -- Metrics ---------------------------------------------------------
+       A single spacing rhythm across the whole system. */
     --e1: 0.25rem;
     --e2: 0.5rem;
     --e3: 0.75rem;
@@ -94,12 +93,12 @@
     --e6: 2rem;
     --e7: 3rem;
 
-    /* Esquinas casi rectas: un cartel esmaltado no es una pastilla. */
+    /* Nearly square corners: an enameled sign is not a pill. */
     --canto: 2px;
     --canto-panel: 3px;
 
-    /* Sombras con desplazamiento y difuminado reales: la luz de una sala
-       viene de arriba. Nunca un halo de color centrado. */
+    /* Shadows with a real offset and blur: light in a room comes from
+       above. Never a centered color glow. */
     --sombra-baja: 0 1px 2px rgba(0, 45, 54, 0.08), 0 2px 6px rgba(0, 45, 54, 0.06);
     --sombra-alta: 0 8px 16px rgba(0, 45, 54, 0.12), 0 24px 48px rgba(0, 45, 54, 0.16);
 
@@ -133,11 +132,10 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
-   3. SUPERFICIES DEL NAVEGADOR
-   Las partes que no se dibujan también forman parte del diseño. Sin esto, la
-   selección, el cursor, la barra de desplazamiento y el anillo de foco llegan
-   con los valores por defecto del navegador, que no pertenecen a ningún
-   sistema.
+   3. BROWSER SURFACES
+   The parts that aren't drawn are still part of the design. Without this,
+   selection, the cursor, the scrollbar and the focus ring arrive with the
+   browser's default values, which belong to no system at all.
    --------------------------------------------------------------------------- */
 
 ::selection {
@@ -171,8 +169,8 @@ body {
     background: var(--acero);
 }
 
-/* Un anillo de foco de dos capas se ve tanto sobre la sala clara como sobre
-   el panel oscuro, sin necesidad de una regla por contexto. */
+/* A two-layer focus ring reads well both on the light room and on the dark
+   panel, without needing a separate rule per context. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--panel);
     outline-offset: 2px;
@@ -186,7 +184,7 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
-   4. TIPOGRAFÍA
+   4. TYPOGRAPHY
    --------------------------------------------------------------------------- */
 
 h1,
@@ -212,7 +210,7 @@ h3 {
     font-size: 1.1rem;
 }
 
-/* El rótulo de señalética: versalitas anchas, como un cartel de carril. */
+/* The signage label: wide small caps, like a lane sign. */
 .rotulo {
     font-family: var(--rotulo);
     font-weight: 600;
@@ -222,7 +220,7 @@ h3 {
     color: var(--acero);
 }
 
-/* Todo dato transcribible: pasaportes, folios, teléfonos, credenciales. */
+/* Every transcribable value: passports, case numbers, phones, credentials. */
 .dato {
     font-family: var(--dato);
     font-variant-numeric: tabular-nums;
@@ -237,13 +235,13 @@ h3 {
     color: var(--tinta-media);
 }
 
-/* La prosa se corta a una medida legible; una línea de 200 caracteres cansa. */
+/* Prose is capped at a legible measure; a 200-character line wears you out. */
 .prosa {
     max-width: 68ch;
 }
 
 /* ---------------------------------------------------------------------------
-   5. LA SALA · estructura general
+   5. THE ROOM · overall structure
    --------------------------------------------------------------------------- */
 
 .sala {
@@ -263,7 +261,7 @@ h3 {
 }
 
 /* ---------------------------------------------------------------------------
-   6. EL RIEL · la columna de paneles colgados
+   6. THE RAIL · the column of hanging panels
    --------------------------------------------------------------------------- */
 
 .rail {
@@ -283,9 +281,9 @@ h3 {
     padding: var(--e5) var(--e4) var(--e4);
 }
 
-/* El símbolo se dibujó para fondo claro, así que sobre el panel viaja en su
-   propia placa, exactamente como una marca aplicada sobre un cartel oscuro.
-   Aclararlo con un filtro lo dejaría lavado y perdería el detalle del globo. */
+/* The symbol was drawn for a light background, so on the dark panel it
+   travels on its own plate, exactly like a mark applied to a dark sign.
+   Lightening it with a filter would wash it out and lose the globe's detail. */
 .rail-marca .placa-marca {
     display: grid;
     place-items: center;
@@ -341,9 +339,9 @@ h3 {
     list-style: none;
 }
 
-/* Cada carril es una franja de ancho completo, no un botón con esquinas.
-   La marca activa es una barra de salvia en el borde: así es como un cartel
-   señala el carril abierto. */
+/* Every lane is a full-width strip, not a button with rounded corners.
+   The active mark is a sage bar on the edge: that's how a sign points to
+   the open lane. */
 .carril {
     display: flex;
     align-items: center;
@@ -392,8 +390,8 @@ h3 {
     border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-/* Un botón secundario hereda tinta oscura, que sobre el panel es invisible.
-   Dentro del riel se reencuadra con la tinta del propio panel. */
+/* A secondary button inherits dark ink, which is invisible on the panel.
+   Inside the rail it's reframed with the panel's own ink. */
 .rail .boton.secundario {
     border-color: rgba(255, 255, 255, 0.25);
     color: var(--panel-tinta);
@@ -406,7 +404,7 @@ h3 {
 }
 
 /* ---------------------------------------------------------------------------
-   7. LA CABECERA DE SALA
+   7. THE ROOM HEADER
    --------------------------------------------------------------------------- */
 
 .cabecera {
@@ -436,7 +434,7 @@ h3 {
     gap: var(--e4);
 }
 
-/* Estado de la base: una placa, como el letrero de una ventanilla. */
+/* The database status: a plate, like a window sign. */
 .placa-estado {
     display: inline-flex;
     align-items: center;
@@ -494,10 +492,9 @@ h3 {
 }
 
 /* ---------------------------------------------------------------------------
-   8. EL BUSCADOR · a escala de rótulo
-   La primera acción real de la jornada es encontrar a una persona, así que
-   ocupa el ancho y se lee como el cartel de una ventanilla, no como un campo
-   de formulario más.
+   8. THE SEARCH BAR · at label scale
+   The first real action of the workday is finding a person, so it spans the
+   width and reads like a window sign, not like just another form field.
    --------------------------------------------------------------------------- */
 
 .buscador {
@@ -545,10 +542,10 @@ h3 {
 }
 
 /* ---------------------------------------------------------------------------
-   9. EL MARCAJE · recuentos como renglón de ventanilla
-   Deliberadamente no son tarjetas: cuatro cajas iguales con icono, título y
-   número son el patrón por defecto de esta categoría. Aquí es un solo renglón
-   con reglas verticales, como el marcaje de una hoja de control.
+   9. THE COUNTS ROW · counts styled like a window marker
+   Deliberately not cards: four equal boxes with an icon, title and number
+   are the default pattern for this category. Here it's a single row with
+   vertical rules, like the marking on a control sheet.
    --------------------------------------------------------------------------- */
 
 .marcaje {
@@ -603,7 +600,7 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   10. EL TABLERO · filas densas con su carril
+   10. THE BOARD · dense rows with their lane
    --------------------------------------------------------------------------- */
 
 .tablero {
@@ -645,7 +642,7 @@ span.marcaje-celda {
     background: var(--carril-vela);
 }
 
-/* Los valores que se transcriben a otro portal van en la mono legible. */
+/* Values that get transcribed into another portal use the legible mono. */
 .tablero td.dato {
     font-family: var(--dato);
     font-size: 0.85rem;
@@ -670,8 +667,8 @@ span.marcaje-celda {
     color: var(--tinta-media);
 }
 
-/* Una fila dada de baja se distingue por estructura además de por color:
-   franja diagonal de fondo, no solo un tono más claro. */
+/* An archived row is set apart by structure, not just color: a diagonal
+   background stripe, not just a lighter tone. */
 .fila-archivada {
     background-image: repeating-linear-gradient(
         -45deg,
@@ -687,7 +684,7 @@ span.marcaje-celda {
     color: var(--tinta-media);
 }
 
-/* Distintivo de carril: qué tipo de trámite es esta fila. */
+/* Lane badge: what type of tramite this row is. */
 .distintivo {
     display: inline-flex;
     align-items: center;
@@ -730,7 +727,7 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   11. CONTROLES
+   11. CONTROLS
    --------------------------------------------------------------------------- */
 
 .boton {
@@ -786,7 +783,7 @@ span.marcaje-celda {
     width: 100%;
 }
 
-/* Botón de icono: un cuadro de control, no una pastilla flotante. */
+/* Icon button: a control square, not a floating pill. */
 .boton-icono {
     display: inline-flex;
     align-items: center;
@@ -813,7 +810,7 @@ span.marcaje-celda {
     color: var(--rojo);
 }
 
-/* El único control dorado del sistema: revelar la credencial de un cliente. */
+/* The system's only gold control: revealing a client's credential. */
 .boton-icono.cordon {
     color: var(--cordon);
 }
@@ -825,7 +822,7 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   12. CAMPOS
+   12. FIELDS
    --------------------------------------------------------------------------- */
 
 .campo {
@@ -862,7 +859,7 @@ span.marcaje-celda {
     transition: border-color 120ms linear;
 }
 
-/* Los campos que capturan datos transcribibles se escriben en la mono. */
+/* Fields that capture transcribable data are typed in the mono face. */
 .campo input[name='numero_pasaporte'],
 .campo input[name='telefono'],
 .campo input[name='id_solicitud'],
@@ -942,9 +939,9 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   13. AVISOS
-   Sin barra lateral de color gruesa: el aviso es una placa completa teñida,
-   con su pictograma, como un cartel de incidencia.
+   13. NOTICES
+   No thick colored side bar: the notice is a fully tinted plate, with its
+   pictogram, like an incident sign.
    --------------------------------------------------------------------------- */
 
 .aviso {
@@ -977,10 +974,10 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   14. DIÁLOGOS · la persiana de ventanilla
-   El único momento con movimiento autorizado del sistema. Un diálogo aquí no
-   aparece con un desvanecido genérico: baja como la persiana de una
-   ventanilla que se abre.
+   14. DIALOGS · the window shutter
+   The system's one moment of authorized motion. A dialog here doesn't
+   appear with a generic fade: it drops like the shutter of a window
+   opening for business.
    --------------------------------------------------------------------------- */
 
 .telon {
@@ -1083,7 +1080,7 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   15. LA PLACA DE CREDENCIAL · lo único dorado
+   15. THE CREDENTIAL PLATE · the one thing that's gold
    --------------------------------------------------------------------------- */
 
 .placa-credencial {
@@ -1134,7 +1131,7 @@ span.marcaje-celda {
     border-color: var(--cordon);
 }
 
-/* El folio del asiento: la prueba de que la consulta quedó registrada. */
+/* The audit-entry number: proof that the lookup was logged. */
 .folio-auditoria {
     display: flex;
     align-items: flex-start;
@@ -1150,7 +1147,7 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   16. PAGINACIÓN
+   16. PAGINATION
    --------------------------------------------------------------------------- */
 
 .paginacion {
@@ -1182,7 +1179,7 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   17. BARRA DE ACCIONES
+   17. ACTION BAR
    --------------------------------------------------------------------------- */
 
 .barra-acciones {
@@ -1198,9 +1195,9 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   18. ACCESO
-   La pantalla de acceso es el cartel de entrada: el logotipo completo sobre
-   la sala, y el formulario como una placa de ventanilla.
+   18. SIGN-IN
+   The sign-in screen is the entry sign: the full logo over the room, and
+   the form as a window plate.
    --------------------------------------------------------------------------- */
 
 .acceso {
@@ -1263,7 +1260,7 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   19. EXPEDIENTE · los trámites de una persona
+   19. RECORD · a person's tramites
    --------------------------------------------------------------------------- */
 
 .expediente {
@@ -1274,9 +1271,9 @@ span.marcaje-celda {
 }
 
 /* ---------------------------------------------------------------------------
-   20. ADAPTACIÓN
-   La escena móvil es de lectura y búsqueda, no de captura: el riel se convierte
-   en una barra de carriles desplazable y la tabla se lee por tarjetas de fila.
+   20. RESPONSIVE
+   The mobile scene is for reading and searching, not data entry: the rail
+   becomes a scrollable lane bar and the table reads as row cards.
    --------------------------------------------------------------------------- */
 
 @media (max-width: 62rem) {
@@ -1360,8 +1357,8 @@ span.marcaje-celda {
 }
 
 @media (max-width: 46rem) {
-    /* Cada fila se convierte en una ficha etiquetada: en un teléfono, una
-       tabla de nueve columnas obliga a desplazar en dos ejes a la vez. */
+    /* Every row becomes a labeled card: on a phone, a nine-column table
+       forces scrolling on two axes at once. */
     .tablero {
         border: 0;
         background: transparent;
@@ -1387,11 +1384,11 @@ span.marcaje-celda {
         overflow: hidden;
     }
 
-    /* La celda del nombre asciende a cabecera del cartel: panel verde con la
-       persona en claro, igual que el rótulo superior de una señal. Se coloca
-       arriba con `order` porque en la tabla no es la primera columna, y así se
-       evita además la barra lateral de color que delata a cualquier interfaz
-       generada. */
+    /* The name cell rises to become the card's header: a green panel with
+       the person's name in light ink, just like the top label of a sign.
+       It's placed first with `order` because in the table it isn't the
+       first column, and this also avoids the colored side bar that gives
+       away any generated interface. */
     .tablero tbody tr {
         display: flex;
         flex-direction: column;

@@ -1,13 +1,13 @@
 /**
- * Contratos de la API.
+ * API contracts.
  *
- * Estos tipos son el reflejo de los esquemas Pydantic del backend. Existen
- * porque antes el servicio HTTP devolvia `any` en todos sus metodos: el
- * proyecto usaba TypeScript sin obtener nada de TypeScript, y un cambio de
- * contrato en la API solo se descubria en tiempo de ejecucion.
+ * These types mirror the backend's Pydantic schemas. They exist because the
+ * HTTP service used to return `any` from every method: the project used
+ * TypeScript without getting anything from TypeScript, and a contract change
+ * in the API was only discovered at runtime.
  */
 
-/** Envoltorio de cualquier listado paginado. */
+/** Wrapper for any paginated listing. */
 export interface Paginado<T> {
   total: number;
   skip: number;
@@ -15,12 +15,12 @@ export interface Paginado<T> {
   items: T[];
 }
 
-/** Campos administrativos comunes a todo registro devuelto por la API. */
+/** Administrative fields common to every record the API returns. */
 export interface RegistroBase {
   id: number;
   cargado_en: string;
   actualizado_en: string;
-  /** Marca de baja logica. Nulo mientras el registro esta vigente. */
+  /** Soft-delete marker. Null while the record is active. */
   eliminado_en: string | null;
 }
 
@@ -33,12 +33,12 @@ export interface Cliente extends RegistroBase {
 }
 
 export interface ClienteDetalle extends Cliente {
-  /** Conteo de tramites activos por tabla. */
+  /** Count of active tramites per table. */
   tramites: Record<string, number>;
 }
 
 interface TramiteBase extends RegistroBase {
-  /** Persona a la que pertenece el tramite. */
+  /** Person the tramite belongs to. */
   cliente_id: number;
   nombre: string;
 }
@@ -64,9 +64,9 @@ export interface Pasaporte extends TramiteBase {
   lugar_cita: string | null;
   fecha_cita: string | null;
   /**
-   * Texto original de la celda cuando no era una fecha valida. El archivo de
-   * origen contiene valores como "MARZO", que el pipeline preserva en vez de
-   * descartar.
+   * Original text of the cell when it was not a valid date. The source file
+   * contains values such as "MARCH", which the pipeline preserves instead of
+   * discarding.
    */
   fecha_cita_original: string | null;
 }
@@ -77,15 +77,15 @@ export interface Canada extends TramiteBase {
   numero_pasaporte: string | null;
 }
 
-/** Cualquiera de los cuatro tipos de tramite. */
+/** Any of the four tramite types. */
 export type Tramite = MasterTramex | GlobalEntry | Pasaporte | Canada;
 
 /**
- * Cuerpo aceptado al crear o editar un tramite.
+ * Body accepted when creating or editing a tramite.
  *
- * Se modela como registro de valores primitivos porque el formulario es
- * generico sobre los cuatro recursos; `unknown` obligaria a un casteo en cada
- * lectura sin aportar seguridad real.
+ * Modeled as a record of primitive values because the form is generic over
+ * the four resources; `unknown` would force a cast on every read without
+ * adding real type safety.
  */
 export type CuerpoTramite = Record<string, string | number | null>;
 
@@ -108,12 +108,12 @@ export interface RespuestaToken {
   usuario: Usuario;
 }
 
-/** Resultado del endpoint auditado de descifrado. */
+/** Result of the audited decryption endpoint. */
 export interface RespuestaCredencial {
   contrasena: string | null;
   registro_id: number;
   recurso: string;
-  /** Asiento que dejo la consulta en la bitacora de auditoria. */
+  /** Audit-log entry the query left behind. */
   auditoria_id: number;
 }
 

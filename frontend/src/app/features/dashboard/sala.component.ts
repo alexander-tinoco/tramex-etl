@@ -7,24 +7,23 @@ import { CLAVES_RECURSO, ClaveRecurso, RECURSOS } from '../../models/recursos.mo
 import { formatearFechaHora } from '../../shared/formato';
 import { PictogramaComponent } from '../../shared/pictograma.component';
 
-/** Una fila del tablero: un trámite tocado recientemente, con su carril. */
+/** One row of the board: a tramite touched recently, with its lane. */
 interface Movimiento {
   recurso: ClaveRecurso;
   registro: Tramite;
 }
 
 /**
- * La sala: la pantalla con la que empieza la jornada.
+ * The floor: the screen the workday starts on.
  *
- * No muestra cuatro tarjetas de métrica. La primera acción real de una
- * operadora es encontrar a una persona, así que el buscador ocupa el ancho a
- * escala de rótulo; debajo, lo último que se ha tocado, que responde «qué ha
- * pasado hoy». Los recuentos existen pero como un renglón de marcaje, no como
- * el asunto de la pantalla.
+ * It doesn't show four metric cards. An operator's first real action is
+ * finding a person, so the search bar spans the width at signage scale;
+ * below it, whatever was touched last, which answers "what happened today".
+ * The counts still exist, but as a tally row, not as the point of the screen.
  *
- * La búsqueda va contra `clientes` y no contra cada tabla de trámite: la
- * pregunta es quién es la persona y qué tiene abierto, que es exactamente lo
- * que el modelo relacional hizo posible y la hoja de cálculo no.
+ * Search targets `clientes`, not each tramite table: the question is who this
+ * person is and what they have open, which is exactly what the relational
+ * model made possible and the spreadsheet couldn't.
  */
 @Component({
   selector: 'app-sala',
@@ -37,7 +36,7 @@ export class SalaComponent implements OnDestroy {
   private readonly destruido = new Subject<void>();
   private readonly termino = new Subject<string>();
 
-  /** Pide al contenedor que abra un carril concreto. */
+  /** Asks the container to open a specific lane. */
   readonly abrirRecurso = output<ClaveRecurso>();
 
   readonly recursos = CLAVES_RECURSO.map((clave) => RECURSOS[clave]);
@@ -96,10 +95,10 @@ export class SalaComponent implements OnDestroy {
   }
 
   /**
-   * Arma el tablero pidiendo a cada carril sus últimos movimientos.
+   * Builds the board by asking each lane for its latest activity.
    *
-   * Se piden en paralelo y se entrelazan por fecha. Que falle uno no deja la
-   * pantalla en blanco: ese carril simplemente no aporta filas.
+   * The requests go out in parallel and get interleaved by date. If one
+   * fails, the screen doesn't go blank: that lane simply contributes no rows.
    */
   private cargarTablero(): void {
     const peticiones = CLAVES_RECURSO.map((clave) =>
@@ -152,11 +151,11 @@ export class SalaComponent implements OnDestroy {
   }
 
   /**
-   * Lee el pasaporte de un trámite cualquiera.
+   * Reads the passport of any tramite.
    *
-   * Tres de los cuatro tipos lo tienen y Pasaportes no, así que el acceso se
-   * acota aquí en TypeScript en lugar de escapar la comprobación de tipos con
-   * `$any` en la plantilla, que es donde menos conviene apagarla.
+   * Three of the four types have it and Pasaportes doesn't, so the access is
+   * scoped here in TypeScript instead of escaping the type checker with
+   * `$any` in the template, which is the last place it should be turned off.
    */
   pasaporteDe(registro: Tramite): string {
     return 'numero_pasaporte' in registro ? (registro.numero_pasaporte ?? '—') : '—';

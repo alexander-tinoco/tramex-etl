@@ -23,7 +23,7 @@ export class LoginComponent {
   readonly cargando = signal(false);
   readonly error = signal('');
 
-  /** El interceptor redirige aqui con esta marca cuando la sesion caduca. */
+  /** The interceptor redirects here with this flag when the session expires. */
   readonly sesionExpirada = signal(this.ruta.snapshot.queryParamMap.get('expirada') === 'true');
 
   alternarVisibilidad(): void {
@@ -53,27 +53,27 @@ export class LoginComponent {
   }
 
   /**
-   * Traduce el fallo a un mensaje util.
+   * Translates the failure into a useful message.
    *
-   * El 429 se distingue del 401 a proposito: si la cuenta quedo bloqueada por
-   * intentos fallidos, decir "credenciales incorrectas" haria que la persona
-   * siguiera probando contrasenas sin entender por que no entra.
+   * 429 is deliberately distinguished from 401: if the account was locked
+   * out from failed attempts, saying "incorrect credentials" would make the
+   * person keep trying passwords without understanding why they can't get in.
    */
   private describirError(fallo: unknown): string {
     if (!(fallo instanceof HttpErrorResponse)) {
-      return 'No se pudo completar el inicio de sesión.';
+      return 'Could not sign in.';
     }
     switch (fallo.status) {
       case 401:
-        return 'Correo o contraseña incorrectos.';
+        return 'Incorrect email or password.';
       case 429:
         return typeof fallo.error?.detail === 'string'
           ? fallo.error.detail
-          : 'Demasiados intentos. Espera unos minutos antes de volver a intentar.';
+          : 'Too many attempts. Wait a few minutes before trying again.';
       case 0:
-        return 'No hay conexión con el servidor.';
+        return 'No connection to the server.';
       default:
-        return 'Ocurrió un error inesperado. Intenta de nuevo.';
+        return 'An unexpected error occurred. Try again.';
     }
   }
 }

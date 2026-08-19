@@ -13,30 +13,30 @@ import {
   Tramite,
 } from '../models/api.model';
 
-/** Filtros aceptados por los listados de tramites. */
+/** Filters accepted by the tramite listings. */
 export interface FiltrosListado {
   skip?: number;
   limit?: number;
   buscar?: string;
   clienteId?: number;
   incluirEliminados?: boolean;
-  /** `reciente` devuelve primero lo último tocado; lo usa el tablero de sala. */
+  /** `reciente` returns the most recently touched records first; used by the floor's board. */
   orden?: 'id' | 'reciente';
 }
 
 /**
- * Cliente HTTP de la API.
+ * HTTP client for the API.
  *
- * Todos los metodos son genericos y tipados: la version anterior devolvia
- * `any` en cada uno, lo que anulaba cualquier comprobacion de tipos sobre las
- * respuestas del backend.
+ * Every method is generic and typed: the previous version returned `any`
+ * from all of them, which nullified any type checking on the backend's
+ * responses.
  */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = environment.apiUrl;
 
-  /** Las peticiones llevan la cookie de sesion; sin esto la API responde 401. */
+  /** Requests carry the session cookie; without this the API responds 401. */
   private readonly opciones = { withCredentials: true } as const;
 
   estadoSalud(): Observable<EstadoSalud> {
@@ -72,7 +72,7 @@ export class ApiService {
     return this.http.patch<T>(`${this.baseUrl}${endpoint}${id}`, cuerpo, this.opciones);
   }
 
-  /** Baja logica: el registro se conserva y puede restaurarse. */
+  /** Soft delete: the record is kept and can be restored. */
   archivar(endpoint: string, id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}${endpoint}${id}`, this.opciones);
   }
@@ -82,10 +82,10 @@ export class ApiService {
   }
 
   /**
-   * Descifra la credencial de un registro.
+   * Decrypts a record's credential.
    *
-   * Es la operacion mas sensible de la API: cada llamada queda asentada en la
-   * bitacora de auditoria, y la respuesta incluye el identificador del asiento.
+   * It's the most sensitive operation in the API: every call is logged in
+   * the audit trail, and the response includes the identifier of that entry.
    */
   obtenerCredencial(endpoint: string, id: number): Observable<RespuestaCredencial> {
     return this.http.get<RespuestaCredencial>(
@@ -99,11 +99,11 @@ export class ApiService {
   }
 
   /**
-   * Busca personas, no filas.
+   * Searches for people, not rows.
    *
-   * La pantalla de sala busca sobre `clientes` y no sobre cada tabla de
-   * trámite: la pregunta real de la operadora es "quién es esta persona y qué
-   * tiene abierto", que es justamente lo que el modelo relacional hizo posible.
+   * The floor screen searches against `clientes`, not each tramite table: the
+   * operator's real question is "who is this person and what do they have
+   * open", which is exactly what the relational model made possible.
    */
   buscarClientes(termino: string, limit = 8): Observable<Paginado<Cliente>> {
     const params = new HttpParams().set('buscar', termino).set('limit', String(limit));

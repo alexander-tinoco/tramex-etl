@@ -5,16 +5,16 @@ import { environment } from '../../environments/environment';
 import { RespuestaToken, Usuario } from '../models/api.model';
 
 /**
- * Estado de sesion de la aplicacion.
+ * Application session state.
  *
- * La sesion vive en una cookie `httpOnly` emitida por la API, no en
- * `localStorage`. El cambio importa: el token guardado en `localStorage` era
- * legible por cualquier script de la pagina, de modo que un XSS bastaba para
- * robar la sesion. Una cookie `httpOnly` es invisible para JavaScript.
+ * The session lives in an `httpOnly` cookie issued by the API, not in
+ * `localStorage`. The change matters: a token stored in `localStorage` was
+ * readable by any script on the page, so an XSS was enough to steal the
+ * session. An `httpOnly` cookie is invisible to JavaScript.
  *
- * La consecuencia de diseno es que el frontend **no puede leer la sesion**: la
- * unica forma de saber si hay una activa es preguntarle a la API. De ahi
- * `cargarSesion()`, que se ejecuta al arrancar la aplicacion.
+ * The design consequence is that the frontend **cannot read the session**:
+ * the only way to know if one is active is to ask the API. Hence
+ * `cargarSesion()`, which runs when the application starts.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -24,21 +24,21 @@ export class AuthService {
   private readonly _usuario = signal<Usuario | null>(null);
   private readonly _sesionResuelta = signal(false);
 
-  /** Usuario de la sesion actual, o `null` si no hay ninguna. */
+  /** User of the current session, or `null` if there isn't one. */
   readonly usuario = this._usuario.asReadonly();
 
-  /** `false` mientras aun no se sabe si hay sesion; evita parpadeos al arrancar. */
+  /** `false` while it isn't yet known whether there's a session; avoids a flash on startup. */
   readonly sesionResuelta = this._sesionResuelta.asReadonly();
 
   readonly estaAutenticado = computed(() => this._usuario() !== null);
   readonly esAdmin = computed(() => this._usuario()?.rol === 'admin');
-  readonly nombreVisible = computed(() => this._usuario()?.nombre ?? 'Invitado');
+  readonly nombreVisible = computed(() => this._usuario()?.nombre ?? 'Guest');
 
   /**
-   * Autentica contra la API.
+   * Authenticates against the API.
    *
-   * El cuerpo va como formulario porque el endpoint sigue el flujo estandar de
-   * OAuth2 "password", que es tambien lo que espera el "Authorize" de Swagger.
+   * The body is sent as a form because the endpoint follows the standard
+   * OAuth2 "password" flow, which is also what Swagger's "Authorize" expects.
    */
   iniciarSesion(correo: string, contrasena: string): Observable<RespuestaToken> {
     const cuerpo = new URLSearchParams();
@@ -52,9 +52,9 @@ export class AuthService {
       })
       .pipe(
         tap((respuesta) => {
-          // El token del cuerpo se ignora a proposito: la sesion la lleva la
-          // cookie. Guardarlo aqui reintroduciria el problema que se acaba de
-          // resolver.
+          // The token in the body is deliberately ignored: the cookie carries
+          // the session. Storing it here would reintroduce the problem that
+          // was just solved.
           this._usuario.set(respuesta.usuario);
           this._sesionResuelta.set(true);
         }),
@@ -68,10 +68,10 @@ export class AuthService {
   }
 
   /**
-   * Pregunta a la API por la sesion vigente.
+   * Asks the API for the current session.
    *
-   * Se llama al arrancar la aplicacion: como la cookie es `httpOnly`, es la
-   * unica forma de recuperar el estado tras recargar la pagina.
+   * Called when the application starts: since the cookie is `httpOnly`, this
+   * is the only way to recover the state after reloading the page.
    */
   cargarSesion(): Observable<Usuario> {
     return this.http
@@ -95,7 +95,7 @@ export class AuthService {
     );
   }
 
-  /** Descarta el estado local. La cookie la invalida la API. */
+  /** Discards local state. The API is what invalidates the cookie. */
   limpiar(): void {
     this._usuario.set(null);
     this._sesionResuelta.set(true);
