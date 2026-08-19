@@ -1,14 +1,14 @@
 {
   "Servers": {
     "1": {
-      "Name": "Tramex (desarrollo)",
+      "Name": "Tramex (development)",
       "Group": "Servers",
       "Host": "db",
       "Port": 5432,
       "MaintenanceDB": "tramex",
       "Username": "postgres",
       "SSLMode": "prefer",
-      "Comment": "Base de desarrollo levantada por docker-compose. Nunca apuntar esta entrada a produccion."
+      "Comment": "Development database brought up by docker-compose. Never point this entry at production."
     }
   }
 }

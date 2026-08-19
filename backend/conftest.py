@@ -1,17 +1,17 @@
 """
-Configuracion del entorno de pruebas.
+Test environment configuration.
 
-pytest importa este archivo antes que cualquier modulo de la aplicacion, asi
-que es el lugar donde fijar las variables que `app.config` valida al importarse.
-De este modo `pytest` se ejecuta sin preparar el entorno a mano y sin arrastrar
-valores del `.env` de desarrollo de quien corre la suite.
+pytest imports this file before any application module, which makes it the
+place to set the variables `app.config` validates on import. This way
+`pytest` runs without preparing the environment by hand and without pulling
+in whoever runs the suite's development `.env` values.
 """
 
 import os
 
 VALORES_DE_PRUEBA = {
-    # Llave Fernet valida generada exclusivamente para la suite. No cifra
-    # ningun dato real y no debe usarse fuera de las pruebas.
+    # Valid Fernet key generated exclusively for the suite. It doesn't
+    # encrypt any real data and must not be used outside the tests.
     "TRAMEX_FERNET_KEY": "CxNCUQhBIDIRsETw8i-dfZBdmcnh6YX43VWS-9txMY4=",
     "DATABASE_URL": "sqlite:///:memory:",
     "API_SECRET_KEY": "clave-de-pruebas-sin-valor-en-produccion",
@@ -19,8 +19,8 @@ VALORES_DE_PRUEBA = {
     "ALLOWED_ORIGINS": "http://testserver",
     "LOG_LEVEL": "WARNING",
     "SENTRY_DSN": "",
-    # Coste minimo de bcrypt: la suite inicia sesion decenas de veces y con el
-    # coste de produccion tardaria mas en derivar hashes que en probar nada.
+    # Minimum bcrypt cost: the suite signs in dozens of times, and at
+    # production cost it would take longer to derive hashes than to test anything.
     "BCRYPT_RONDAS": "4",
 }
 
