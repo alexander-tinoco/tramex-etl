@@ -1,8 +1,8 @@
 """
-Router de clientes.
+Client router.
 
-Expone la entidad raiz del modelo y, sobre todo, la vista que el Excel original
-no permitia: todos los tramites de una misma persona en una sola consulta.
+Exposes the model's root entity and, above all, the view the original Excel
+never allowed: all of one person's tramites in a single query.
 """
 
 from __future__ import annotations
@@ -37,17 +37,17 @@ def _obtener_o_404(db: Session, cliente_id: int):
     if cliente is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No existe un cliente con id {cliente_id}.",
+            detail=f"No client exists with id {cliente_id}.",
         )
     return cliente
 
 
-@router.get("/", response_model=PaginatedResponse[ClienteResponse], summary="Listar clientes")
+@router.get("/", response_model=PaginatedResponse[ClienteResponse], summary="List clients")
 def listar(
     db: Annotated[Session, Depends(get_db)],
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
-    buscar: Annotated[str | None, Query(description="Coincidencia parcial por nombre.")] = None,
+    buscar: Annotated[str | None, Query(description="Partial match on name.")] = None,
 ):
     items, total = crud_cliente.get_multi(db, skip=skip, limit=limit, buscar=buscar)
     return {"total": total, "skip": skip, "limit": limit, "items": items}
@@ -56,7 +56,7 @@ def listar(
 @router.get(
     "/{cliente_id}",
     response_model=ClienteDetalleResponse,
-    summary="Obtener un cliente con el resumen de sus tramites",
+    summary="Get a client with a summary of their tramites",
 )
 def obtener(cliente_id: int, db: Annotated[Session, Depends(get_db)]):
     cliente = _obtener_o_404(db, cliente_id)
@@ -74,15 +74,16 @@ def obtener(cliente_id: int, db: Annotated[Session, Depends(get_db)]):
     "/",
     response_model=ClienteResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Dar de alta un cliente",
+    summary="Create a client",
 )
 def crear(datos: ClienteCreate, db: Annotated[Session, Depends(get_db)]):
-    # `resolver_o_crear` mantiene el alta idempotente: reenviar el mismo cliente
-    # devuelve el existente en vez de violar la restriccion de clave natural.
+    # `resolver_o_crear` keeps creation idempotent: resubmitting the same
+    # client returns the existing one instead of violating the natural-key
+    # constraint.
     return crud_cliente.resolver_o_crear(db, datos.model_dump())
 
 
-@router.patch("/{cliente_id}", response_model=ClienteResponse, summary="Actualizar un cliente")
+@router.patch("/{cliente_id}", response_model=ClienteResponse, summary="Update a client")
 def actualizar(cliente_id: int, datos: ClienteUpdate, db: Annotated[Session, Depends(get_db)]):
     cliente = _obtener_o_404(db, cliente_id)
     return crud_cliente.update(db, db_obj=cliente, obj_in=datos)
@@ -91,18 +92,18 @@ def actualizar(cliente_id: int, datos: ClienteUpdate, db: Annotated[Session, Dep
 @router.delete(
     "/{cliente_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Dar de baja un cliente y, en cascada, sus tramites",
+    summary="Archive a client and, in cascade, their tramites",
 )
 def eliminar(cliente_id: int, db: Annotated[Session, Depends(get_db)]):
     cliente = crud_cliente.remove(db, id=cliente_id)
     if cliente is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No existe un cliente activo con id {cliente_id}.",
+            detail=f"No active client exists with id {cliente_id}.",
         )
-    # La baja logica del cliente arrastra la de sus tramites: dejar tramites
-    # activos colgando de un cliente dado de baja produciria listados
-    # inconsistentes.
+    # Archiving the client cascades to their tramites: leaving active
+    # tramites hanging off an archived client would produce inconsistent
+    # listings.
     for repositorio in _REPOSITORIOS_DE_TRAMITE.values():
         tramites, _ = repositorio.get_multi(db, cliente_id=cliente_id, limit=500)
         for tramite in tramites:

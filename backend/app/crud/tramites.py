@@ -1,11 +1,11 @@
 """
-Repositorios de las cuatro tablas de tramite.
+Repositories for the four tramite tables.
 
-Las cuatro comparten exactamente el mismo comportamiento, que ya vive en
-`CRUDBase`; lo unico que cambia entre ellas es el modelo ORM y la definicion de
-entidad (que campos identifican la fila y cual es su campo secreto). Por eso
-aqui solo se instancian: la version anterior de este modulo repetia el mismo
-bloque de cifrado y descifrado cuatro veces.
+All four share exactly the same behavior, which already lives in `CRUDBase`;
+the only thing that changes between them is the ORM model and the entity
+definition (which fields identify the row and which is its secret field). So
+here they're just instantiated: the previous version of this module repeated
+the same encryption/decryption block four times over.
 """
 
 from __future__ import annotations
@@ -21,16 +21,16 @@ from tramex_shared import CANADA, GLOBAL_ENTRY, MASTER_TRAMEX, PASAPORTES, Defin
 
 
 class CRUDTramite(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
-    """Repositorio de una tabla de tramite, siempre ligada a un cliente."""
+    """Repository for a tramite table, always linked to a client."""
 
     def create(self, db: Session, *, obj_in: CreateSchemaType | dict[str, Any]) -> ModelType:
         """
-        Crea el tramite garantizando la integridad referencial.
+        Creates the tramite while guaranteeing referential integrity.
 
-        Si la peticion no indica `cliente_id`, se resuelve (o se da de alta) el
-        cliente a partir de los propios datos del tramite. De este modo la API
-        sigue aceptando un alta directa sin obligar a la operadora a conocer el
-        identificador interno, pero la fila nunca queda huerfana.
+        If the request doesn't specify `cliente_id`, the client is resolved
+        (or created) from the tramite's own data. This way the API keeps
+        accepting a direct creation without forcing the operator to know the
+        internal identifier, while the row never ends up orphaned.
         """
         datos = obj_in if isinstance(obj_in, dict) else obj_in.model_dump()
         if not datos.get("cliente_id"):
@@ -39,7 +39,7 @@ class CRUDTramite(CRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
 def _repositorio(modelo: type, definicion: DefinicionEntidad) -> CRUDTramite[Any, Any, Any]:
-    """Fabrica un repositorio de tramite; existe solo para dar nombre al patron."""
+    """Builds a tramite repository; exists only to give the pattern a name."""
     return CRUDTramite(modelo, definicion)
 
 

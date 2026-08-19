@@ -1,11 +1,10 @@
 """
-Repositorio de clientes y resolucion de identidad.
+Client repository and identity resolution.
 
-Aqui vive la respuesta a la pregunta que el Excel original no podia contestar:
-"estas cuatro filas, en cuatro pestanas distintas, son la misma persona?".
-Tanto el ETL como la API pasan por `resolver_o_crear`, de modo que ambos
-convergen sobre el mismo cliente en lugar de crear uno por cada punto de
-entrada.
+This is where the question the original Excel couldn't answer gets solved:
+"are these four rows, in four different sheets, the same person?". Both the
+ETL and the API go through `resolver_o_crear`, so they converge on the same
+client instead of creating one per entry point.
 """
 
 from __future__ import annotations
@@ -28,28 +27,28 @@ from tramex_shared import (
 
 
 class CRUDCliente(CRUDBase[Cliente, ClienteCreate, ClienteUpdate]):
-    """Repositorio de la entidad raiz del modelo."""
+    """Repository for the model's root entity."""
 
     def calcular_identidad(self, datos: dict[str, Any]) -> tuple[str, str]:
         """
-        La identidad de una persona no se deriva de sus campos en crudo.
+        A person's identity is not derived from their raw fields.
 
-        Se usa el nombre canonico (nombre y apellido unidos y normalizados, para
-        que "José Ramírez" y "Ana"/"Lopez" sean comparables entre hojas) mas el
-        identificador duro disponible. Por eso este metodo sustituye al generico
-        de `CRUDBase`.
+        Uses the canonical name (first and last name joined and normalized,
+        so "José Ramírez" and "Ana"/"Lopez" are comparable across sheets)
+        plus whatever hard identifier is available. That's why this method
+        overrides `CRUDBase`'s generic one.
         """
         contenido = {campo: datos.get(campo) for campo in CLIENTES.campos_negocio}
         return calcular_clave_cliente(datos), calcular_hash_fila(contenido)
 
     def buscar_por_nombre_canonico(self, db: Session, datos: dict[str, Any]) -> list[Cliente]:
         """
-        Candidatos activos cuyo nombre canonico coincide exactamente.
+        Active candidates whose canonical name matches exactly.
 
-        Se usa solo para resolver registros sin identificador duro. La
-        comparacion se hace en Python, no en SQL, porque la normalizacion
-        (acentos, espacios) debe ser identica a la del resto del pipeline y
-        reimplementarla en SQL abriria una segunda fuente de verdad.
+        Used only to resolve records with no hard identifier. The comparison
+        is done in Python, not SQL, because the normalization (accents,
+        spaces) must be identical to the rest of the pipeline, and
+        reimplementing it in SQL would open a second source of truth.
         """
         objetivo = nombre_canonico(datos.get("nombre"), datos.get("apellido"))
         if not objetivo:
@@ -63,23 +62,24 @@ class CRUDCliente(CRUDBase[Cliente, ClienteCreate, ClienteUpdate]):
 
     def resolver_o_crear(self, db: Session, datos: dict[str, Any]) -> Cliente:
         """
-        Devuelve el cliente al que pertenece un registro de tramite.
+        Returns the client a tramite record belongs to.
 
-        Estrategia en dos pasadas:
+        Two-pass strategy:
 
-        1. Coincidencia exacta por clave natural. Resuelve el caso normal, en el
-           que el registro trae pasaporte o correo.
-        2. Solo si el registro no trae ningun identificador duro, se busca por
-           nombre canonico entre los clientes activos. Si hay **exactamente un**
-           candidato, se enlaza a el: es el caso de la hoja de Pasaportes, que
-           no captura pasaporte y quedaria desconectada del resto.
-           Si hay varios candidatos la situacion es ambigua (homonimos), y se
-           prefiere crear una persona nueva antes que fusionar por error los
-           expedientes de dos clientes distintos. Corregirlo despues es trivial;
-           deshacer una fusion equivocada no lo es.
+        1. Exact match by natural key. Handles the normal case, where the
+           record carries a passport or email.
+        2. Only if the record carries no hard identifier at all, look up by
+           canonical name among active clients. If there is **exactly one**
+           candidate, link to it: this is the case of the Passports sheet,
+           which doesn't capture a passport number and would otherwise be
+           disconnected from the rest.
+           If there are several candidates the situation is ambiguous
+           (namesakes), and creating a new person is preferred over
+           mistakenly merging two different clients' records. Fixing that
+           later is trivial; undoing a wrong merge is not.
 
-        Un cliente encontrado pero dado de baja se reactiva: que se archive un
-        tramite no significa que la persona deje de existir.
+        A client that is found but archived gets reactivated: archiving one
+        tramite doesn't mean the person stops existing.
         """
         proyeccion = {campo: datos.get(campo) for campo in CLIENTES.campos_negocio}
         clave_natural, _ = self.calcular_identidad(proyeccion)

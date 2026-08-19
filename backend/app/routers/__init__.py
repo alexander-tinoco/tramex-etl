@@ -1,1 +1,1 @@
-"""Routers HTTP de la API."""
+"""HTTP routers for the API."""
