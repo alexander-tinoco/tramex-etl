@@ -1,4 +1,4 @@
-"""Pruebas de metricas y cabeceras de seguridad."""
+"""Tests for metrics and security headers."""
 
 from tests.conftest import CONTRASENA_DE_PRUEBA, CORREO_OPERADOR
 
@@ -12,16 +12,17 @@ class TestCabecerasDeSeguridad:
         assert "frame-ancestors 'none'" in cabeceras["Content-Security-Policy"]
 
     def test_tambien_en_las_respuestas_de_error(self, client_anonimo):
-        """Una respuesta 401 tambien la interpreta el navegador."""
+        """A 401 response is interpreted by the browser too."""
         cabeceras = client_anonimo.get("/api/v1/master-tramex/").headers
         assert cabeceras["X-Content-Type-Options"] == "nosniff"
 
     def test_hsts_solo_en_produccion(self, client_anonimo):
         """
-        En desarrollo se trabaja sobre http.
+        Development runs over http.
 
-        Enviar HSTS ahi dejaria el navegador forzando https contra un servidor
-        que no lo habla, y el efecto persiste aunque se quite la cabecera.
+        Sending HSTS there would leave the browser forcing https against a
+        server that doesn't speak it, and the effect persists even after
+        the header is removed.
         """
         assert "Strict-Transport-Security" not in client_anonimo.get("/").headers
 
@@ -35,9 +36,9 @@ class TestMetricas:
 
     def test_la_ruta_se_agrupa_por_plantilla(self, client):
         """
-        Sin normalizar, cada id generaria su propia serie temporal.
+        Without normalization, every id would generate its own time series.
 
-        Es la forma habitual de tumbar un Prometheus por cardinalidad.
+        It's the usual way to take down a Prometheus by cardinality.
         """
         registro = client.post(
             "/api/v1/canada/", json={"nombre": "Metricas", "numero_pasaporte": "M1"}
@@ -72,7 +73,7 @@ class TestMetricas:
         assert 'tramex_intentos_login_total{resultado="exitoso"}' in cuerpo
 
     def test_las_metricas_no_revelan_datos_de_clientes(self, client):
-        """Son agregados: no deben contener nombres ni identificadores."""
+        """They're aggregates: they must not contain names or identifiers."""
         client.post(
             "/api/v1/canada/",
             json={"nombre": "Nombre Confidencial", "contrasena": "clave-secreta-1234"},
@@ -84,11 +85,11 @@ class TestMetricas:
 
 class TestDocumentacionInteractiva:
     """
-    La politica cerrada de la API no debe romper Swagger.
+    The API's locked-down policy must not break Swagger.
 
-    Swagger UI carga sus recursos desde un CDN; con `default-src 'none'` la
-    pagina se renderiza en blanco y la documentacion interactiva deja de servir
-    para nada, que es justo lo que paso al anadir las cabeceras.
+    Swagger UI loads its assets from a CDN; with `default-src 'none'` the
+    page renders blank and the interactive docs stop being useful for
+    anything, which is exactly what happened when the headers were added.
     """
 
     def test_swagger_responde(self, client_anonimo):
@@ -99,7 +100,7 @@ class TestDocumentacionInteractiva:
     def test_swagger_recibe_una_politica_que_permite_su_cdn(self, client_anonimo):
         politica = client_anonimo.get("/docs").headers["Content-Security-Policy"]
         assert "cdn.jsdelivr.net" in politica
-        # Sigue siendo restrictiva: nada de incrustar la pagina en un marco.
+        # Still restrictive: no embedding the page in a frame.
         assert "frame-ancestors 'none'" in politica
 
     def test_el_resto_de_la_api_conserva_la_politica_cerrada(self, client_anonimo):
@@ -110,7 +111,7 @@ class TestDocumentacionInteractiva:
     def test_el_esquema_openapi_se_genera(self, client_anonimo):
         esquema = client_anonimo.get("/openapi.json").json()
         assert esquema["info"]["title"] == "Tramex API"
-        # Los cuatro recursos y la administracion estan documentados.
+        # The four resources and the admin endpoints are documented.
         rutas = esquema["paths"]
         assert "/api/v1/master-tramex/" in rutas
         assert "/api/v1/admin/auditoria" in rutas

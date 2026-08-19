@@ -1,15 +1,15 @@
-"""Introduce la entidad clientes, claves naturales y borrado logico.
+"""Introduces the clients entity, natural keys and soft delete.
 
 Revision ID: a1b2c3d4e5f6
 Revises: d419612ba5db
 Create Date: 2026-08-17 09:40:00.000000
 
-Esta migracion convierte cuatro tablas planas heredadas del Excel original en
-un modelo relacional con una raiz comun. El backfill se ejecuta en Python (no
-en SQL) porque la clave natural exige la misma normalizacion de texto que usan
-el ETL y la API: quitar acentos, colapsar espacios y pasar a minusculas.
-Reimplementarla en SQL abriria la puerta a que las tres capas derivaran claves
-distintas para la misma persona.
+This migration converts four flat tables inherited from the original Excel
+file into a relational model with a common root. The backfill runs in
+Python (not SQL) because the natural key requires the same text
+normalization used by the ETL and the API: strip accents, collapse
+whitespace, and lowercase. Reimplementing it in SQL would open the door to
+the three layers deriving different keys for the same person.
 """
 
 from collections.abc import Sequence
@@ -33,9 +33,9 @@ depends_on: str | Sequence[str] | None = None
 
 TABLAS_TRAMITE = ("master_tramex", "global_entry", "pasaportes", "canada")
 
-#: Columnas del Excel original de las que se puede deducir la persona.
-#: No todas las tablas las traen: Master Tramex no tiene apellido y Pasaportes
-#: no tiene numero de pasaporte, de ahi la interseccion en tiempo de ejecucion.
+#: Columns from the original Excel file that let you infer the person.
+#: Not every table has all of them: Master Tramex has no last name and
+#: Pasaportes has no passport number, hence the runtime intersection.
 CAMPOS_DE_CLIENTE = (
     "nombre",
     "apellido",
@@ -53,7 +53,7 @@ def _columnas_existentes(conexion, tabla: str) -> set[str]:
 def upgrade() -> None:
     conexion = op.get_bind()
 
-    # -- 1. Entidad raiz ---------------------------------------------------
+    # -- 1. Root entity ---------------------------------------------------
     op.create_table(
         "clientes",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -84,7 +84,7 @@ def upgrade() -> None:
     op.create_index("ix_clientes_numero_pasaporte", "clientes", ["numero_pasaporte"])
     op.create_index("ix_clientes_eliminado_en", "clientes", ["eliminado_en"])
 
-    # -- 2. Columnas nuevas, aun opcionales para poder rellenarlas ---------
+    # -- 2. New columns, still optional so they can be backfilled ---------
     for tabla in TABLAS_TRAMITE:
         op.add_column(tabla, sa.Column("cliente_id", sa.Integer(), nullable=True))
         op.add_column(tabla, sa.Column("clave_natural", sa.Text(), nullable=True))
@@ -100,11 +100,11 @@ def upgrade() -> None:
         )
         op.add_column(tabla, sa.Column("eliminado_en", sa.DateTime(), nullable=True))
 
-    # -- 3. Backfill: deducir la persona detras de cada fila ---------------
-    # Se recorre en dos pasadas, igual que `CRUDCliente.resolver_o_crear`:
-    # primero las filas que traen un identificador duro (pasaporte o correo),
-    # que son las que definen la identidad, y despues las que no lo traen, que
-    # se enganchan a una persona ya conocida solo si el nombre es inequivoco.
+    # -- 3. Backfill: infer the person behind each row ---------------------
+    # Walked in two passes, just like `CRUDCliente.resolver_o_crear`: first
+    # the rows carrying a hard identifier (passport or email), which are
+    # the ones that define identity, then the ones without it, which only
+    # attach to an already-known person if the name is unambiguous.
     filas_por_tabla: dict[str, list[dict]] = {}
 
     for tabla in TABLAS_TRAMITE:
@@ -166,8 +166,8 @@ def upgrade() -> None:
                 cliente_id = clientes_por_clave.get(clave)
 
                 if cliente_id is None and debiles:
-                    # Sin identificador duro: solo se enlaza si el nombre
-                    # apunta a una unica persona ya registrada.
+                    # No hard identifier: only linked if the name points
+                    # to a single already-registered person.
                     candidatos = clientes_por_nombre.get(
                         nombre_canonico(datos_cliente.get("nombre"), datos_cliente.get("apellido")),
                         set(),
@@ -187,9 +187,9 @@ def upgrade() -> None:
         clave_tramite = calcular_clave_natural(
             tabla, (fila.get(campo) for campo in definicion.campos_clave)
         )
-        # El campo secreto se excluye del hash: en las filas heredadas solo
-        # existe su criptograma, que no es comparable entre corridas porque
-        # Fernet produce un cifrado distinto cada vez.
+        # The secret field is excluded from the hash: in inherited rows
+        # only its ciphertext exists, which isn't comparable across runs
+        # because Fernet produces a different ciphertext every time.
         hash_tramite = calcular_hash_fila(
             {
                 campo: fila.get(campo)
@@ -211,16 +211,16 @@ def upgrade() -> None:
         )
 
     print(
-        f"[migracion a1b2c3d4e5f6] {len(clientes_por_clave)} clave(s) de cliente "
-        f"resueltas para {len(asignaciones)} fila(s) de tramite."
+        f"[migration a1b2c3d4e5f6] {len(clientes_por_clave)} client key(s) "
+        f"resolved for {len(asignaciones)} tramite row(s)."
     )
 
-    # -- 4. Archivar los duplicados que dejo la carga append-only ----------
-    # La version anterior del ETL insertaba a ciegas, asi que reprocesar el
-    # mismo Excel duplicaba filas. Ahora que existe una clave natural esas
-    # copias son detectables: se conserva la mas antigua (id menor, la primera
-    # que se cargo) y las demas se marcan como eliminadas. No se destruyen:
-    # quedan disponibles para auditar que se archivo y por que.
+    # -- 4. Archive the duplicates left by the append-only load ------------
+    # The previous ETL version inserted blindly, so reprocessing the same
+    # Excel file duplicated rows. Now that a natural key exists, those
+    # copies are detectable: the oldest one (lowest id, the first one
+    # loaded) is kept and the rest are marked deleted. They aren't
+    # destroyed: they stay available to audit what was archived and why.
     for tabla in TABLAS_TRAMITE:
         archivados = conexion.execute(
             sa.text(
@@ -234,11 +234,11 @@ def upgrade() -> None:
         ).rowcount
         if archivados:
             print(
-                f"[migracion a1b2c3d4e5f6] {tabla}: {archivados} fila(s) duplicada(s) "
-                "archivada(s) por clave natural repetida."
+                f"[migration a1b2c3d4e5f6] {tabla}: {archivados} duplicate row(s) "
+                "archived for a repeated natural key."
             )
 
-    # -- 5. Endurecer restricciones una vez rellenados los datos -----------
+    # -- 5. Tighten constraints once the data has been backfilled ----------
     for tabla in TABLAS_TRAMITE:
         with op.batch_alter_table(tabla) as lote:
             lote.alter_column("cliente_id", existing_type=sa.Integer(), nullable=False)
@@ -258,9 +258,10 @@ def upgrade() -> None:
 
     op.create_index("ix_pasaportes_fecha_cita", "pasaportes", ["fecha_cita"])
 
-    # -- 6. Unicidad parcial de la clave natural ---------------------------
-    # Solo entre registros activos: asi conviven un registro vigente y sus
-    # versiones archivadas, y el ETL puede apuntar su ON CONFLICT a este indice.
+    # -- 6. Partial uniqueness on the natural key ---------------------------
+    # Only among active records: that way a current record and its
+    # archived versions coexist, and the ETL can point its ON CONFLICT
+    # at this index.
     for tabla in ("clientes", *TABLAS_TRAMITE):
         op.create_index(
             f"uq_{tabla}_clave_natural_activa",
@@ -272,10 +273,10 @@ def upgrade() -> None:
         )
         op.create_index(f"ix_{tabla}_clave_natural", tabla, ["clave_natural"])
 
-    # -- 7. Indice de trigramas para la busqueda por nombre ----------------
-    # Los listados filtran con ILIKE '%texto%', que un indice B-tree no puede
-    # servir porque el comodin va al inicio. pg_trgm si lo resuelve. Solo
-    # aplica a PostgreSQL; en SQLite (usado en pruebas) se omite.
+    # -- 7. Trigram index for search by name --------------------------------
+    # Listings filter with ILIKE '%text%', which a B-tree index can't serve
+    # because the wildcard is at the start. pg_trgm handles it. Only
+    # applies to PostgreSQL; it's skipped on SQLite (used in tests).
     if conexion.dialect.name == "postgresql":
         op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
         for tabla in ("clientes", *TABLAS_TRAMITE):

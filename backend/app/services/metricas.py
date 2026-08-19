@@ -1,14 +1,15 @@
 """
-Metricas en formato Prometheus.
+Metrics in Prometheus format.
 
-El proyecto ya emitia logs estructurados y reportaba excepciones a Sentry, pero
-no exponia nada agregable: no habia forma de responder "cuantas peticiones por
-segundo aguanta", "que percentil de latencia tiene el listado" ni, sobre todo,
-"cuantas credenciales de clientes se consultaron esta semana".
+The project already emitted structured logs and reported exceptions to
+Sentry, but exposed nothing aggregable: there was no way to answer "how
+many requests per second can this handle", "what latency percentile does
+the listing have", or, above all, "how many client credentials were looked
+up this week".
 
-Esa ultima es la razon de que este modulo exista: la bitacora de auditoria
-guarda el detalle por asiento, pero una serie temporal permite ver la tendencia
-y alertar si el volumen se dispara.
+That last one is the reason this module exists: the audit log keeps the
+per-entry detail, but a time series lets you see the trend and alert if
+the volume spikes.
 """
 
 from __future__ import annotations
@@ -18,53 +19,53 @@ from collections.abc import Mapping
 from prometheus_client import CollectorRegistry, Counter, Histogram
 from prometheus_client.core import REGISTRY
 
-#: Cubetas ajustadas a un CRUD sobre PostgreSQL: la mayoria de las peticiones
-#: cae por debajo de 100 ms, asi que el detalle util esta en ese rango. Las
-#: cubetas por defecto de la libreria se concentran en segundos y dejarian casi
-#: todo el trafico en el primer intervalo.
+#: Buckets tuned for a CRUD app on PostgreSQL: most requests fall under
+#: 100 ms, so that's where the useful detail is. The library's default
+#: buckets are concentrated in seconds and would dump nearly all traffic
+#: into the first interval.
 CUBETAS_LATENCIA = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0)
 
-#: `prometheus_client` anade el sufijo `_total` a los contadores al exponerlos,
-#: asi que el nombre en Python no debe llevarlo ya: se expone como
+#: `prometheus_client` appends the `_total` suffix to counters when exposing
+#: them, so the Python name shouldn't already carry it: it's exposed as
 #: `tramex_peticiones_total`.
 peticiones_totales = Counter(
     "tramex_peticiones",
-    "Peticiones HTTP atendidas.",
+    "HTTP requests served.",
     ["metodo", "ruta", "codigo"],
 )
 
 duracion_peticiones = Histogram(
     "tramex_duracion_peticiones_segundos",
-    "Latencia de las peticiones HTTP.",
+    "Latency of HTTP requests.",
     ["metodo", "ruta"],
     buckets=CUBETAS_LATENCIA,
 )
 
 credenciales_consultadas = Counter(
     "tramex_credenciales_consultadas",
-    "Descifrados de credenciales de clientes, por recurso y resultado.",
+    "Client credential decryptions, by resource and outcome.",
     ["recurso", "resultado"],
 )
 
 intentos_de_login = Counter(
     "tramex_intentos_login",
-    "Intentos de inicio de sesion, por resultado.",
+    "Sign-in attempts, by outcome.",
     ["resultado"],
 )
 
 
 def normalizar_ruta(ruta: str, parametros: Mapping[str, object]) -> str:
     """
-    Devuelve la plantilla de la ruta en lugar de la URL concreta.
+    Returns the route template instead of the concrete URL.
 
-    Sin esto, `/api/v1/canada/1` y `/api/v1/canada/2` serian series distintas y
-    la cardinalidad de la metrica creceria con cada registro de la base, que es
-    la forma habitual de tumbar un Prometheus.
+    Without this, `/api/v1/canada/1` and `/api/v1/canada/2` would be
+    different series and the metric's cardinality would grow with every
+    row in the database, which is the usual way to take down a Prometheus.
 
-    Se reconstruye sustituyendo los segmentos que coinciden con un parametro de
-    ruta, en lugar de leer `scope["route"].path`: cuando los routers se incluyen
-    con prefijo, ese atributo devuelve la ruta local (`/{registro_id}`) y los
-    cuatro recursos colisionarian en la misma serie.
+    It's rebuilt by substituting the segments that match a route parameter,
+    instead of reading `scope["route"].path`: when routers are included
+    with a prefix, that attribute returns the local route (`/{registro_id}`)
+    and the four resources would collide into the same series.
 
     >>> normalizar_ruta("/api/v1/canada/7", {"registro_id": 7})
     '/api/v1/canada/{registro_id}'
@@ -83,12 +84,12 @@ def normalizar_ruta(ruta: str, parametros: Mapping[str, object]) -> str:
 
 def registro() -> CollectorRegistry:
     """
-    Registro de metricas activo.
+    The active metrics registry.
 
-    Es el registro global de la libreria. Con varios *workers* de uvicorn cada
-    proceso expone sus propios contadores, asi que Prometheus vera una serie
-    por replica; para consolidarlos habria que activar el modo multiproceso de
-    prometheus_client, lo que exige un directorio compartido y no aporta nada
-    mientras el despliegue escale por contenedores y no por procesos.
+    It's the library's global registry. With several uvicorn workers, each
+    process exposes its own counters, so Prometheus will see one series per
+    replica; consolidating them would require enabling prometheus_client's
+    multiprocess mode, which needs a shared directory and buys nothing while
+    the deployment scales by containers rather than by processes.
     """
     return REGISTRY

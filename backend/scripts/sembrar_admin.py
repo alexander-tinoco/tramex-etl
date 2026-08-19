@@ -1,17 +1,17 @@
 """
-Siembra del primer administrador.
+Seeding the first administrator.
 
-Un sistema con autenticacion real tiene un problema de arranque: nadie puede
-crear el primer usuario porque crear usuarios ya exige estar autenticado. Este
-script resuelve ese caso y solo ese caso.
+A system with real authentication has a bootstrapping problem: nobody can
+create the first user because creating users already requires being
+authenticated. This script solves that one case, and only that case.
 
-Es idempotente: si el administrador ya existe, informa y no cambia nada. El
-contenedor lo invoca al arrancar, de modo que un despliegue nuevo queda
-utilizable sin pasos manuales.
+It's idempotent: if the administrator already exists, it reports that and
+changes nothing. The container invokes it on startup, so a fresh deployment
+ends up usable with no manual steps.
 
-Uso:
-    export ADMIN_INICIAL_CORREO="admin@tuagencia.com"
-    export ADMIN_INICIAL_CONTRASENA="..."     # o se genera una al vuelo
+Usage:
+    export ADMIN_INICIAL_CORREO="admin@youragency.com"
+    export ADMIN_INICIAL_CONTRASENA="..."     # or one is generated on the fly
     python -m scripts.sembrar_admin
 """
 
@@ -31,14 +31,14 @@ logger = logging.getLogger("tramex_api.siembra")
 
 
 def sembrar() -> int:
-    """Crea el administrador inicial si aun no existe. Devuelve el codigo de salida."""
+    """Creates the initial administrator if it doesn't exist yet. Returns the exit code."""
     setup_logging()
     correo = settings.admin_inicial_correo.strip().lower()
 
     with SessionLocal() as db:
         if crud_usuario.get_por_correo(db, correo):
             logger.info(
-                "El administrador inicial ya existe; no se hace nada", extra={"correo": correo}
+                "The initial administrator already exists; nothing to do", extra={"correo": correo}
             )
             return 0
 
@@ -47,11 +47,11 @@ def sembrar() -> int:
 
         if generada:
             if settings.entorno == "production":
-                # En produccion, una contrasena impresa en los logs del
-                # contenedor es una contrasena comprometida.
+                # In production, a password printed to the container logs
+                # is a compromised password.
                 logger.error(
-                    "Define ADMIN_INICIAL_CONTRASENA. En produccion no se generan "
-                    "credenciales automaticas porque acabarian en los logs."
+                    "Set ADMIN_INICIAL_CONTRASENA. In production, credentials are not "
+                    "generated automatically because they'd end up in the logs."
                 )
                 return 1
             contrasena = secrets.token_urlsafe(18)
@@ -66,16 +66,16 @@ def sembrar() -> int:
             ),
         )
 
-    logger.info("Administrador inicial creado", extra={"correo": correo})
+    logger.info("Initial administrator created", extra={"correo": correo})
     if generada:
-        # Se imprime por stdout, no por el logger estructurado, para que sea
-        # facil de ver una sola vez y no quede mezclado con el resto.
+        # Printed to stdout, not through the structured logger, so it's
+        # easy to see once and doesn't get mixed in with the rest.
         print("\n" + "=" * 60)
-        print(" ADMINISTRADOR INICIAL CREADO (solo entorno de desarrollo)")
+        print(" INITIAL ADMINISTRATOR CREATED (development environment only)")
         print("=" * 60)
-        print(f" Correo:     {correo}")
-        print(f" Contrasena: {contrasena}")
-        print(" Cambiala en el primer acceso: POST /api/v1/auth/cambiar-contrasena")
+        print(f" Email:    {correo}")
+        print(f" Password: {contrasena}")
+        print(" Change it on first sign-in: POST /api/v1/auth/cambiar-contrasena")
         print("=" * 60 + "\n")
     return 0
 

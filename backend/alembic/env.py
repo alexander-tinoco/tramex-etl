@@ -18,7 +18,7 @@ import sys
 # Add backend directory to Python path so app package is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import app.models  # Asegurar que se carguen los modelos
+import app.models  # Ensure the models get loaded
 from app.config import settings
 from app.database import Base
 

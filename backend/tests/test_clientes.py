@@ -1,9 +1,9 @@
 """
-Pruebas de la entidad raiz del modelo.
+Tests for the model's root entity.
 
-El valor de la refactorizacion relacional se comprueba aqui: una misma persona
-con tramites en varias tablas debe resolverse a un unico cliente, algo que el
-Excel original no permitia.
+The value of the relational refactor is verified here: the same person
+with tramites across several tables must resolve to a single client,
+something the original Excel file didn't allow.
 """
 
 
@@ -17,7 +17,7 @@ def test_alta_de_cliente_es_idempotente(client):
     primero = client.post("/api/v1/clientes/", json=payload)
     assert primero.status_code == 201
 
-    # Reenviar el mismo cliente no debe crear un duplicado ni violar el UNIQUE.
+    # Resubmitting the same client must not create a duplicate or violate the UNIQUE.
     segundo = client.post("/api/v1/clientes/", json=payload)
     assert segundo.status_code == 201
     assert segundo.json()["id"] == primero.json()["id"]
@@ -47,7 +47,7 @@ def test_tramites_de_distintas_tablas_convergen_en_un_cliente(client):
     assert master.status_code == 201
     assert canada.status_code == 201
 
-    # Las dos filas deben colgar del mismo cliente.
+    # Both rows must hang off the same client.
     assert master.json()["cliente_id"] == canada.json()["cliente_id"]
     assert client.get("/api/v1/clientes/").json()["total"] == 1
 
@@ -69,7 +69,7 @@ def test_baja_de_cliente_arrastra_sus_tramites(client):
 
     assert client.get("/api/v1/clientes/").json()["total"] == 0
     assert client.get("/api/v1/master-tramex/").json()["total"] == 0
-    # Pero el dato sigue existiendo para trazabilidad.
+    # But the data still exists for traceability.
     assert client.get("/api/v1/master-tramex/?incluir_eliminados=true").json()["total"] == 1
 
 

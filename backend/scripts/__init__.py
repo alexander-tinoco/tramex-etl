@@ -1,1 +1,1 @@
-"""Utilidades operativas ejecutables del backend."""
+"""Executable operational utilities for the backend."""

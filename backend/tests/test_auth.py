@@ -1,9 +1,9 @@
 """
-Pruebas de autenticacion, roles y proteccion contra fuerza bruta.
+Tests for authentication, roles, and brute-force protection.
 
-Sustituyen a la unica prueba que existia antes ("el login con admin/changeme
-devuelve un token"), que no cubria ninguno de los controles que ahora protegen
-el endpoint mas expuesto de la API.
+These replace the single test that existed before ("logging in with
+admin/changeme returns a token"), which covered none of the controls that
+now protect the API's most exposed endpoint.
 """
 
 import pytest
@@ -20,7 +20,7 @@ class TestHashing:
         assert hash_generado.startswith("$2b$")
 
     def test_dos_hashes_de_la_misma_contrasena_son_distintos(self):
-        """Cada hash lleva su propia sal, de modo que no se pueden agrupar."""
+        """Each hash carries its own salt, so they can't be grouped together."""
         assert hashear_contrasena("igual") != hashear_contrasena("igual")
 
     def test_verifica_correctamente(self):
@@ -30,10 +30,10 @@ class TestHashing:
 
     def test_una_contrasena_de_mas_de_72_bytes_no_se_trunca(self):
         """
-        bcrypt trunca en 72 bytes en silencio.
+        bcrypt silently truncates at 72 bytes.
 
-        Sin la normalizacion previa, dos contrasenas larguisimas que
-        compartieran los primeros 72 bytes serian intercambiables.
+        Without the prior normalization, two very long passwords sharing
+        the first 72 bytes would be interchangeable.
         """
         base = "x" * 80
         hash_generado = hashear_contrasena(base + "AAA")
@@ -55,12 +55,12 @@ class TestLogin:
         cuerpo = respuesta.json()
         assert cuerpo["token_type"] == "bearer"
         assert cuerpo["usuario"]["rol"] == "operador"
-        # La contrasena y su hash no pueden aparecer en la respuesta.
+        # The password and its hash must never appear in the response.
         assert "contrasena" not in respuesta.text
         assert "hash" not in respuesta.text
 
         cookie = respuesta.cookies.get(COOKIE_SESION)
-        assert cookie, "el login debe dejar la sesion en una cookie"
+        assert cookie, "login must leave the session in a cookie"
         assert "httponly" in respuesta.headers["set-cookie"].lower()
 
     @pytest.mark.parametrize(
@@ -77,7 +77,7 @@ class TestLogin:
         assert respuesta.status_code == 401
 
     def test_el_mensaje_no_distingue_usuario_inexistente_de_contrasena_mala(self, client_anonimo):
-        """Distinguirlos permitiria enumerar que cuentas existen."""
+        """Distinguishing them would allow enumerating which accounts exist."""
         inexistente = client_anonimo.post(
             "/api/v1/auth/token",
             data={"username": "fantasma@example.com", "password": "x" * 20},
@@ -119,7 +119,7 @@ class TestSesion:
         assert respuesta.status_code == 401
 
     def test_la_cabecera_bearer_tambien_funciona(self, client_anonimo):
-        """Swagger y los scripts no usan cookies."""
+        """Swagger and scripts don't use cookies."""
         token = client_anonimo.post(
             "/api/v1/auth/token",
             data={"username": CORREO_OPERADOR, "password": CONTRASENA_DE_PRUEBA},
@@ -143,10 +143,10 @@ class TestSesion:
 
     def test_una_sesion_de_un_usuario_dado_de_baja_deja_de_valer(self, client, session):
         """
-        Un JWT sigue siendo valido criptograficamente tras dar de baja a alguien.
+        A JWT is still cryptographically valid after someone is deactivated.
 
-        Sin comprobar el estado del usuario en cada peticion, esa persona
-        conservaria acceso hasta que el token expirara por su cuenta.
+        Without checking the user's status on every request, that person
+        would keep access until the token expired on its own.
         """
         from app.models import Usuario
 
@@ -170,16 +170,16 @@ class TestFuerzaBruta:
             )
             assert respuesta.status_code == 401
 
-        # El intento siguiente ya no se evalua: la cuenta esta bloqueada.
+        # The next attempt isn't even evaluated: the account is locked.
         bloqueado = client_anonimo.post(
             "/api/v1/auth/token",
             data={"username": CORREO_OPERADOR, "password": "equivocada"},
         )
         assert bloqueado.status_code == 429
-        assert "bloqueada" in bloqueado.json()["detail"].lower()
+        assert "locked" in bloqueado.json()["detail"].lower()
 
     def test_el_bloqueo_resiste_aunque_la_contrasena_sea_la_correcta(self, client_anonimo):
-        """Si no, bastaria con acertar tras agotar los intentos."""
+        """Otherwise, just getting it right after exhausting attempts would work."""
         from app.config import settings
 
         for _ in range(settings.intentos_maximos_login):
@@ -224,10 +224,10 @@ class TestFuerzaBruta:
 
     def test_la_ventana_no_se_prorroga_con_cada_intento(self):
         """
-        Un atacante constante no debe poder extender su propio bloqueo.
+        A persistent attacker shouldn't be able to extend their own lockout.
 
-        Si cada fallo renovara el vencimiento, la ventana nunca terminaria y la
-        cuenta legitima quedaria bloqueada de forma indefinida.
+        If every failure renewed the expiration, the window would never
+        end and the legitimate account would stay locked indefinitely.
         """
         almacen = limitador.AlmacenEnMemoria()
         limitador.reiniciar_almacen(almacen)
