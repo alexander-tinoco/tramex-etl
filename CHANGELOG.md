@@ -9,6 +9,11 @@ versioning adheres to [Semantic Versioning](https://semver.org/). From version
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-08-19
+
+### Fixed
+- The CD workflow's vulnerability-scan step referenced `aquasecurity/trivy-action@0.28.0`, a tag that doesn't exist (the action's tags are `v`-prefixed), which made both scan jobs fail outright. Pinned to `v0.28.0`.
+
 ## [2.0.0] - 2026-08-18
 
 ### Added
