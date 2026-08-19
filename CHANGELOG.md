@@ -9,6 +9,11 @@ versioning adheres to [Semantic Versioning](https://semver.org/). From version
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-08-19
+
+### Fixed
+- The vulnerability-scan job never authenticated to GHCR before asking Trivy to pull the image, and GHCR packages default to private on first publish regardless of the repository's own visibility. Added a `docker/login-action` step ahead of the scan.
+
 ## [2.0.2] - 2026-08-19
 
 ### Fixed

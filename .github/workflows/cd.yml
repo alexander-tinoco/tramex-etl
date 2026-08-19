@@ -135,6 +135,17 @@ jobs:
         imagen: [backend, frontend]
 
     steps:
+      # Without this, Trivy pulls anonymously: GHCR packages default to
+      # private on first publish regardless of the repository's own
+      # visibility, so the pull (and the whole scan) fails until someone
+      # authenticates.
+      - name: Authenticate to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRO }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Scan the published image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
