@@ -1,4 +1,4 @@
-# Configuracion de raspado de metricas.
+# Metrics scrape configuration.
 
 global:
   scrape_interval: 15s

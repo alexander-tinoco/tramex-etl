@@ -1,6 +1,6 @@
-# Configuracion compartida de las herramientas de Python del monorepo.
-# Ruff, mypy y pytest la descubren desde la raiz, de modo que el backend, el
-# ETL y el paquete compartido se rigen por las mismas reglas.
+# Shared configuration for the monorepo's Python tooling.
+# Ruff, mypy and pytest discover it from the root, so the backend, the ETL
+# and the shared package are governed by the same rules.
 
 [tool.ruff]
 line-length = 100
@@ -16,33 +16,33 @@ select = [
     "UP",   # pyupgrade
     "SIM",  # flake8-simplify
     "C4",   # comprehensions
-    "RUF",  # reglas propias de ruff
+    "RUF",  # ruff's own rules
 ]
 ignore = [
-    # `id` como nombre de parametro es el vocabulario natural de un repositorio
-    # CRUD y coincide con el nombre de la columna.
+    # `id` as a parameter name is the natural vocabulary of a CRUD repository
+    # and matches the column name.
     "A002",
-    # Las cadenas largas de los mensajes de error en espanol superan el limite
-    # con frecuencia y partirlas las vuelve ilegibles.
+    # Long strings in Spanish error messages frequently exceed the limit, and
+    # splitting them makes them unreadable.
     "E501",
-    # Sintaxis de genericos de PEP 695 (`class CRUDBase[M, C, U]`). No se adopta
-    # porque los TypeVar de la capa de repositorio se comparten entre modulos
-    # (`app.crud.tramites` los importa de `app.crud.base` para tipar su
-    # subclase), y los parametros de tipo de PEP 695 tienen alcance de clase y
-    # no se pueden reutilizar asi.
+    # PEP 695 generics syntax (`class CRUDBase[M, C, U]`). Not adopted because
+    # the repository layer's TypeVars are shared across modules
+    # (`app.crud.tramites` imports them from `app.crud.base` to type its
+    # subclass), and PEP 695 type parameters have class scope and can't be
+    # reused that way.
     "UP046",
     "UP047",
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Las migraciones se generan y se leen como scripts, no como libreria.
+# Migrations are generated and read as scripts, not as a library.
 "backend/alembic/**" = ["E402", "F401"]
-# Los tests declaran datos de ejemplo extensos a proposito.
+# Tests declare large sample data on purpose.
 "**/tests/**" = ["S101"]
 
 [tool.ruff.lint.flake8-bugbear]
-# `Depends`, `Query` y compania se llaman en los valores por defecto por diseno:
-# asi es como FastAPI declara la inyeccion de dependencias.
+# `Depends`, `Query` and friends are called in default values by design:
+# that's how FastAPI declares dependency injection.
 extend-immutable-calls = [
     "fastapi.Depends",
     "fastapi.Query",
@@ -62,10 +62,11 @@ indent-style = "space"
 # ---------------------------------------------------------------------------
 # mypy
 # ---------------------------------------------------------------------------
-# No se activa el modo estricto: obligaria a anotar hasta el ultimo detalle de
-# SQLAlchemy y FastAPI, que ya infieren mucho por su cuenta, y el ruido acabaria
-# tapando los avisos que si importan. Lo que si se exige es que las funciones
-# anotadas cuadren y que no queden ignores obsoletos.
+# Strict mode isn't enabled: it would require annotating every last detail of
+# SQLAlchemy and FastAPI, which already infer a lot on their own, and the
+# noise would end up burying the warnings that actually matter. What is
+# required is that annotated functions line up and that no stale ignores are
+# left behind.
 [tool.mypy]
 python_version = "3.12"
 files = ["backend/app", "etl", "shared/tramex_shared"]
@@ -78,7 +79,7 @@ ignore_missing_imports = true
 exclude = "(\\.venv|node_modules|alembic/versions)"
 
 [[tool.mypy.overrides]]
-# Las migraciones son scripts generados y revisados a mano; anotarlas no aporta.
+# Migrations are generated scripts, reviewed by hand; annotating them adds nothing.
 module = "alembic.*"
 ignore_errors = true
 
@@ -89,9 +90,9 @@ ignore_errors = true
 addopts = [
     "--strict-markers",
     "--strict-config",
-    # Los doctests de `shared` y del ETL documentan y verifican a la vez las
-    # reglas de normalizacion; ejecutarlos evita que el ejemplo y el codigo
-    # se separen con el tiempo.
+    # `shared`'s and the ETL's doctests document and verify the normalization
+    # rules at the same time; running them keeps the example and the code
+    # from drifting apart over time.
     "--doctest-modules",
 ]
 testpaths = ["backend/tests", "etl/tests"]
@@ -109,8 +110,8 @@ omit = ["*/alembic/*", "*/tests/*", "*/conftest.py"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-# El umbral existe para que la cobertura no baje en silencio. La version
-# anterior generaba el reporte pero nunca fallaba por el.
+# The threshold exists so coverage doesn't drop silently. The previous
+# version generated the report but never failed because of it.
 fail_under = 85
 exclude_lines = [
     "pragma: no cover",

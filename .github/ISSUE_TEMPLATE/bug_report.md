@@ -1,51 +1,51 @@
 ---
-name: Reporte de defecto
-about: Informa un comportamiento incorrecto para ayudarnos a corregirlo
+name: Bug report
+about: Report incorrect behavior to help us fix it
 title: "fix: "
 labels: ["bug"]
 assignees: ""
 ---
 
-## Modulo afectado
+## Affected module
 
 - [ ] ETL (`etl/`)
 - [ ] API / Backend (`backend/`)
 - [ ] Dashboard / Frontend (`frontend/`)
-- [ ] Infraestructura (Docker, CI/CD, observabilidad)
+- [ ] Infrastructure (Docker, CI/CD, observability)
 
-## Descripcion
+## Description
 
-Describe con claridad que ocurre.
+Clearly describe what happens.
 
-## Pasos para reproducir
+## Steps to reproduce
 
 1.
 2.
 3.
 
-## Comportamiento esperado
+## Expected behavior
 
-Que deberia ocurrir en su lugar.
+What should happen instead.
 
-## Comportamiento observado
+## Observed behavior
 
-Que ocurre realmente. Incluye el codigo de estado HTTP si aplica.
+What actually happens. Include the HTTP status code if applicable.
 
 ## Logs
 
-Pega la salida relevante. **Anonimiza cualquier dato personal**: sustituye nombres,
-correos, telefonos y numeros de pasaporte reales por valores ficticios, y nunca
-incluyas contrasenas, tokens ni cookies.
+Paste the relevant output. **Anonymize any personal data**: replace real names,
+emails, phone numbers and passport numbers with fictitious values, and never
+include passwords, tokens or cookies.
 
 ```json
 
 ```
 
-## Entorno
+## Environment
 
-| Dato | Valor |
+| Field | Value |
 |---|---|
 | Version / commit | |
-| Modo de ejecucion | Docker Compose / local |
-| Sistema operativo | |
-| Navegador (si aplica) | |
+| Run mode | Docker Compose / local |
+| Operating system | |
+| Browser (if applicable) | |

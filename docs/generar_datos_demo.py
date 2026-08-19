@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Genera un archivo Excel sintetico con la estructura del archivo operativo real.
+Generates a synthetic Excel file with the structure of the real operational file.
 
-Existe para poder poblar una demostracion, tomar capturas de pantalla y probar
-el pipeline sin tocar datos personales. El archivo real contiene nombres,
-telefonos, correos, numeros de pasaporte y contrasenas de cuentas de clientes,
-y nunca debe salir del entorno de la agencia.
+Exists so a demo can be populated, screenshots taken, and the pipeline tested
+without touching personal data. The real file contains names, phone numbers,
+emails, passport numbers and client account passwords, and must never leave
+the agency's environment.
 
-Reproduce tambien las rarezas del original, porque son justamente las que el
-pipeline tiene que saber manejar:
+It also reproduces the original's quirks, because those are exactly what the
+pipeline has to know how to handle:
 
-* La hoja principal arrastra cuatro filas de titulos antes del encabezado real.
-* Hay filas de relleno y de totales sin nombre.
-* La misma persona aparece capturada dos veces con distinto espaciado.
-* La columna de fecha mezcla fechas validas con texto libre ("MARZO").
-* Los telefonos vienen con formatos heterogeneos.
+* The main sheet carries four title rows before the real header.
+* There are nameless filler and totals rows.
+* The same person appears captured twice with different spacing.
+* The date column mixes valid dates with free text ("MARZO").
+* Phone numbers come in inconsistent formats.
 
-Uso:
+Usage:
     python docs/generar_datos_demo.py raw-data/TRAMEX_demo.xlsx
 """
 
@@ -28,7 +28,7 @@ from pathlib import Path
 
 import pandas as pd
 
-#: Semilla fija para que el archivo sea reproducible entre ejecuciones.
+#: Fixed seed so the file is reproducible across runs.
 SEMILLA = 2026
 
 NOMBRES = [
@@ -75,7 +75,7 @@ TEXTO_LIBRE_FECHAS = ["MARZO", "pendiente", "por confirmar", "ya fue"]
 
 
 def _personas(cantidad: int, azar: random.Random) -> list[dict[str, str]]:
-    """Construye un conjunto estable de personas ficticias."""
+    """Builds a stable set of fictitious people."""
     personas = []
     for indice in range(1, cantidad + 1):
         nombre = azar.choice(NOMBRES)
@@ -86,8 +86,8 @@ def _personas(cantidad: int, azar: random.Random) -> list[dict[str, str]]:
                 "apellido": apellido,
                 "completo": f"{nombre} {apellido}",
                 "pasaporte": f"G{indice:08d}",
-                # example.com esta reservado para documentacion, asi que ningun
-                # correo generado aqui puede corresponder a un buzon real.
+                # example.com is reserved for documentation, so no email
+                # generated here can correspond to a real mailbox.
                 "correo": f"{nombre.lower()}.{apellido.lower()}{indice}@example.com",
                 "telefono": azar.choice(
                     [
@@ -117,11 +117,11 @@ def construir(destino: Path, total_personas: int = 140) -> None:
             "CONTRASEÑA": [f"Cuenta{i:04d}!" for i in range(1, len(personas) + 1)],
         }
     )
-    # Filas de relleno y totales, tal como aparecen en el archivo real.
+    # Filler and totals rows, just like they appear in the real file.
     master.loc[len(master)] = [None] * 8
     master.loc[len(master)] = [None, "TOTAL", None, None, None, None, None, None]
-    # La misma persona capturada de nuevo con otro espaciado y capitalizacion:
-    # el pipeline debe reconocerla como una sola.
+    # The same person captured again with different spacing and
+    # capitalization: the pipeline must recognize it as one person.
     primera = personas[0]
     master.loc[len(master)] = [
         f"  {primera['completo'].lower()}  ",
@@ -145,8 +145,8 @@ def construir(destino: Path, total_personas: int = 140) -> None:
         }
     )
 
-    # La hoja de pasaportes no captura pasaporte ni correo: es el caso que
-    # obliga a resolver la identidad por nombre.
+    # The passports sheet captures neither passport nor email: it's the case
+    # that forces identity to be resolved by name.
     subconjunto_pasaportes = personas[: int(total_personas * 0.55)]
     pasaportes = pd.DataFrame(
         {
@@ -176,17 +176,17 @@ def construir(destino: Path, total_personas: int = 140) -> None:
 
     destino.parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(destino, engine="openpyxl") as escritor:
-        # startrow=4 reproduce las cuatro filas de titulos de la hoja principal.
+        # startrow=4 reproduces the main sheet's four title rows.
         master.to_excel(escritor, sheet_name="Master Tramex", index=False, startrow=4)
         global_entry.to_excel(escritor, sheet_name="Global entry", index=False)
         pasaportes.to_excel(escritor, sheet_name="Pasaportes", index=False)
         canada.to_excel(escritor, sheet_name="Canada", index=False)
 
-    print(f"Archivo sintetico generado en {destino}")
-    print(f"  Master Tramex : {len(master)} filas (incluye relleno y duplicado)")
-    print(f"  Global entry  : {len(global_entry)} filas")
-    print(f"  Pasaportes    : {len(pasaportes)} filas")
-    print(f"  Canada        : {len(canada)} filas")
+    print(f"Synthetic file generated at {destino}")
+    print(f"  Master Tramex : {len(master)} rows (includes filler and duplicate)")
+    print(f"  Global entry  : {len(global_entry)} rows")
+    print(f"  Pasaportes    : {len(pasaportes)} rows")
+    print(f"  Canada        : {len(canada)} rows")
 
 
 if __name__ == "__main__":

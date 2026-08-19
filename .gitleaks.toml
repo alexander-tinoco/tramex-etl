@@ -3,16 +3,16 @@ title = "Tramex gitleaks config"
 [extend]
 useDefault = true
 
-# Los dos valores de abajo son datos de prueba fijos a proposito, repetidos en
-# varios archivos para que el mismo comando funcione en CI, en las pruebas y en
-# la guia rapida del README. Ninguno cifra ni protege un dato real. El resto de
-# las reglas por defecto de gitleaks sigue activo: una llave o una contrasena
-# reales, distintas a estas, seguirian disparando el escaneo.
+# The two values below are fixed test data on purpose, repeated across several
+# files so the same command works in CI, in the tests, and in the README's
+# quick-start guide. Neither encrypts nor protects real data. The rest of
+# gitleaks' default rules stay active: a real key or password, different from
+# these, would still trigger the scan.
 [allowlist]
-description = "Valores de prueba fijos sin datos reales: llave Fernet de ejemplo y contrasena de las pruebas del backend."
+description = "Fixed test values with no real data: sample Fernet key and the backend test suite password."
 regexes = [
-  # Llave Fernet de ejemplo: CI, pruebas del backend y del ETL, README.
+  # Sample Fernet key: CI, backend and ETL tests, README.
   '''CxNCUQhBIDIRsETw8i-dfZBdmcnh6YX43VWS-9txMY4=''',
-  # Contrasena fija de los usuarios sembrados en la suite de pruebas del backend.
+  # Fixed password for the users seeded in the backend's test suite.
   '''contrasena-de-prueba-1234''',
 ]
