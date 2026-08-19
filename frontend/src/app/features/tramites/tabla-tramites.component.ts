@@ -12,7 +12,7 @@ import { PictogramaComponent } from '../../shared/pictograma.component';
 
 const TAMANO_PAGINA = 10;
 
-/** Columnas cuyo contenido se teclea después en un portal consular. */
+/** Columns whose content someone later types into a consular portal. */
 const CAMPOS_DE_DATO = new Set([
   'id',
   'id_solicitud',
@@ -26,12 +26,12 @@ const CAMPOS_DE_DATO = new Set([
 ]);
 
 /**
- * Tabla de un recurso de tramite, con busqueda, paginacion y acciones.
+ * Table for one tramite resource, with search, pagination and actions.
  *
- * Es el mismo componente para los cuatro recursos: la diferencia entra por la
- * configuracion. En la version anterior toda esta logica vivia dentro de un
- * unico componente de 378 lineas que ademas gestionaba la navegacion, el
- * resumen y tres modales.
+ * It's the same component for all four resources: the difference comes in
+ * through configuration. In the previous version all of this logic lived
+ * inside a single 378-line component that also handled navigation, the
+ * summary and three modals.
  */
 @Component({
   selector: 'app-tabla-tramites',
@@ -70,14 +70,14 @@ export class TablaTramitesComponent implements OnChanges, OnDestroy {
   readonly tamanoPagina = TAMANO_PAGINA;
   readonly formatear = formatearValor;
 
-  // Las plantillas de Angular no tienen acceso a `Math`, asi que el calculo se
-  // expone como signal derivada en vez de hacerse en el HTML.
+  // Angular templates have no access to `Math`, so the calculation is exposed
+  // as a derived signal instead of being done in the HTML.
   readonly totalPaginas = computed(() => Math.max(1, Math.ceil(this.total() / TAMANO_PAGINA)));
   readonly hayPaginaSiguiente = computed(() => (this.pagina() + 1) * TAMANO_PAGINA < this.total());
 
   constructor() {
-    // El texto se consulta con retardo: sin esto, cada tecla lanzaria una
-    // peticion al backend.
+    // The query is debounced: without this, every keystroke would fire a
+    // request to the backend.
     this.terminoBuscado
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destruido))
       .subscribe((termino) => {
@@ -88,13 +88,13 @@ export class TablaTramitesComponent implements OnChanges, OnDestroy {
   }
 
   /**
-   * Reacciona al cambio de recurso.
+   * Reacts to a change of resource.
    *
-   * Se usa `ngOnChanges` y no un `effect`: Angular prohibe escribir signals
-   * dentro de un efecto, y reiniciar la vista es precisamente eso. Al navegar
-   * entre pestanas el componente se reutiliza, asi que conservar la pagina o
-   * el termino de busqueda de la pestana anterior mostraria resultados que no
-   * corresponden al recurso que se acaba de abrir.
+   * `ngOnChanges` is used instead of an `effect`: Angular forbids writing to
+   * signals inside an effect, and resetting the view is exactly that. The
+   * component is reused when navigating between tabs, so keeping the previous
+   * tab's page or search term would show results that don't belong to the
+   * resource that was just opened.
    */
   ngOnChanges(): void {
     this.pagina.set(0);
@@ -127,16 +127,16 @@ export class TablaTramitesComponent implements OnChanges, OnDestroy {
         },
         error: () => {
           this.cargando.set(false);
-          this.error.set('No se pudo cargar la información.');
+          this.error.set('Could not load the data.');
         },
       });
   }
 
   /**
-   * Recibe el evento crudo en vez de `$any($event.target).value`.
+   * Receives the raw event instead of `$any($event.target).value`.
    *
-   * `$any` en la plantilla apaga la comprobacion de tipos justo donde entra
-   * dato del exterior, que es donde mas falta hace.
+   * `$any` in the template turns off type checking right where data enters
+   * from the outside world, which is exactly where it's needed most.
    */
   buscar(evento: Event): void {
     const destino = evento.target as HTMLInputElement | null;
@@ -172,11 +172,12 @@ export class TablaTramitesComponent implements OnChanges, OnDestroy {
   }
 
   /**
-   * Indica si una columna lleva un valor que alguien transcribe a otro portal.
+   * Indicates whether a column carries a value someone will later transcribe
+   * into another portal.
    *
-   * Esas celdas se componen en la mono legible, donde una l no se confunde con
-   * una I ni un 0 con una O. El nombre y los campos de texto libre no: son
-   * lenguaje, y se leen mejor en la proporcional.
+   * Those cells are set in the legible mono font, where an l is never
+   * confused with an I nor a 0 with an O. The name and free-text fields
+   * aren't: they're language, and read better in the proportional face.
    */
   esDato(campo: string): boolean {
     return CAMPOS_DE_DATO.has(campo);
@@ -237,7 +238,7 @@ export class TablaTramitesComponent implements OnChanges, OnDestroy {
       },
       error: () => {
         this.registroAArchivar.set(null);
-        this.error.set('No se pudo dar de baja el registro.');
+        this.error.set('Could not archive the record.');
       },
     });
   }
@@ -245,19 +246,19 @@ export class TablaTramitesComponent implements OnChanges, OnDestroy {
   restaurar(registro: Tramite): void {
     this.api.restaurar(this.recurso().endpoint, registro.id).subscribe({
       next: () => this.cargar(),
-      error: () => this.error.set('No se pudo reactivar el registro.'),
+      error: () => this.error.set('Could not restore the record.'),
     });
   }
 
   private describirError(fallo: unknown): string {
     if (fallo instanceof HttpErrorResponse) {
       if (fallo.status === 422) {
-        return 'Revisa los datos: algún campo no tiene el formato esperado.';
+        return "Check the data: some field doesn't have the expected format.";
       }
       if (fallo.status === 403) {
-        return 'Tu rol no permite esta operación.';
+        return 'Your role does not allow this operation.';
       }
     }
-    return 'No se pudo guardar el registro.';
+    return 'Could not save the record.';
   }
 }

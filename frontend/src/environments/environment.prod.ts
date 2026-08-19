@@ -1,9 +1,9 @@
 /**
- * Entorno de produccion.
+ * Production environment.
  *
- * Nginx sirve el dashboard y hace de proxy inverso hacia la API bajo el mismo
- * origen, asi que la ruta es relativa: no hay dominio que configurar por
- * despliegue ni CORS que negociar.
+ * Nginx serves the dashboard and acts as a reverse proxy to the API under the
+ * same origin, so the path is relative: there's no domain to configure per
+ * deployment and no CORS to negotiate.
  */
 export const environment = {
   production: true,

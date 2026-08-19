@@ -31,7 +31,7 @@ async function montar(registro: MasterTramex | null): Promise<{
   const emitido: CuerpoTramite[] = [];
   fixture.componentInstance.guardar.subscribe((cuerpo) => emitido.push(cuerpo));
 
-  // La precarga ocurre en un microtask para que las entradas ya esten resueltas.
+  // The preload happens in a microtask, so the inputs need to be resolved first.
   await fixture.whenStable();
   fixture.detectChanges();
   return { fixture, emitido };
@@ -40,27 +40,27 @@ async function montar(registro: MasterTramex | null): Promise<{
 describe('FormularioTramiteComponent', () => {
   afterEach(() => TestBed.resetTestingModule());
 
-  it('en un alta arranca con los campos vacíos', async () => {
+  it('on a new record it starts with empty fields', async () => {
     const { fixture } = await montar(null);
     expect(fixture.componentInstance.esEdicion()).toBeFalse();
     expect(fixture.componentInstance.valores()['nombre']).toBe('');
   });
 
-  it('en edición precarga los valores del registro', async () => {
+  it('when editing it preloads the record values', async () => {
     const { fixture } = await montar(REGISTRO);
     expect(fixture.componentInstance.esEdicion()).toBeTrue();
     expect(fixture.componentInstance.valores()['nombre']).toBe('Jorge Monroy');
     expect(fixture.componentInstance.valores()['id_solicitud']).toBe('SOL777');
   });
 
-  it('nunca precarga la credencial', async () => {
-    // La API no la devuelve en las lecturas; dejar el campo vacio comunica lo
-    // correcto: solo se sobrescribe si se escribe algo.
+  it('never preloads the credential', async () => {
+    // The API does not return it on reads; leaving the field empty communicates
+    // the right thing: it's only overwritten if something is typed into it.
     const { fixture } = await montar(REGISTRO);
     expect(fixture.componentInstance.valores()['contrasena']).toBe('');
   });
 
-  it('un campo de contraseña vacío no se envía, para no borrar la credencial', async () => {
+  it('an empty password field is not sent, so the credential is not erased', async () => {
     const { fixture, emitido } = await montar(REGISTRO);
     fixture.componentInstance.enviar(new Event('submit'));
 
@@ -68,15 +68,15 @@ describe('FormularioTramiteComponent', () => {
     expect('contrasena' in emitido[0]).toBeFalse();
   });
 
-  it('una contraseña escrita sí se envía', async () => {
+  it('a typed password is sent', async () => {
     const { fixture, emitido } = await montar(REGISTRO);
-    fixture.componentInstance.actualizarCampo('contrasena', 'nueva-credencial');
+    fixture.componentInstance.actualizarCampo('contrasena', 'new-credential');
     fixture.componentInstance.enviar(new Event('submit'));
 
-    expect(emitido[0]['contrasena']).toBe('nueva-credencial');
+    expect(emitido[0]['contrasena']).toBe('new-credential');
   });
 
-  it('en edición un campo vaciado se envía como null para que la API lo borre', async () => {
+  it('when editing, a field cleared out is sent as null so the API erases it', async () => {
     const { fixture, emitido } = await montar(REGISTRO);
     fixture.componentInstance.actualizarCampo('telefono', '   ');
     fixture.componentInstance.enviar(new Event('submit'));
@@ -84,7 +84,7 @@ describe('FormularioTramiteComponent', () => {
     expect(emitido[0]['telefono']).toBeNull();
   });
 
-  it('en un alta los campos vacíos se omiten en vez de enviarse como null', async () => {
+  it('on a new record, empty fields are omitted instead of sent as null', async () => {
     const { fixture, emitido } = await montar(null);
     fixture.componentInstance.actualizarCampo('nombre', 'Ana Lopez');
     fixture.componentInstance.enviar(new Event('submit'));
@@ -93,7 +93,7 @@ describe('FormularioTramiteComponent', () => {
     expect('telefono' in emitido[0]).toBeFalse();
   });
 
-  it('recorta los espacios de los valores', async () => {
+  it('trims whitespace from values', async () => {
     const { fixture, emitido } = await montar(null);
     fixture.componentInstance.actualizarCampo('nombre', '  Ana Lopez  ');
     fixture.componentInstance.enviar(new Event('submit'));

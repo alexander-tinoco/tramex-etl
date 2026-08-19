@@ -1,11 +1,11 @@
 /**
- * Entorno de desarrollo.
+ * Development environment.
  *
- * La URL de la API es relativa igual que en produccion. El servidor de Angular
- * reenvia `/api` al backend mediante `proxy.conf.json`, de modo que el
- * navegador ve un unico origen: sin eso, la cookie de sesion `httpOnly` no
- * viajaria entre localhost:4200 y localhost:8000 y el login no funcionaria en
- * local aunque si en produccion.
+ * The API URL is relative, same as in production. The Angular dev server
+ * forwards `/api` to the backend via `proxy.conf.js`, so the browser sees a
+ * single origin: without that, the `httpOnly` session cookie wouldn't travel
+ * between localhost:4200 and localhost:8000, and login would work in
+ * production but not locally.
  */
 export const environment = {
   production: false,

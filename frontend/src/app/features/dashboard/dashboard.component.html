@@ -6,12 +6,12 @@
       </span>
       <div>
         <span class="nombre">Tramex</span>
-        <span class="oficio">Control de trámites</span>
+        <span class="oficio">Tramite Control</span>
       </div>
     </div>
 
-    <nav class="rail-menu" aria-label="Secciones">
-      <p class="rail-seccion" id="rotulo-carriles">Carriles</p>
+    <nav class="rail-menu" aria-label="Sections">
+      <p class="rail-seccion" id="rotulo-carriles">Lanes</p>
       <ul aria-labelledby="rotulo-carriles">
         <li>
           <button
@@ -22,7 +22,7 @@
             (click)="irA('sala')"
           >
             <app-picto nombre="sala" [tamano]="20" />
-            <span>Sala</span>
+            <span>Floor</span>
           </button>
         </li>
         @for (recurso of secciones; track recurso.clave) {
@@ -43,7 +43,7 @@
           <li>
             <a class="carril" routerLink="/auditoria">
               <app-picto nombre="bitacora" [tamano]="20" />
-              <span>Bitácora</span>
+              <span>Audit Log</span>
             </a>
           </li>
         }
@@ -53,7 +53,7 @@
     <div class="rail-pie">
       <button type="button" class="boton secundario bloque" (click)="cerrarSesion()">
         <app-picto nombre="salir" [tamano]="16" />
-        <span>Cerrar sesión</span>
+        <span>Sign out</span>
       </button>
     </div>
   </aside>
@@ -71,7 +71,7 @@
         @if (baseConectada() !== null) {
           <span class="placa-estado" [class]="baseConectada() ? 'abierta' : 'cerrada'">
             <app-picto nombre="base" [tamano]="14" />
-            {{ baseConectada() ? 'Base conectada' : 'Base no disponible' }}
+            {{ baseConectada() ? 'Database connected' : 'Database unavailable' }}
           </span>
         }
 

@@ -30,7 +30,7 @@ describe('authInterceptor', () => {
 
   afterEach(() => controlador.verify());
 
-  it('marca las peticiones para que envíen la cookie de sesión', () => {
+  it('marks requests to send the session cookie', () => {
     http.get('/api/v1/clientes/').subscribe();
 
     const peticion = controlador.expectOne('/api/v1/clientes/');
@@ -38,9 +38,9 @@ describe('authInterceptor', () => {
     peticion.flush({});
   });
 
-  it('no adjunta ninguna cabecera Authorization', () => {
-    // La sesion va en cookie; un token en cabecera implicaria que el frontend
-    // lo tiene guardado en algun sitio accesible por scripts.
+  it('does not attach any Authorization header', () => {
+    // The session travels in a cookie; a token in a header would imply the
+    // frontend has it stored somewhere scripts can reach.
     http.get('/api/v1/clientes/').subscribe();
 
     const peticion = controlador.expectOne('/api/v1/clientes/');
@@ -48,7 +48,7 @@ describe('authInterceptor', () => {
     peticion.flush({});
   });
 
-  it('ante un 401 limpia la sesión y manda al login', () => {
+  it('on a 401 it clears the session and redirects to login', () => {
     http.get('/api/v1/clientes/').subscribe({ error: () => undefined });
 
     controlador
@@ -61,9 +61,9 @@ describe('authInterceptor', () => {
     });
   });
 
-  it('un 401 en /auth/me no redirige', () => {
-    // Al arrancar sin sesion, ese 401 es la respuesta normal; redirigir seria
-    // molesto y ademas ya estamos donde toca.
+  it('a 401 on /auth/me does not redirect', () => {
+    // On startup with no session, that 401 is the normal response;
+    // redirecting would be annoying, and we're already where we need to be.
     http.get('/api/v1/auth/me').subscribe({ error: () => undefined });
 
     controlador.expectOne('/api/v1/auth/me').flush(null, { status: 401, statusText: 'Unauthorized' });
@@ -71,7 +71,7 @@ describe('authInterceptor', () => {
     expect(router.navigate).not.toHaveBeenCalled();
   });
 
-  it('no interfiere con otros códigos de error', () => {
+  it('does not interfere with other error codes', () => {
     http.get('/api/v1/clientes/').subscribe({ error: () => undefined });
 
     controlador.expectOne('/api/v1/clientes/').flush(null, { status: 500, statusText: 'Error' });

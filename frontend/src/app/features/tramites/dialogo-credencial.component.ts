@@ -5,17 +5,17 @@ import { ConfiguracionRecurso } from '../../models/recursos.model';
 import { PictogramaComponent } from '../../shared/pictograma.component';
 
 /**
- * Diálogo de consulta de la credencial de un cliente.
+ * Dialog for viewing a client's credential.
  *
- * Es la operación más sensible del sistema, y la única pieza dorada de toda la
- * interfaz: el dorado del logotipo está reservado a esto, así que cuando
- * aparece significa siempre lo mismo.
+ * It's the most sensitive operation in the system, and the only gold piece
+ * anywhere in the interface: the logo's gold is reserved for this, so
+ * whenever it appears it always means the same thing.
  *
- * La credencial llega oculta, se revela solo bajo petición explícita, y el
- * diálogo muestra el folio del asiento que la consulta acaba de dejar en la
- * bitácora. Que quien consulta vea ese folio es parte del diseño: la promesa
- * del sistema es que el acceso deja huella, y una promesa que no se ve no
- * tranquiliza a nadie.
+ * The credential arrives hidden, is revealed only on explicit request, and
+ * the dialog shows the audit-log entry the lookup just left behind. Letting
+ * whoever queries it see that entry is part of the design: the system's
+ * promise is that access leaves a trace, and a promise that isn't visible
+ * reassures no one.
  */
 @Component({
   selector: 'app-dialogo-credencial',
@@ -33,16 +33,16 @@ import { PictogramaComponent } from '../../shared/pictograma.component';
         <header class="ventanilla-cabecera">
           <h3 id="titulo-credencial">
             <app-picto nombre="llave" [tamano]="18" />
-            Credencial del cliente
+            Client credential
           </h3>
-          <button type="button" class="boton-icono" (click)="cerrar.emit()" aria-label="Cerrar">
+          <button type="button" class="boton-icono" (click)="cerrar.emit()" aria-label="Close">
             <app-picto nombre="cerrar" [tamano]="16" />
           </button>
         </header>
 
         <div class="ventanilla-cuerpo">
           @if (cargando()) {
-            <p class="medio">Descifrando…</p>
+            <p class="medio">Decrypting…</p>
           } @else if (error()) {
             <div class="aviso error" role="alert">
               <app-picto nombre="alerta" [tamano]="18" />
@@ -51,23 +51,23 @@ import { PictogramaComponent } from '../../shared/pictograma.component';
           } @else if (sinCredencial()) {
             <div class="aviso dato">
               <app-picto nombre="aviso" [tamano]="18" />
-              <span>Este registro no tiene ninguna credencial almacenada.</span>
+              <span>This record has no credential stored.</span>
             </div>
           } @else {
             <div class="placa-credencial">
-              <p class="procedencia">{{ recurso().titulo }} · registro {{ registroId() }}</p>
+              <p class="procedencia">{{ recurso().titulo }} · record {{ registroId() }}</p>
               <div class="valor">
                 <input
                   [type]="visible() ? 'text' : 'password'"
                   [value]="contrasena()"
                   readonly
-                  aria-label="Credencial del cliente"
+                  aria-label="Client credential"
                 />
                 <button
                   type="button"
                   class="boton-icono"
                   (click)="alternar()"
-                  [attr.aria-label]="visible() ? 'Ocultar' : 'Mostrar'"
+                  [attr.aria-label]="visible() ? 'Hide' : 'Show'"
                 >
                   <app-picto [nombre]="visible() ? 'ocultar' : 'ver'" [tamano]="17" />
                 </button>
@@ -75,7 +75,7 @@ import { PictogramaComponent } from '../../shared/pictograma.component';
                   type="button"
                   class="boton-icono"
                   (click)="copiar()"
-                  [attr.aria-label]="copiada() ? 'Copiada' : 'Copiar credencial'"
+                  [attr.aria-label]="copiada() ? 'Copied' : 'Copy credential'"
                 >
                   <app-picto [nombre]="copiada() ? 'confirmado' : 'copiar'" [tamano]="17" />
                 </button>
@@ -85,15 +85,15 @@ import { PictogramaComponent } from '../../shared/pictograma.component';
             <p class="folio-auditoria">
               <app-picto nombre="bitacora" [tamano]="16" />
               <span>
-                Esta consulta quedó asentada en la bitácora con tu usuario y la fecha.
-                Folio del asiento: <strong>{{ auditoriaId() }}</strong>
+                This lookup was logged in the audit trail with your user and the date.
+                Entry number: <strong>{{ auditoriaId() }}</strong>
               </span>
             </p>
           }
         </div>
 
         <footer class="ventanilla-pie">
-          <button type="button" class="boton secundario" (click)="cerrar.emit()">Cerrar</button>
+          <button type="button" class="boton secundario" (click)="cerrar.emit()">Close</button>
         </footer>
       </div>
     </div>
@@ -118,8 +118,8 @@ export class DialogoCredencialComponent {
   );
 
   constructor() {
-    // La petición se lanza al construir el diálogo: abrirlo *es* la acción de
-    // consultar, y por tanto lo que se audita.
+    // The request fires as soon as the dialog is constructed: opening it *is*
+    // the act of looking it up, and therefore what gets audited.
     queueMicrotask(() => this.consultar());
   }
 
@@ -133,14 +133,15 @@ export class DialogoCredencialComponent {
       error: (fallo: unknown) => {
         this.cargando.set(false);
         if (fallo instanceof HttpErrorResponse && fallo.status === 500) {
-          // El backend distingue «no hay credencial» de «hay un criptograma que
-          // no abre»; el segundo caso indica una llave rotada o un respaldo
-          // ajeno, y merece un mensaje que lleve a revisarlo.
+          // The backend distinguishes "there is no credential" from "there is
+          // a ciphertext that won't open"; the second case points to a
+          // rotated key or a foreign backup, and deserves a message that
+          // leads to checking it.
           this.error.set(
-            'La credencial no pudo descifrarse con la llave activa. Avisa a quien administre el sistema.',
+            'The credential could not be decrypted with the active key. Notify whoever administers the system.',
           );
         } else {
-          this.error.set('No se pudo consultar la credencial.');
+          this.error.set('Could not retrieve the credential.');
         }
       },
     });

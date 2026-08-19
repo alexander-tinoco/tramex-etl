@@ -3,9 +3,9 @@
     <header class="ventanilla-cabecera">
       <h3>
         <app-picto [nombre]="esEdicion() ? 'editar' : 'anadir'" [tamano]="18" />
-        {{ esEdicion() ? 'Editar' : 'Nuevo' }} · {{ recurso().titulo }}
+        {{ esEdicion() ? 'Edit' : 'New' }} · {{ recurso().titulo }}
       </h3>
-      <button type="button" class="boton-icono" (click)="cerrar.emit()" aria-label="Cerrar">
+      <button type="button" class="boton-icono" (click)="cerrar.emit()" aria-label="Close">
         <app-picto nombre="cerrar" [tamano]="16" />
       </button>
     </header>
@@ -34,7 +34,7 @@
                 <small class="ayuda">{{ campo.ayuda }}</small>
               }
               @if (campo.tipo === 'password' && esEdicion()) {
-                <small class="ayuda">Déjalo vacío para conservar la credencial actual.</small>
+                <small class="ayuda">Leave it blank to keep the current credential.</small>
               }
             </label>
           }
@@ -50,10 +50,10 @@
 
       <footer class="ventanilla-pie">
         <button type="button" class="boton secundario" (click)="cerrar.emit()" [disabled]="guardando()">
-          Cancelar
+          Cancel
         </button>
         <button type="submit" class="boton" [disabled]="guardando()">
-          {{ guardando() ? 'Guardando…' : 'Guardar' }}
+          {{ guardando() ? 'Saving…' : 'Save' }}
         </button>
       </footer>
     </form>

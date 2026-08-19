@@ -31,12 +31,12 @@ describe('guards', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   describe('authGuard', () => {
-    it('deja pasar cuando ya hay sesión resuelta', () => {
+    it('lets the request through once the session is already resolved', () => {
       auth.cargarSesion().subscribe();
       http.expectOne('/api/v1/auth/me').flush({
         id: 1,
-        correo_electronico: 'operadora@example.com',
-        nombre: 'Operadora',
+        correo_electronico: 'operator@example.com',
+        nombre: 'Operator',
         rol: 'operador',
         activo: true,
         ultimo_acceso_en: null,
@@ -47,9 +47,9 @@ describe('guards', () => {
       expect(resultado).toBeTrue();
     });
 
-    it('consulta a la API cuando el estado aún no se conoce', (done) => {
-      // La cookie es httpOnly: el guard no puede inspeccionarla y solo la API
-      // puede confirmar si hay sesion.
+    it('asks the API when the state is not yet known', (done) => {
+      // The cookie is httpOnly: the guard can't inspect it, and only the API
+      // can confirm whether there's a session.
       const resultado = TestBed.runInInjectionContext(() => authGuard(RUTA, ESTADO));
       expect(isObservable(resultado)).toBeTrue();
 
@@ -60,8 +60,8 @@ describe('guards', () => {
 
       http.expectOne('/api/v1/auth/me').flush({
         id: 1,
-        correo_electronico: 'operadora@example.com',
-        nombre: 'Operadora',
+        correo_electronico: 'operator@example.com',
+        nombre: 'Operator',
         rol: 'operador',
         activo: true,
         ultimo_acceso_en: null,
@@ -69,7 +69,7 @@ describe('guards', () => {
       });
     });
 
-    it('redirige al login si no hay sesión', (done) => {
+    it('redirects to login when there is no session', (done) => {
       const resultado = TestBed.runInInjectionContext(() => authGuard(RUTA, ESTADO));
 
       (resultado as Observable<boolean | UrlTree>).subscribe((valor) => {
@@ -87,8 +87,8 @@ describe('guards', () => {
       auth.cargarSesion().subscribe();
       http.expectOne('/api/v1/auth/me').flush({
         id: 1,
-        correo_electronico: 'persona@example.com',
-        nombre: 'Persona',
+        correo_electronico: 'person@example.com',
+        nombre: 'Person',
         rol,
         activo: true,
         ultimo_acceso_en: null,
@@ -96,14 +96,14 @@ describe('guards', () => {
       });
     }
 
-    it('deja pasar a un administrador', () => {
+    it('lets an administrator through', () => {
       autenticarComo('admin');
       expect(TestBed.runInInjectionContext(() => adminGuard(RUTA, ESTADO))).toBeTrue();
     });
 
-    it('devuelve a un operador al panel', () => {
-      // Es solo una comodidad de la interfaz: la API vuelve a comprobar el rol
-      // en cada peticion, que es donde realmente se protegen los datos.
+    it('sends an operator back to the panel', () => {
+      // It's only a convenience for the interface: the API checks the role
+      // again on every request, which is where the data is actually protected.
       autenticarComo('operador');
       const resultado = TestBed.runInInjectionContext(() => adminGuard(RUTA, ESTADO));
       expect(resultado instanceof UrlTree).toBeTrue();
@@ -111,12 +111,12 @@ describe('guards', () => {
     });
   });
 
-  it('el router está disponible en el contexto de prueba', () => {
+  it('the router is available in the test context', () => {
     expect(TestBed.inject(Router)).toBeTruthy();
   });
 });
 
-describe('adminGuard con sesión sin resolver', () => {
+describe('adminGuard with an unresolved session', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
@@ -131,8 +131,8 @@ describe('adminGuard con sesión sin resolver', () => {
   function usuario(rol: 'admin' | 'operador'): Usuario {
     return {
       id: 1,
-      correo_electronico: 'persona@example.com',
-      nombre: 'Persona',
+      correo_electronico: 'person@example.com',
+      nombre: 'Person',
       rol,
       activo: true,
       ultimo_acceso_en: null,
@@ -140,10 +140,10 @@ describe('adminGuard con sesión sin resolver', () => {
     };
   }
 
-  it('resuelve la sesión antes de decidir, al entrar por enlace directo', (done) => {
-    // Angular evalua los guards de una ruta en paralelo, no en cadena: si este
-    // no consultara por su cuenta, veria "sin sesion" y rebotaria al panel a
-    // una administradora legitima cada vez que recarga la pagina.
+  it('resolves the session before deciding, when entering via a direct link', (done) => {
+    // Angular evaluates a route's guards in parallel, not in a chain: if this
+    // one didn't query on its own, it would see "no session" and bounce a
+    // legitimate administrator back to the panel every time the page reloads.
     const resultado = TestBed.runInInjectionContext(() => adminGuard(RUTA, ESTADO));
     expect(isObservable(resultado)).toBeTrue();
 
@@ -155,7 +155,7 @@ describe('adminGuard con sesión sin resolver', () => {
     http.expectOne('/api/v1/auth/me').flush(usuario('admin'));
   });
 
-  it('devuelve al panel si al resolver resulta ser operador', (done) => {
+  it('sends the user back to the panel if they turn out to be an operator', (done) => {
     const resultado = TestBed.runInInjectionContext(() => adminGuard(RUTA, ESTADO));
 
     (resultado as Observable<boolean | UrlTree>).subscribe((valor) => {
@@ -167,7 +167,7 @@ describe('adminGuard con sesión sin resolver', () => {
     http.expectOne('/api/v1/auth/me').flush(usuario('operador'));
   });
 
-  it('manda al login si no hay sesión', (done) => {
+  it('sends to login when there is no session', (done) => {
     const resultado = TestBed.runInInjectionContext(() => adminGuard(RUTA, ESTADO));
 
     (resultado as Observable<boolean | UrlTree>).subscribe((valor) => {

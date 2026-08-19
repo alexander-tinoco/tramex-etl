@@ -1,11 +1,12 @@
 /**
- * Utilidades de presentacion compartidas.
+ * Shared presentation utilities.
  *
- * Viven aqui, y no duplicadas en cada componente, porque la forma de mostrar
- * un valor ausente o una fecha debe ser la misma en toda la interfaz.
+ * They live here, instead of being duplicated in every component, because
+ * how a missing value or a date is displayed must be the same across the
+ * whole interface.
  */
 
-/** Marcador visual de un campo sin valor. */
+/** Visual placeholder for a field with no value. */
 export const SIN_VALOR = '—';
 
 export function formatearTexto(valor: unknown): string {
@@ -21,12 +22,12 @@ export function formatearFecha(valor: unknown): string {
   }
   const fecha = new Date(String(valor));
   if (Number.isNaN(fecha.getTime())) {
-    // El backend puede devolver texto libre en campos de fecha (el archivo de
-    // origen contiene celdas como "MARZO"); se muestra tal cual en vez de
+    // The backend can return free text in date fields (the source file
+    // contains cells like "MARCH"); it's shown as-is instead of
     // "Invalid Date".
     return String(valor);
   }
-  return fecha.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: '2-digit' });
+  return fecha.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
 }
 
 export function formatearFechaHora(valor: unknown): string {
@@ -37,7 +38,7 @@ export function formatearFechaHora(valor: unknown): string {
   if (Number.isNaN(fecha.getTime())) {
     return String(valor);
   }
-  return fecha.toLocaleString('es-MX', {
+  return fecha.toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',
     day: '2-digit',

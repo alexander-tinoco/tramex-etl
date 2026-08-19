@@ -10,13 +10,13 @@ import { PictogramaComponent } from '../../shared/pictograma.component';
 type Seccion = 'sala' | ClaveRecurso;
 
 /**
- * Contenedor del panel.
+ * Panel shell.
  *
- * Su unica responsabilidad es la navegacion y el marco: que seccion esta
- * activa, quien ha iniciado sesion y si la base responde. El contenido lo
- * aportan componentes propios. La version anterior de este archivo tenia 378
- * lineas y mezclaba navegacion, resumen, tabla, formulario, tres modales,
- * paginacion y busqueda.
+ * Its only responsibility is navigation and the frame: which section is
+ * active, who is signed in, and whether the database responds. The content
+ * comes from its own components. The previous version of this file was 378
+ * lines and mixed navigation, summary, table, form, three modals, pagination
+ * and search.
  */
 @Component({
   selector: 'app-dashboard',
@@ -41,20 +41,20 @@ export class DashboardComponent {
     return actual === 'sala' ? null : RECURSOS[actual];
   });
 
-  readonly titulo = computed(() => this.recursoActivo()?.titulo ?? 'Sala');
+  readonly titulo = computed(() => this.recursoActivo()?.titulo ?? 'Floor');
 
-  /** El encabezado dice de qué trata el carril, no repite su nombre. */
+  /** The header says what the lane is about; it doesn't just repeat its name. */
   readonly subtitulo = computed(
     () =>
       this.recursoActivo()?.descripcion ??
-      'Busca a una persona y abre su expediente completo. Abajo, lo último que se ha tocado.',
+      'Search for a person and open their full record. Below, whatever was touched last.',
   );
 
   constructor() {
     this.api.estadoSalud().subscribe({
       next: (estado) => this.baseConectada.set(estado.database === 'connected'),
-      // La sonda tambien falla si la API entera esta caida; en ambos casos lo
-      // util para quien opera es lo mismo: los datos no estan disponibles.
+      // The probe also fails if the whole API is down; either way the
+      // operator sees the same thing: the data isn't available.
       error: () => this.baseConectada.set(false),
     });
   }
@@ -66,9 +66,9 @@ export class DashboardComponent {
   cerrarSesion(): void {
     this.auth.cerrarSesion().subscribe({
       next: () => void this.router.navigate(['/login']),
-      // Aunque la peticion falle, la sesion local se descarta: dejar al
-      // usuario dentro tras pulsar "cerrar sesion" seria lo peor de ambos
-      // mundos.
+      // Even if the request fails, the local session is discarded: leaving
+      // the user signed in after pressing "sign out" would be the worst of
+      // both worlds.
       error: () => {
         this.auth.limpiar();
         void this.router.navigate(['/login']);

@@ -6,8 +6,8 @@ import { Usuario } from '../models/api.model';
 
 const USUARIO: Usuario = {
   id: 1,
-  correo_electronico: 'operadora@example.com',
-  nombre: 'Operadora',
+  correo_electronico: 'operator@example.com',
+  nombre: 'Operator',
   rol: 'operador',
   activo: true,
   ultimo_acceso_en: null,
@@ -28,71 +28,72 @@ describe('AuthService', () => {
 
   afterEach(() => http.verify());
 
-  it('arranca sin sesión y sin haberla resuelto', () => {
+  it('starts with no session and unresolved', () => {
     expect(servicio.estaAutenticado()).toBeFalse();
     expect(servicio.sesionResuelta()).toBeFalse();
     expect(servicio.usuario()).toBeNull();
   });
 
-  it('envía las credenciales como formulario y con credenciales', () => {
-    servicio.iniciarSesion('operadora@example.com', 'clave-larga-1234').subscribe();
+  it('sends credentials as a form, with credentials included', () => {
+    servicio.iniciarSesion('operator@example.com', 'a-long-password-1234').subscribe();
 
     const peticion = http.expectOne('/api/v1/auth/token');
     expect(peticion.request.method).toBe('POST');
     expect(peticion.request.withCredentials).toBeTrue();
     expect(peticion.request.headers.get('Content-Type')).toBe('application/x-www-form-urlencoded');
-    expect(peticion.request.body).toContain('username=operadora%40example.com');
+    expect(peticion.request.body).toContain('username=operator%40example.com');
 
     peticion.flush({
-      access_token: 'jwt-de-prueba',
+      access_token: 'test-jwt',
       token_type: 'bearer',
       expira_en_minutos: 480,
       usuario: USUARIO,
     });
 
     expect(servicio.estaAutenticado()).toBeTrue();
-    expect(servicio.usuario()?.correo_electronico).toBe('operadora@example.com');
+    expect(servicio.usuario()?.correo_electronico).toBe('operator@example.com');
   });
 
-  it('no guarda el token en localStorage', () => {
-    // Es el punto del cambio: la sesion vive en una cookie httpOnly, invisible
-    // para JavaScript. Guardarla aqui reintroduciria la exposicion a XSS.
-    servicio.iniciarSesion('operadora@example.com', 'clave-larga-1234').subscribe();
+  it('does not store the token in localStorage', () => {
+    // This is the whole point of the change: the session lives in an
+    // httpOnly cookie, invisible to JavaScript. Storing it here would
+    // reintroduce exposure to XSS.
+    servicio.iniciarSesion('operator@example.com', 'a-long-password-1234').subscribe();
     http.expectOne('/api/v1/auth/token').flush({
-      access_token: 'jwt-de-prueba',
+      access_token: 'test-jwt',
       token_type: 'bearer',
       expira_en_minutos: 480,
       usuario: USUARIO,
     });
 
     expect(Object.keys(localStorage)).toEqual([]);
-    expect(JSON.stringify(localStorage)).not.toContain('jwt-de-prueba');
+    expect(JSON.stringify(localStorage)).not.toContain('test-jwt');
   });
 
-  it('marca el rol de administrador', () => {
+  it('marks the administrator role', () => {
     servicio.cargarSesion().subscribe();
     http.expectOne('/api/v1/auth/me').flush({ ...USUARIO, rol: 'admin' });
 
     expect(servicio.esAdmin()).toBeTrue();
   });
 
-  it('un operador no es administrador', () => {
+  it('an operator is not an administrator', () => {
     servicio.cargarSesion().subscribe();
     http.expectOne('/api/v1/auth/me').flush(USUARIO);
 
     expect(servicio.esAdmin()).toBeFalse();
   });
 
-  it('un 401 al cargar la sesión deja el estado limpio y resuelto', () => {
+  it('a 401 while loading the session leaves the state clean and resolved', () => {
     servicio.cargarSesion().subscribe({ error: () => undefined });
     http.expectOne('/api/v1/auth/me').flush(null, { status: 401, statusText: 'Unauthorized' });
 
     expect(servicio.estaAutenticado()).toBeFalse();
-    // Resuelto, aunque sin sesion: la aplicacion ya sabe que mostrar.
+    // Resolved, even without a session: the application already knows what to show.
     expect(servicio.sesionResuelta()).toBeTrue();
   });
 
-  it('cerrar sesión descarta el usuario', () => {
+  it('signing out discards the user', () => {
     servicio.cargarSesion().subscribe();
     http.expectOne('/api/v1/auth/me').flush(USUARIO);
 

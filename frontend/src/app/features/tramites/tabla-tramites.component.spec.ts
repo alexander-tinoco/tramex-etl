@@ -49,14 +49,14 @@ describe('TablaTramitesComponent', () => {
     fixture.detectChanges();
   }
 
-  it('carga los registros del recurso al iniciarse', () => {
+  it('loads the resource records on startup', () => {
     responderListado();
     expect(fixture.componentInstance.registros().length).toBe(2);
     expect(fixture.componentInstance.total()).toBe(2);
     http.verify();
   });
 
-  it('muestra un mensaje cuando la carga falla', () => {
+  it('shows a message when the load fails', () => {
     http
       .expectOne((r) => r.url === '/api/v1/master-tramex/')
       .flush(null, { status: 500, statusText: 'Error' });
@@ -67,14 +67,14 @@ describe('TablaTramitesComponent', () => {
     http.verify();
   });
 
-  it('agrupa las pulsaciones de búsqueda en una sola petición', fakeAsync(() => {
+  it('groups search keystrokes into a single request', fakeAsync(() => {
     responderListado();
 
     const componente = fixture.componentInstance;
     const evento = (valor: string): Event =>
       ({ target: { value: valor } }) as unknown as Event;
 
-    // Sin el retardo, cada tecla dispararia una peticion al backend.
+    // Without the delay, every keystroke would fire a request to the backend.
     componente.buscar(evento('j'));
     componente.buscar(evento('jo'));
     componente.buscar(evento('jorge'));
@@ -88,7 +88,7 @@ describe('TablaTramitesComponent', () => {
     http.verify();
   }));
 
-  it('la búsqueda vuelve a la primera página', fakeAsync(() => {
+  it('a search goes back to the first page', fakeAsync(() => {
     responderListado(pagina([registro(1)], 40));
 
     fixture.componentInstance.paginaSiguiente();
@@ -103,7 +103,7 @@ describe('TablaTramitesComponent', () => {
     http.verify();
   }));
 
-  it('no avanza más allá de la última página', () => {
+  it('does not advance past the last page', () => {
     responderListado(pagina([registro(1)], 5));
 
     fixture.componentInstance.paginaSiguiente();
@@ -113,13 +113,13 @@ describe('TablaTramitesComponent', () => {
     http.verify();
   });
 
-  it('calcula el total de páginas', () => {
+  it('computes the total number of pages', () => {
     responderListado(pagina([registro(1)], 25));
     expect(fixture.componentInstance.totalPaginas()).toBe(3);
     http.verify();
   });
 
-  it('pide los archivados solo cuando se solicitan', () => {
+  it('requests archived records only when asked for', () => {
     responderListado();
 
     fixture.componentInstance.alternarArchivados();
@@ -131,7 +131,7 @@ describe('TablaTramitesComponent', () => {
     http.verify();
   });
 
-  it('archivar usa DELETE y recarga la lista', () => {
+  it('archiving uses DELETE and reloads the list', () => {
     responderListado();
 
     fixture.componentInstance.confirmarArchivado(registro(1));
@@ -146,7 +146,7 @@ describe('TablaTramitesComponent', () => {
     http.verify();
   });
 
-  it('restaurar reactiva el registro', () => {
+  it('restoring reactivates the record', () => {
     responderListado();
 
     fixture.componentInstance.restaurar(registro(1, 'Cliente 1', true));
@@ -156,7 +156,7 @@ describe('TablaTramitesComponent', () => {
     http.verify();
   });
 
-  it('guardar en modo alta hace POST', () => {
+  it('saving in create mode does a POST', () => {
     responderListado();
 
     fixture.componentInstance.abrirAlta();
@@ -171,7 +171,7 @@ describe('TablaTramitesComponent', () => {
     http.verify();
   });
 
-  it('guardar en modo edición hace PATCH', () => {
+  it('saving in edit mode does a PATCH', () => {
     responderListado();
 
     fixture.componentInstance.abrirEdicion(registro(1));
@@ -185,7 +185,7 @@ describe('TablaTramitesComponent', () => {
     http.verify();
   });
 
-  it('un 422 al guardar deja el formulario abierto con el motivo', () => {
+  it('a 422 while saving leaves the form open with the reason', () => {
     responderListado();
 
     fixture.componentInstance.abrirAlta();
@@ -193,10 +193,10 @@ describe('TablaTramitesComponent', () => {
 
     http
       .expectOne('/api/v1/master-tramex/')
-      .flush({ detail: 'invalido' }, { status: 422, statusText: 'Unprocessable' });
+      .flush({ detail: 'invalid' }, { status: 422, statusText: 'Unprocessable' });
 
     expect(fixture.componentInstance.formularioAbierto()).toBeTrue();
-    expect(fixture.componentInstance.errorFormulario()).toContain('formato');
+    expect(fixture.componentInstance.errorFormulario()).toContain('format');
     http.verify();
   });
 });
