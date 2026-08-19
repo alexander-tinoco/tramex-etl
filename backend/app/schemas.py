@@ -1,17 +1,17 @@
 """
-Esquemas Pydantic v2 de entrada y salida de la API.
+Pydantic v2 input and output schemas for the API.
 
-Convenciones:
+Conventions:
 
-- `*Create`   Campos aceptados al dar de alta un registro.
-- `*Update`   Todos los campos opcionales; semantica PATCH.
-- `*Response` Lo que la API devuelve. Nunca incluye `contrasena_cifrada` ni la
-              contrasena en claro: para eso existe el endpoint auditado
-              `GET /{id}/password`.
+- `*Create`   Fields accepted when creating a record.
+- `*Update`   All fields optional; PATCH semantics.
+- `*Response` What the API returns. Never includes `contrasena_cifrada` nor
+              the plain-text password: that's what the audited
+              `GET /{id}/password` endpoint is for.
 
-Las columnas de identidad (`clave_natural`, `hash_fila`) tampoco se exponen:
-son un detalle de implementacion del pipeline de ingesta, no parte del contrato
-publico.
+The identity columns (`clave_natural`, `hash_fila`) aren't exposed either:
+they're an implementation detail of the ingestion pipeline, not part of the
+public contract.
 """
 
 from __future__ import annotations
@@ -23,22 +23,22 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 T = TypeVar("T")
 
-#: Los roles se declaran como literal para que aparezcan en el esquema OpenAPI
-#: como un enumerado legible, en lugar de como una cadena libre.
+#: Roles are declared as a literal so they appear in the OpenAPI schema as a
+#: readable enum, instead of as a free-form string.
 RolUsuario = Literal["admin", "operador"]
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
-    """Envuelve cualquier lista con metadatos de paginacion."""
+    """Wraps any list with pagination metadata."""
 
-    total: int = Field(description="Total de registros que cumplen el filtro.")
-    skip: int = Field(description="Registros omitidos desde el inicio.")
-    limit: int = Field(description="Tamano maximo de la pagina.")
+    total: int = Field(description="Total records matching the filter.")
+    skip: int = Field(description="Records skipped from the start.")
+    limit: int = Field(description="Maximum page size.")
     items: list[T]
 
 
 class RegistroResponse(BaseModel):
-    """Campos administrativos comunes a toda respuesta de registro."""
+    """Administrative fields common to every record response."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -47,7 +47,7 @@ class RegistroResponse(BaseModel):
     actualizado_en: datetime
     eliminado_en: datetime | None = Field(
         default=None,
-        description="Marca de borrado logico. Nulo si el registro esta activo.",
+        description="Soft-delete timestamp. Null if the record is active.",
     )
 
 
@@ -57,7 +57,7 @@ class RegistroResponse(BaseModel):
 
 
 class ClienteBase(BaseModel):
-    """Datos de la persona que contrata los tramites."""
+    """Data of the person contracting the tramites."""
 
     nombre: str = Field(min_length=1, max_length=200, examples=["Jorge Monroy"])
     apellido: str | None = Field(default=None, max_length=200)
@@ -83,11 +83,11 @@ class ClienteResponse(ClienteBase, RegistroResponse):
 
 
 class ClienteDetalleResponse(ClienteResponse):
-    """Cliente con el conteo de tramites asociados por tipo."""
+    """Client with the count of associated tramites by type."""
 
     tramites: dict[str, int] = Field(
         default_factory=dict,
-        description="Cantidad de tramites activos por tabla.",
+        description="Number of active tramites per table.",
         examples=[{"master_tramex": 1, "global_entry": 0, "pasaportes": 2, "canada": 0}],
     )
 
@@ -102,8 +102,8 @@ class MasterTramexBase(BaseModel):
     cliente_id: int | None = Field(
         default=None,
         description=(
-            "Cliente al que pertenece el tramite. Si se omite, se resuelve o se "
-            "da de alta automaticamente a partir de los datos del registro."
+            "Client the tramite belongs to. If omitted, it's resolved or "
+            "created automatically from the record's data."
         ),
     )
     id_solicitud: str | None = None
@@ -114,7 +114,7 @@ class MasterTramexBase(BaseModel):
     correo_electronico: EmailStr | None = None
     contrasena: str | None = Field(
         default=None,
-        description="Se cifra con Fernet antes de persistirse; nunca se devuelve en las lecturas.",
+        description="Encrypted with Fernet before being persisted; never returned on reads.",
     )
 
 
@@ -187,8 +187,8 @@ class PasaporteBase(BaseModel):
     fecha_cita_original: str | None = Field(
         default=None,
         description=(
-            "Texto original de la celda cuando no era una fecha valida "
-            '(el archivo de origen contiene valores como "MARZO").'
+            "Original text of the cell when it wasn't a valid date "
+            '(the source file contains values like "MARZO").'
         ),
     )
 
@@ -245,38 +245,38 @@ class CanadaResponse(RegistroResponse):
 
 
 # ===========================================================================
-# Respuestas auxiliares
+# Auxiliary responses
 # ===========================================================================
 
 
 class ContrasenaResponse(BaseModel):
-    """Resultado del endpoint auditado de descifrado."""
+    """Result of the audited decryption endpoint."""
 
     contrasena: str | None = Field(
-        description="Contrasena en claro, o nulo si el registro no tiene ninguna."
+        description="Plain-text password, or null if the record has none."
     )
     registro_id: int
     recurso: str
     auditoria_id: int = Field(
         description=(
-            "Identificador del asiento que dejo esta consulta en la bitacora. "
-            "Toda lectura de una credencial queda registrada."
+            "Identifier of the log entry this lookup left in the audit log. "
+            "Every read of a credential is recorded."
         )
     )
 
 
 # ===========================================================================
-# Autenticacion y usuarios
+# Authentication and users
 # ===========================================================================
 
 
 class TokenResponse(BaseModel):
     """
-    Respuesta del login.
+    Login response.
 
-    El token se devuelve tambien en el cuerpo, ademas de en la cookie
-    `httpOnly`, porque Swagger, los scripts y las integraciones no usan cookies.
-    El dashboard ignora este campo y se apoya solo en la cookie.
+    The token is also returned in the body, in addition to the `httpOnly`
+    cookie, because Swagger, scripts, and integrations don't use cookies.
+    The dashboard ignores this field and relies solely on the cookie.
     """
 
     access_token: str
@@ -295,9 +295,9 @@ class UsuarioCreate(UsuarioBase):
         min_length=12,
         max_length=128,
         description=(
-            "Minimo 12 caracteres. El sistema custodia credenciales de cuentas "
-            "gubernamentales de terceros, asi que la cuenta que las abre no puede "
-            "protegerse con una contrasena corta."
+            "At least 12 characters. The system holds third-party government "
+            "account credentials, so the account that unlocks them can't be "
+            "protected with a short password."
         ),
     )
     rol: RolUsuario = Field(default="operador")
@@ -327,7 +327,7 @@ class UsuarioResponse(BaseModel):
 
 
 class LogAuditoriaResponse(BaseModel):
-    """Asiento de la bitacora. Nunca contiene credenciales."""
+    """Audit log entry. Never contains credentials."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -345,7 +345,7 @@ class LogAuditoriaResponse(BaseModel):
 
 
 class ResultadoRetencion(BaseModel):
-    """Resumen de una ejecucion de la politica de retencion."""
+    """Summary of a retention policy run."""
 
     dias_retencion: int
     purgados_por_tabla: dict[str, int]

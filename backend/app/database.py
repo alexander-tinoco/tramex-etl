@@ -1,5 +1,5 @@
 """
-Configuración de SQLAlchemy: motor y sesión de base de datos.
+SQLAlchemy configuration: database engine and session.
 """
 
 from typing import Any
@@ -10,12 +10,12 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from app.config import settings
 
 # ---------------------------------------------------------------------------
-# Motor y fábrica de sesiones con pooling dinámico según el dialecto de BD
+# Engine and session factory, with dynamic pooling based on the DB dialect
 # ---------------------------------------------------------------------------
 
 engine_kwargs: dict[str, Any] = {"pool_pre_ping": True}
 
-# El pool de conexiones avanzado es propio de PostgreSQL
+# The advanced connection pool is PostgreSQL-specific
 if settings.database_url.startswith("postgresql"):
     engine_kwargs.update({"pool_size": 10, "max_overflow": 20, "pool_recycle": 3600})
 
@@ -25,23 +25,23 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 # ---------------------------------------------------------------------------
-# Clase base para los modelos ORM
+# Base class for the ORM models
 # ---------------------------------------------------------------------------
 
 
 class Base(DeclarativeBase):
-    """Clase base declarativa para todos los modelos."""
+    """Declarative base class for all models."""
 
     pass
 
 
 # ---------------------------------------------------------------------------
-# Dependencia de FastAPI para inyectar la sesión de BD
+# FastAPI dependency to inject the DB session
 # ---------------------------------------------------------------------------
 
 
 def get_db():
-    """Generador que provee una sesión de BD y la cierra al terminar."""
+    """Generator that provides a DB session and closes it when done."""
     db = SessionLocal()
     try:
         yield db

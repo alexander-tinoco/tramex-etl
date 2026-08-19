@@ -1,14 +1,15 @@
 """
-Autenticacion, autorizacion y hashing de credenciales.
+Authentication, authorization, and credential hashing.
 
-Sustituye al esquema anterior, en el que un unico administrador se autenticaba
-comparando en texto plano contra dos variables de entorno. Aquel diseno tenia
-tres problemas: no permitia saber *quien* hizo cada cosa (todos compartian la
-misma cuenta), guardaba la contrasena en claro en el entorno y comparaba con
-`!=`, que devuelve en tiempo variable y filtra informacion por temporizacion.
+Replaces the previous scheme, in which a single administrator authenticated
+by comparing plain text against two environment variables. That design had
+three problems: it gave no way to know *who* did each thing (everyone shared
+the same account), it kept the password in plain text in the environment, and
+it compared with `!=`, which returns in variable time and leaks information
+through timing.
 
-Ahora hay una tabla de usuarios con hash bcrypt, dos roles y sesiones JWT que
-viajan por omision en una cookie `httpOnly`.
+Now there's a users table with bcrypt hashes, two roles, and JWT sessions
+that travel by default in an `httpOnly` cookie.
 """
 
 from __future__ import annotations
@@ -35,33 +36,33 @@ logger = logging.getLogger("tramex_api.security")
 
 ALGORITMO = "HS256"
 
-#: Nombre de la cookie de sesion.
+#: Session cookie name.
 COOKIE_SESION = "tramex_sesion"
 
-# `auto_error=False` porque la sesion tambien puede venir en cookie: si el
-# esquema Bearer fallara por su cuenta, nunca se llegaria a mirar la cookie.
+# `auto_error=False` because the session can also arrive in a cookie: if the
+# Bearer scheme failed on its own, the cookie would never get checked.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 
 
 # ---------------------------------------------------------------------------
-# Hashing de contrasenas
+# Password hashing
 # ---------------------------------------------------------------------------
 
 
 def _preparar(contrasena: str) -> bytes:
     """
-    Normaliza la contrasena antes de pasarla a bcrypt.
+    Normalizes the password before handing it to bcrypt.
 
-    bcrypt trunca silenciosamente en 72 bytes, de modo que dos contrasenas
-    largas que compartan prefijo serian equivalentes. Aplicar SHA-256 primero
-    y codificar en base64 produce una entrada de longitud fija que evita el
-    truncamiento sin perder entropia.
+    bcrypt silently truncates at 72 bytes, so two long passwords sharing a
+    prefix would be treated as equivalent. Applying SHA-256 first and
+    base64-encoding it produces a fixed-length input that avoids the
+    truncation without losing entropy.
     """
     return base64.b64encode(hashlib.sha256(contrasena.encode("utf-8")).digest())
 
 
 def hashear_contrasena(contrasena: str) -> str:
-    """Devuelve el hash bcrypt de una contrasena en claro."""
+    """Returns the bcrypt hash of a plain-text password."""
     return bcrypt.hashpw(
         _preparar(contrasena), bcrypt.gensalt(rounds=settings.bcrypt_rondas)
     ).decode()
@@ -69,22 +70,22 @@ def hashear_contrasena(contrasena: str) -> str:
 
 def verificar_contrasena(contrasena: str, hash_almacenado: str) -> bool:
     """
-    Comprueba una contrasena contra su hash en tiempo constante.
+    Checks a password against its hash in constant time.
 
-    `bcrypt.checkpw` ya compara en tiempo constante; el `try` cubre hashes
-    corruptos o con formato ajeno, que deben tratarse como fallo de
-    autenticacion y no como error del servidor.
+    `bcrypt.checkpw` already compares in constant time; the `try` covers
+    corrupted hashes or ones with an unexpected format, which must be
+    treated as an authentication failure, not a server error.
     """
     try:
         return bcrypt.checkpw(_preparar(contrasena), hash_almacenado.encode())
     except (ValueError, TypeError):
-        logger.warning("Hash de contrasena con formato invalido en la base de datos")
+        logger.warning("Password hash with invalid format in the database")
         return False
 
 
-#: Hash de descarte con el que se compara cuando el correo no existe. Sirve
-#: para que un login con usuario inexistente tarde lo mismo que uno con usuario
-#: real y contrasena incorrecta, y no se pueda enumerar usuarios por tiempo.
+#: Decoy hash to compare against when the email doesn't exist. Makes a login
+#: with a nonexistent user take as long as one with a real user and a wrong
+#: password, so users can't be enumerated by timing.
 _HASH_SENUELO = hashear_contrasena(secrets.token_urlsafe(32))
 
 
@@ -94,7 +95,7 @@ _HASH_SENUELO = hashear_contrasena(secrets.token_urlsafe(32))
 
 
 def crear_token_de_acceso(usuario: Usuario) -> str:
-    """Emite un JWT de sesion con el identificador, el correo y el rol."""
+    """Issues a session JWT with the id, email, and role."""
     expira = datetime.now(UTC) + timedelta(minutes=settings.token_expira_minutos)
     carga = {
         "sub": str(usuario.id),
@@ -107,17 +108,17 @@ def crear_token_de_acceso(usuario: Usuario) -> str:
 
 
 def decodificar_token(token: str) -> dict:
-    """Verifica firma y expiracion, devolviendo la carga util."""
+    """Verifies the signature and expiration, and returns the payload."""
     return jwt.decode(token, settings.api_secret_key, algorithms=[ALGORITMO])
 
 
 # ---------------------------------------------------------------------------
-# Dependencias de FastAPI
+# FastAPI dependencies
 # ---------------------------------------------------------------------------
 
 _CREDENCIALES_INVALIDAS = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Sesion invalida o expirada.",
+    detail="Invalid or expired session.",
     headers={"WWW-Authenticate": "Bearer"},
 )
 
@@ -128,16 +129,16 @@ def get_current_user(
     token_cookie: Annotated[str | None, Cookie(alias=COOKIE_SESION)] = None,
 ) -> Usuario:
     """
-    Resuelve el usuario autenticado a partir de la cookie o de la cabecera.
+    Resolves the authenticated user from the cookie or the header.
 
-    Se aceptan las dos vias porque atienden a consumidores distintos: el
-    dashboard usa la cookie `httpOnly` (inaccesible desde JavaScript, lo que
-    reduce el impacto de un XSS), mientras que Swagger, los scripts y las
-    integraciones usan `Authorization: Bearer`.
+    Both routes are accepted because they serve different consumers: the
+    dashboard uses the `httpOnly` cookie (inaccessible from JavaScript, which
+    reduces the impact of an XSS), while Swagger, scripts, and integrations
+    use `Authorization: Bearer`.
 
-    Se comprueba tambien que el usuario siga existiendo y activo: un token
-    sigue siendo criptograficamente valido despues de dar de baja a alguien, y
-    sin esta verificacion esa persona conservaria acceso hasta que expirara.
+    It also checks that the user still exists and is active: a token remains
+    cryptographically valid after someone is deactivated, and without this
+    check that person would keep access until it expired.
     """
     token = token_cookie or token_cabecera
     if not token:
@@ -160,22 +161,22 @@ UsuarioActual = Annotated[Usuario, Depends(get_current_user)]
 
 def requiere_rol(*roles: Rol):
     """
-    Construye una dependencia que exige uno de los roles indicados.
+    Builds a dependency that requires one of the given roles.
 
-    Se devuelve una dependencia en lugar de comprobar el rol dentro de cada
-    endpoint para que el requisito quede declarado en la firma de la ruta y
-    aparezca en la documentacion generada.
+    A dependency is returned instead of checking the role inside each
+    endpoint so the requirement is declared in the route's signature and
+    shows up in the generated documentation.
     """
 
     def verificador(usuario: UsuarioActual) -> Usuario:
         if usuario.rol not in roles:
             logger.warning(
-                "Acceso denegado por rol",
+                "Access denied by role",
                 extra={"usuario": usuario.correo_electronico, "rol": usuario.rol.value},
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Tu rol no tiene permiso para esta operacion.",
+                detail="Your role does not have permission for this operation.",
             )
         return usuario
 
@@ -186,17 +187,17 @@ RequiereAdmin = Annotated[Usuario, Depends(requiere_rol(Rol.ADMIN))]
 
 
 # ---------------------------------------------------------------------------
-# Autenticacion
+# Authentication
 # ---------------------------------------------------------------------------
 
 
 def autenticar(db: Session, correo: str, contrasena: str) -> Usuario | None:
     """
-    Valida unas credenciales y devuelve el usuario, o `None` si no cuadran.
+    Validates a set of credentials and returns the user, or `None` if they don't match.
 
-    Cuando el correo no existe se verifica igualmente contra un hash senuelo:
-    asi el tiempo de respuesta no revela si la cuenta existe, que es la via
-    habitual para enumerar usuarios validos antes de atacarlos.
+    When the email doesn't exist, it's still checked against a decoy hash:
+    that way the response time doesn't reveal whether the account exists,
+    which is the usual way to enumerate valid users before attacking them.
     """
     usuario = db.scalar(
         select(Usuario).where(
@@ -220,13 +221,13 @@ def autenticar(db: Session, correo: str, contrasena: str) -> Usuario | None:
 
 def obtener_ip(request: Request) -> str:
     """
-    Determina la IP de origen respetando el proxy inverso.
+    Determines the source IP, accounting for the reverse proxy.
 
-    El dashboard se sirve detras de Nginx, asi que `request.client.host` seria
-    siempre la IP del contenedor. Se toma el primer salto de
-    `X-Forwarded-For`, que es el cliente real.
+    The dashboard is served behind Nginx, so `request.client.host` would
+    always be the container's IP. The first hop of `X-Forwarded-For` is
+    taken instead, which is the real client.
     """
     reenviada = request.headers.get("x-forwarded-for")
     if reenviada:
         return reenviada.split(",")[0].strip()
-    return request.client.host if request.client else "desconocida"
+    return request.client.host if request.client else "unknown"
