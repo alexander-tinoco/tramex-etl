@@ -9,6 +9,11 @@ versioning adheres to [Semantic Versioning](https://semver.org/). From version
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-08-19
+
+### Fixed
+- `trivy-action@v0.28.0` still failed after the previous fix: that tag references `aquasecurity/setup-trivy@v0.2.1` internally, which no longer exists upstream. Upgraded to `v0.36.0`, which pins its internal dependency by commit hash instead of by tag.
+
 ## [2.0.1] - 2026-08-19
 
 ### Fixed
