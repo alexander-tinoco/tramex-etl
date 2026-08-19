@@ -1,4 +1,4 @@
-"""Repositorios de acceso a datos."""
+"""Data-access repositories."""
 
 from app.crud.base import CRUDBase, ErrorDeDescifrado
 from app.crud.cliente import crud_cliente

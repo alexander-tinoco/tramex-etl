@@ -1,17 +1,17 @@
 """
-Fabrica de routers CRUD para las tablas de tramite.
+Factory for the tramite tables' CRUD routers.
 
-Los cuatro recursos exponen la misma superficie HTTP y solo difieren en su
-repositorio y sus esquemas. Antes existian cuatro archivos con el mismo bloque
-de endpoints copiado; aqui se genera una sola vez y se parametriza, de modo que
-cualquier cambio de contrato (un filtro nuevo, un asiento de auditoria mas) se
-aplica a los cuatro por construccion, sin que ninguno se quede atras.
+The four resources expose the same HTTP surface and only differ in their
+repository and schemas. There used to be four files with the same block of
+endpoints copy-pasted; here it's generated once and parameterized, so any
+contract change (a new filter, one more audit entry) applies to all four by
+construction, with none left behind.
 """
 
-# Sin `from __future__ import annotations`: FastAPI resuelve las anotaciones de
-# los endpoints en tiempo de ejecucion para construir el modelo de la peticion,
-# y aqui los esquemas llegan como parametros de la fabrica. Diferirlas las
-# convertiria en cadenas que FastAPI no podria resolver.
+# No `from __future__ import annotations`: FastAPI resolves endpoint
+# annotations at runtime to build the request model, and here the schemas
+# arrive as factory parameters. Deferring them would turn them into strings
+# FastAPI couldn't resolve.
 import logging
 from typing import Annotated, Any, Literal, cast
 
@@ -39,10 +39,10 @@ def crear_router_tramite(
     nombre_recurso: str,
 ) -> APIRouter:
     """
-    Construye el router CRUD completo de un recurso de tramite.
+    Builds the complete CRUD router for a tramite resource.
 
-    `nombre_recurso` se usa en los mensajes de error y en la documentacion
-    generada, para que no diga "registro" en los cuatro casos.
+    `nombre_recurso` is used in error messages and in the generated
+    documentation, so it doesn't just say "record" in all four cases.
     """
     router = APIRouter()
     tabla = crud.definicion.tabla
@@ -53,31 +53,29 @@ def crear_router_tramite(
         if registro is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No existe un registro de {nombre_recurso} con id {registro_id}.",
+                detail=f"No {nombre_recurso} record exists with id {registro_id}.",
             )
         return registro
 
     @router.get(
         "/",
         response_model=PaginatedResponse[esquema_response],  # type: ignore[valid-type]
-        summary=f"Listar {nombre_recurso}",
+        summary=f"List {nombre_recurso}",
     )
     def listar(
         db: Annotated[Session, Depends(get_db)],
-        skip: Annotated[int, Query(ge=0, description="Registros a omitir.")] = 0,
-        limit: Annotated[int, Query(ge=1, le=500, description="Tamano de pagina.")] = 100,
-        buscar: Annotated[
-            str | None, Query(description="Coincidencia parcial sobre el nombre.")
-        ] = None,
+        skip: Annotated[int, Query(ge=0, description="Records to skip.")] = 0,
+        limit: Annotated[int, Query(ge=1, le=500, description="Page size.")] = 100,
+        buscar: Annotated[str | None, Query(description="Partial match on the name.")] = None,
         cliente_id: Annotated[
-            int | None, Query(description="Restringe a los tramites de un cliente.")
+            int | None, Query(description="Restricts to one client's tramites.")
         ] = None,
         incluir_eliminados: Annotated[
-            bool, Query(description="Incluye los registros dados de baja logicamente.")
+            bool, Query(description="Includes soft-deleted records.")
         ] = False,
         orden: Annotated[
             Literal["id", "reciente"],
-            Query(description="`reciente` devuelve primero lo ultimo modificado."),
+            Query(description="`reciente` returns whatever was last modified first."),
         ] = "id",
     ):
         items, total = crud.get_multi(
@@ -94,7 +92,7 @@ def crear_router_tramite(
     @router.get(
         "/{registro_id}",
         response_model=esquema_response,
-        summary=f"Obtener un registro de {nombre_recurso}",
+        summary=f"Get a {nombre_recurso} record",
     )
     def obtener(registro_id: int, db: Annotated[Session, Depends(get_db)]):
         return _obtener_o_404(db, registro_id)
@@ -103,7 +101,7 @@ def crear_router_tramite(
         "/",
         response_model=esquema_response,
         status_code=status.HTTP_201_CREATED,
-        summary=f"Crear un registro de {nombre_recurso}",
+        summary=f"Create a {nombre_recurso} record",
     )
     def crear(
         request: Request,
@@ -126,7 +124,7 @@ def crear_router_tramite(
     @router.patch(
         "/{registro_id}",
         response_model=esquema_response,
-        summary=f"Actualizar parcialmente un registro de {nombre_recurso}",
+        summary=f"Partially update a {nombre_recurso} record",
     )
     def actualizar(
         request: Request,
@@ -136,8 +134,8 @@ def crear_router_tramite(
         usuario: UsuarioActual,
     ):
         registro = _obtener_o_404(db, registro_id)
-        # `datos` llega como el esquema concreto del recurso; se acota a
-        # BaseModel para poder leer los campos realmente enviados.
+        # `datos` arrives as the resource's concrete schema; narrowed to
+        # BaseModel to read which fields were actually sent.
         campos = sorted(cast(BaseModel, datos).model_dump(exclude_unset=True))
         actualizado = crud.update(db, db_obj=registro, obj_in=datos)
         auditoria.registrar(
@@ -148,8 +146,8 @@ def crear_router_tramite(
             registro_id=registro_id,
             cliente_id=getattr(actualizado, "cliente_id", None),
             request=request,
-            # Se registran los nombres de los campos tocados, nunca sus valores:
-            # uno de ellos puede ser la credencial del cliente.
+            # Logs the names of the fields touched, never their values: one
+            # of them can be the client's credential.
             detalle={"campos": ",".join(campos)},
         )
         return actualizado
@@ -157,11 +155,11 @@ def crear_router_tramite(
     @router.delete(
         "/{registro_id}",
         status_code=status.HTTP_204_NO_CONTENT,
-        summary=f"Dar de baja un registro de {nombre_recurso}",
+        summary=f"Archive a {nombre_recurso} record",
         description=(
-            "Borrado logico: el registro deja de aparecer en los listados pero se "
-            "conserva para trazabilidad y puede reactivarse. La destruccion fisica "
-            "solo ocurre al aplicar la politica de retencion."
+            "Soft delete: the record stops appearing in listings but is kept "
+            "for traceability and can be reactivated. Physical destruction only "
+            "happens when the retention policy is applied."
         ),
     )
     def eliminar(
@@ -174,7 +172,7 @@ def crear_router_tramite(
         if registro is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No existe un registro activo de {nombre_recurso} con id {registro_id}.",
+                detail=f"No active {nombre_recurso} record exists with id {registro_id}.",
             )
         auditoria.registrar(
             db,
@@ -190,7 +188,7 @@ def crear_router_tramite(
     @router.post(
         "/{registro_id}/restaurar",
         response_model=esquema_response,
-        summary=f"Reactivar un registro de {nombre_recurso} dado de baja",
+        summary=f"Reactivate an archived {nombre_recurso} record",
     )
     def restaurar(
         request: Request,
@@ -203,8 +201,8 @@ def crear_router_tramite(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=(
-                    f"No hay un registro de {nombre_recurso} con id {registro_id} "
-                    "en estado dado de baja."
+                    f"There is no {nombre_recurso} record with id {registro_id} "
+                    "in an archived state."
                 ),
             )
         auditoria.registrar(
@@ -223,18 +221,18 @@ def crear_router_tramite(
         @router.get(
             "/{registro_id}/password",
             response_model=ContrasenaResponse,
-            summary=f"Descifrar la credencial de un registro de {nombre_recurso}",
+            summary=f"Decrypt the credential of a {nombre_recurso} record",
             description=(
-                "Devuelve la contrasena en claro de la cuenta del cliente. Es la "
-                "operacion mas sensible de la API y **siempre** queda asentada en "
-                "la bitacora de auditoria, con el usuario, la fecha y el registro "
-                "consultado. La contrasena en si jamas se registra."
+                "Returns the client account's password in the clear. It's the "
+                "most sensitive operation in the API and **always** gets logged "
+                "in the audit trail, with the user, the date and the record "
+                "queried. The password itself is never logged."
             ),
             responses={
                 500: {
                     "description": (
-                        "El criptograma no pudo descifrarse con la llave activa "
-                        "(llave rotada, dato corrupto o respaldo ajeno)."
+                        "The ciphertext could not be decrypted with the active key "
+                        "(rotated key, corrupted data, or someone else's backup)."
                     )
                 }
             },
@@ -250,8 +248,8 @@ def crear_router_tramite(
             try:
                 contrasena = crud.descifrar_secreto(registro)
             except ErrorDeDescifrado as exc:
-                # Se audita igual: el intento de acceso ocurrio, y ademas hay un
-                # problema de infraestructura que alguien debe atender.
+                # Still audited: the access attempt happened, and there's
+                # also an infrastructure problem someone needs to address.
                 auditoria.registrar(
                     db,
                     accion=Accion.CREDENCIAL_ILEGIBLE,
@@ -263,13 +261,14 @@ def crear_router_tramite(
                     request=request,
                 )
                 metricas.credenciales_consultadas.labels(recurso=tabla, resultado="ilegible").inc()
-                logger.error("Fallo de descifrado", exc_info=exc)
+                logger.error("Decryption failure", exc_info=exc)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=(
-                        "La credencial almacenada no pudo descifrarse con la llave "
-                        "activa. Revisa TRAMEX_FERNET_KEY: puede haberse rotado la "
-                        "llave o restaurado un respaldo cifrado con otra."
+                        "The stored credential could not be decrypted with the "
+                        "active key. Check TRAMEX_FERNET_KEY: the key may have "
+                        "been rotated, or a backup encrypted with a different one "
+                        "was restored."
                     ),
                 ) from exc
 

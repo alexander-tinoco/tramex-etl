@@ -1,9 +1,9 @@
 """
-Router administrativo: usuarios, bitacora de auditoria y retencion.
+Administrative router: users, audit log and retention.
 
-Todas sus rutas exigen rol `admin`. La separacion importa: una operadora
-necesita consultar credenciales de clientes para hacer su trabajo, pero no debe
-poder crear cuentas, leer quien consulto que ni destruir el historial.
+All its routes require the `admin` role. The separation matters: an operator
+needs to look up client credentials to do their job, but must not be able to
+create accounts, read who queried what, or destroy the history.
 """
 
 from __future__ import annotations
@@ -49,13 +49,11 @@ REPOSITORIOS = {
 
 
 # ---------------------------------------------------------------------------
-# Usuarios
+# Users
 # ---------------------------------------------------------------------------
 
 
-@router.get(
-    "/usuarios", response_model=PaginatedResponse[UsuarioResponse], summary="Listar usuarios"
-)
+@router.get("/usuarios", response_model=PaginatedResponse[UsuarioResponse], summary="List users")
 def listar_usuarios(
     db: Annotated[Session, Depends(get_db)],
     _: RequiereAdmin,
@@ -70,7 +68,7 @@ def listar_usuarios(
     "/usuarios",
     response_model=UsuarioResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Dar de alta un usuario",
+    summary="Create a user",
 )
 def crear_usuario(
     request: Request,
@@ -81,7 +79,7 @@ def crear_usuario(
     if crud_usuario.get_por_correo(db, datos.correo_electronico):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un usuario con ese correo.",
+            detail="A user with that email already exists.",
         )
 
     usuario = crud_usuario.create(db, datos=datos)
@@ -97,9 +95,7 @@ def crear_usuario(
     return usuario
 
 
-@router.patch(
-    "/usuarios/{usuario_id}", response_model=UsuarioResponse, summary="Actualizar un usuario"
-)
+@router.patch("/usuarios/{usuario_id}", response_model=UsuarioResponse, summary="Update a user")
 def actualizar_usuario(
     usuario_id: int,
     datos: UsuarioUpdate,
@@ -108,15 +104,16 @@ def actualizar_usuario(
 ):
     usuario = crud_usuario.get(db, usuario_id)
     if usuario is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario inexistente.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
-    # Degradar o desactivar al ultimo administrador dejaria el sistema sin
-    # nadie capaz de administrarlo, y recuperarlo exigiria tocar la base a mano.
+    # Demoting or deactivating the last administrator would leave the system
+    # with no one able to administer it, and recovering from that would
+    # require touching the database by hand.
     quita_admin = (datos.rol is not None and datos.rol != "admin") or datos.activo is False
     if usuario.es_admin and quita_admin and crud_usuario.contar_admins_activos(db) <= 1:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="No puedes dejar el sistema sin ningun administrador activo.",
+            detail="You cannot leave the system with no active administrator.",
         )
 
     return crud_usuario.update(db, usuario=usuario, datos=datos)
@@ -125,22 +122,22 @@ def actualizar_usuario(
 @router.delete(
     "/usuarios/{usuario_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Dar de baja un usuario",
+    summary="Deactivate a user",
 )
 def desactivar_usuario(
     usuario_id: int, db: Annotated[Session, Depends(get_db)], admin: RequiereAdmin
 ):
     usuario = crud_usuario.get(db, usuario_id)
     if usuario is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario inexistente.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     if usuario.id == admin.id:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="No puedes darte de baja a ti mismo."
+            status_code=status.HTTP_409_CONFLICT, detail="You cannot deactivate yourself."
         )
     if usuario.es_admin and crud_usuario.contar_admins_activos(db) <= 1:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="No puedes dejar el sistema sin ningun administrador activo.",
+            detail="You cannot leave the system with no active administrator.",
         )
 
     crud_usuario.desactivar(db, usuario=usuario)
@@ -148,18 +145,18 @@ def desactivar_usuario(
 
 
 # ---------------------------------------------------------------------------
-# Bitacora de auditoria
+# Audit log
 # ---------------------------------------------------------------------------
 
 
 @router.get(
     "/auditoria",
     response_model=PaginatedResponse[LogAuditoriaResponse],
-    summary="Consultar la bitacora de auditoria",
+    summary="Query the audit log",
     description=(
-        "Historial de eventos sensibles, del mas reciente al mas antiguo. "
-        "Ningun asiento contiene credenciales: se registra que se consulto, "
-        "nunca que se obtuvo."
+        "History of sensitive events, most recent first. No entry ever "
+        "contains credentials: what's logged is that something was looked "
+        "up, never what was obtained."
     ),
 )
 def consultar_auditoria(
@@ -167,11 +164,11 @@ def consultar_auditoria(
     _: RequiereAdmin,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
-    accion: Annotated[str | None, Query(description="Filtra por tipo de evento.")] = None,
-    usuario_id: Annotated[int | None, Query(description="Filtra por autor.")] = None,
-    nivel: Annotated[NivelAuditoria | None, Query(description="Filtra por severidad.")] = None,
+    accion: Annotated[str | None, Query(description="Filters by event type.")] = None,
+    usuario_id: Annotated[int | None, Query(description="Filters by author.")] = None,
+    nivel: Annotated[NivelAuditoria | None, Query(description="Filters by severity.")] = None,
     ultimos_dias: Annotated[
-        int | None, Query(ge=1, le=365, description="Acota a los ultimos N dias.")
+        int | None, Query(ge=1, le=365, description="Limits to the last N days.")
     ] = None,
 ):
     desde = datetime.now(UTC) - timedelta(days=ultimos_dias) if ultimos_dias else None
@@ -182,18 +179,18 @@ def consultar_auditoria(
 
 
 # ---------------------------------------------------------------------------
-# Retencion
+# Retention
 # ---------------------------------------------------------------------------
 
 
 @router.post(
     "/retencion/ejecutar",
     response_model=ResultadoRetencion,
-    summary="Aplicar la politica de retencion",
+    summary="Apply the retention policy",
     description=(
-        "Destruye definitivamente los registros archivados hace mas de "
-        "`DIAS_RETENCION` dias, y los asientos de auditoria fuera de ese periodo. "
-        "Es la unica operacion del sistema que borra datos de forma irreversible."
+        "Permanently destroys records archived more than `DIAS_RETENCION` "
+        "days ago, and audit entries outside that window. This is the only "
+        "operation in the system that deletes data irreversibly."
     ),
 )
 def ejecutar_retencion(
@@ -201,15 +198,13 @@ def ejecutar_retencion(
     db: Annotated[Session, Depends(get_db)],
     admin: RequiereAdmin,
     confirmar: Annotated[
-        bool, Query(description="Debe ser true; evita ejecuciones accidentales.")
+        bool, Query(description="Must be true; prevents accidental runs.")
     ] = False,
 ):
     if not confirmar:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "La purga es irreversible. Repite la llamada con `confirmar=true` para ejecutarla."
-            ),
+            detail=("The purge is irreversible. Repeat the call with `confirmar=true` to run it."),
         )
 
     corte = datetime.now(UTC) - timedelta(days=settings.dias_retencion)

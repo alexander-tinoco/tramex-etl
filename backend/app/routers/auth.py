@@ -1,9 +1,9 @@
 """
-Router de autenticacion.
+Authentication router.
 
-El login es el unico endpoint publico de la API y, por lo tanto, el mas
-expuesto. Concentra tres controles: verificacion en tiempo constante, bloqueo
-por intentos fallidos y registro en la bitacora de auditoria.
+Login is the API's only public endpoint and, therefore, the most exposed. It
+concentrates three controls: constant-time verification, lockout after
+failed attempts, and audit logging.
 """
 
 from __future__ import annotations
@@ -37,11 +37,12 @@ router = APIRouter()
 
 def _fijar_cookie(respuesta: Response, token: str) -> None:
     """
-    Deja la sesion en una cookie `httpOnly`.
+    Leaves the session in an `httpOnly` cookie.
 
-    Antes el token vivia en `localStorage`, accesible desde cualquier script de
-    la pagina: un XSS bastaba para robar la sesion. Una cookie `httpOnly` no es
-    legible desde JavaScript, y `SameSite` limita su envio desde otros sitios.
+    The token used to live in `localStorage`, reachable from any script on
+    the page: an XSS was enough to steal the session. An `httpOnly` cookie
+    can't be read from JavaScript, and `SameSite` limits it being sent from
+    other sites.
     """
     respuesta.set_cookie(
         key=COOKIE_SESION,
@@ -57,11 +58,11 @@ def _fijar_cookie(respuesta: Response, token: str) -> None:
 @router.post(
     "/token",
     response_model=TokenResponse,
-    summary="Iniciar sesion",
+    summary="Sign in",
     description=(
-        "Publico. Devuelve el token en una cookie `httpOnly` y tambien en el cuerpo, "
-        "para consumidores que no usan cookies. Tras varios intentos fallidos la "
-        "cuenta queda bloqueada temporalmente."
+        "Public. Returns the token in an `httpOnly` cookie and also in the "
+        "body, for consumers that don't use cookies. After several failed "
+        "attempts the account is temporarily locked."
     ),
 )
 def login(
@@ -73,7 +74,7 @@ def login(
     correo = formulario.username
     ip = obtener_ip(request)
 
-    # 1. Limite por origen: frena el barrido de muchas cuentas desde una IP.
+    # 1. Origin limit: slows down sweeping many accounts from one IP.
     if not limitador.estado_de_ip(ip).permitido:
         auditoria.registrar(
             db,
@@ -86,10 +87,10 @@ def login(
         metricas.intentos_de_login.labels(resultado="bloqueado_por_ip").inc()
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Demasiados intentos desde este origen. Intenta mas tarde.",
+            detail="Too many attempts from this origin. Try again later.",
         )
 
-    # 2. Bloqueo de la cuenta: protege aunque el atacante rote de IP.
+    # 2. Account lockout: protects even if the attacker rotates IPs.
     estado = limitador.estado_de_cuenta(correo)
     if not estado.permitido:
         auditoria.registrar(
@@ -104,8 +105,8 @@ def login(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
-                "Cuenta bloqueada temporalmente por intentos fallidos. "
-                f"Vuelve a intentar en {max(1, estado.segundos_restantes // 60)} minuto(s)."
+                "Account temporarily locked due to failed attempts. "
+                f"Try again in {max(1, estado.segundos_restantes // 60)} minute(s)."
             ),
         )
 
@@ -122,11 +123,12 @@ def login(
             detalle={"intentos_en_ventana": veredicto.intentos},
         )
         metricas.intentos_de_login.labels(resultado="fallido").inc()
-        # El mensaje no distingue "no existe" de "contrasena incorrecta": decirlo
-        # permitiria enumerar que cuentas son validas.
+        # The message doesn't distinguish "doesn't exist" from "wrong
+        # password": saying so would let someone enumerate which accounts
+        # are valid.
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales incorrectas.",
+            detail="Incorrect credentials.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -145,29 +147,29 @@ def login(
     )
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Cerrar sesion")
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="Sign out")
 def logout(
     request: Request,
     respuesta: Response,
     db: Annotated[Session, Depends(get_db)],
     usuario: UsuarioActual,
 ):
-    """Borra la cookie de sesion y deja constancia del cierre."""
+    """Clears the session cookie and logs the sign-out."""
     auditoria.registrar(db, accion=Accion.LOGOUT, usuario=usuario, request=request)
     respuesta.delete_cookie(COOKIE_SESION, path="/")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/me", response_model=UsuarioResponse, summary="Usuario de la sesion actual")
+@router.get("/me", response_model=UsuarioResponse, summary="Current session's user")
 def yo(usuario: UsuarioActual):
-    """Permite al dashboard saber quien esta autenticado y con que rol."""
+    """Lets the dashboard know who is authenticated and with what role."""
     return usuario
 
 
 @router.post(
     "/cambiar-contrasena",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Cambiar la propia contrasena",
+    summary="Change your own password",
 )
 def cambiar_contrasena(
     request: Request,
@@ -175,7 +177,7 @@ def cambiar_contrasena(
     db: Annotated[Session, Depends(get_db)],
     usuario: UsuarioActual,
 ):
-    """Exige la contrasena vigente para que una sesion robada no pueda secuestrar la cuenta."""
+    """Requires the current password so a stolen session can't hijack the account."""
     if not verificar_contrasena(datos.contrasena_actual, usuario.contrasena_hash):
         auditoria.registrar(
             db,
@@ -186,13 +188,13 @@ def cambiar_contrasena(
             detalle={"operacion": "cambio_de_contrasena"},
         )
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="La contrasena actual no coincide."
+            status_code=status.HTTP_403_FORBIDDEN, detail="The current password doesn't match."
         )
 
     if datos.contrasena_nueva == datos.contrasena_actual:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="La contrasena nueva debe ser distinta de la actual.",
+            detail="The new password must be different from the current one.",
         )
 
     crud_usuario.cambiar_contrasena(db, usuario=usuario, nueva=datos.contrasena_nueva)

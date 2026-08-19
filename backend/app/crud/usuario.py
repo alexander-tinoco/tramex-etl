@@ -1,10 +1,10 @@
 """
-Repositorio de usuarios.
+User repository.
 
-No hereda de `CRUDBase` porque los usuarios no participan del pipeline de
-ingesta: no tienen clave natural ni hash de fila, y su alta nunca viene del
-Excel. Forzar la herencia solo para reutilizar dos metodos habria arrastrado
-columnas que no significan nada en esta tabla.
+Doesn't inherit from `CRUDBase` because users don't take part in the ingest
+pipeline: they have no natural key or row hash, and they're never created
+from the Excel. Forcing the inheritance just to reuse two methods would have
+dragged in columns that mean nothing on this table.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from app.security import hashear_contrasena
 
 
 class CRUDUsuario:
-    """Acceso a la tabla de usuarios."""
+    """Access to the users table."""
 
     def get(self, db: Session, usuario_id: int) -> Usuario | None:
         return db.scalar(
@@ -44,7 +44,7 @@ class CRUDUsuario:
         return list(usuarios), total
 
     def create(self, db: Session, *, datos: UsuarioCreate) -> Usuario:
-        """Da de alta un usuario. La contrasena se hashea antes de tocar la sesion."""
+        """Creates a user. The password is hashed before touching the session."""
         usuario = Usuario(
             correo_electronico=datos.correo_electronico.strip().lower(),
             nombre=datos.nombre,
@@ -81,10 +81,11 @@ class CRUDUsuario:
 
     def desactivar(self, db: Session, *, usuario: Usuario) -> Usuario:
         """
-        Baja logica del usuario.
+        Soft-deactivates the user.
 
-        No se elimina la fila: la bitacora de auditoria referencia al autor de
-        cada evento, y destruirlo dejaria asientos historicos sin responsable.
+        The row is not removed: the audit log references the author of each
+        event, and destroying it would leave historical entries without an
+        owner.
         """
         usuario.activo = False
         usuario.eliminado_en = datetime.now(UTC)
@@ -94,7 +95,7 @@ class CRUDUsuario:
         return usuario
 
     def contar_admins_activos(self, db: Session) -> int:
-        """Cuenta administradores vigentes, para no dejar el sistema sin ninguno."""
+        """Counts active administrators, so the system is never left without one."""
         return (
             db.scalar(
                 select(func.count())

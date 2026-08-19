@@ -1,8 +1,8 @@
 """
-Routers de los cuatro recursos de tramite.
+Routers for the four tramite resources.
 
-Todos se construyen con la misma fabrica; este modulo solo declara que
-repositorio y que esquemas corresponden a cada uno.
+All are built with the same factory; this module just declares which
+repository and which schemas belong to each one.
 """
 
 from app.crud import crud_canada, crud_global, crud_master, crud_pasaporte

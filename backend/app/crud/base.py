@@ -1,10 +1,11 @@
 """
-Capa de repositorio generica.
+Generic repository layer.
 
-Toda la logica transversal a las cuatro tablas de tramite vive aqui: identidad
-reproducible (`clave_natural` / `hash_fila`), cifrado y descifrado del campo
-secreto, borrado logico y busqueda paginada. Los repositorios concretos solo
-declaran su modelo y su definicion de entidad; no reimplementan nada de esto.
+All the logic shared by the four tramite tables lives here: reproducible
+identity (`clave_natural` / `hash_fila`), encrypting and decrypting the secret
+field, soft delete and paginated search. The concrete repositories only
+declare their model and their entity definition; none of this gets
+reimplemented.
 """
 
 from __future__ import annotations
@@ -21,9 +22,9 @@ from app.config import fernet
 from app.models import RegistroBase
 from tramex_shared import DefinicionEntidad, calcular_clave_natural, calcular_hash_fila
 
-#: Acotado a `RegistroBase` y no a la base declarativa pelada: los metodos de
-#: este repositorio leen `id`, `nombre`, `clave_natural` y `eliminado_en`, y
-#: solo esa base garantiza que esas columnas existan.
+#: Bound to `RegistroBase` rather than the bare declarative base: this
+#: repository's methods read `id`, `nombre`, `clave_natural` and
+#: `eliminado_en`, and only that base guarantees those columns exist.
 ModelType = TypeVar("ModelType", bound=RegistroBase)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
@@ -31,28 +32,28 @@ UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 class ErrorDeDescifrado(Exception):
     """
-    El criptograma almacenado no pudo descifrarse con la llave activa.
+    The stored ciphertext could not be decrypted with the active key.
 
-    Se lanza en vez de devolver `None` porque las dos situaciones son
-    radicalmente distintas: "este registro no tiene contrasena" es un dato
-    normal, mientras que "hay un criptograma que no abre" significa que la
-    llave Fernet fue rotada, que el dato esta corrupto o que se restauro un
-    respaldo con otra llave. Silenciarlo haria que el sistema reportara
-    "sin contrasena" mientras pierde credenciales de clientes reales.
+    Raised instead of returning `None` because the two situations are
+    radically different: "this record has no password" is a normal state,
+    while "there's a ciphertext that won't open" means the Fernet key was
+    rotated, the data is corrupted, or a backup encrypted with a different
+    key was restored. Silencing it would make the system report "no
+    password" while actually losing real clients' credentials.
     """
 
 
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
-    """Operaciones CRUD comunes sobre un modelo con identidad y borrado logico."""
+    """Common CRUD operations on a model with identity and soft delete."""
 
     def __init__(self, model: type[ModelType], definicion: DefinicionEntidad) -> None:
         self.model = model
         self.definicion = definicion
 
-    # -- Identidad --------------------------------------------------------
+    # -- Identity -----------------------------------------------------------
 
     def calcular_identidad(self, datos: dict[str, Any]) -> tuple[str, str]:
-        """Devuelve `(clave_natural, hash_fila)` para un diccionario de negocio."""
+        """Returns `(clave_natural, hash_fila)` for a business dict."""
         clave = calcular_clave_natural(
             self.definicion.tabla,
             (datos.get(campo) for campo in self.definicion.campos_clave),
@@ -60,7 +61,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         contenido = {campo: datos.get(campo) for campo in self.definicion.campos_negocio}
         return clave, calcular_hash_fila(contenido)
 
-    # -- Lectura ----------------------------------------------------------
+    # -- Reads ----------------------------------------------------------
 
     def _base_query(self, *, incluir_eliminados: bool = False):
         consulta = select(self.model)
@@ -69,7 +70,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return consulta
 
     def get(self, db: Session, id: Any, *, incluir_eliminados: bool = False) -> ModelType | None:
-        """Obtiene un registro por su clave primaria."""
+        """Fetches a record by its primary key."""
         consulta = self._base_query(incluir_eliminados=incluir_eliminados)
         return db.scalar(consulta.where(self.model.id == id))
 
@@ -77,14 +78,14 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         self, db: Session, clave_natural: str, *, incluir_eliminados: bool = True
     ) -> ModelType | None:
         """
-        Obtiene un registro por su huella de identidad.
+        Fetches a record by its identity fingerprint.
 
-        La unicidad de `clave_natural` es parcial (solo entre registros
-        activos), asi que una misma identidad puede tener un registro vigente y
-        varias versiones archivadas. Se devuelve el vigente si existe y, en su
-        defecto, el archivado mas reciente: si el ETL reprocesa una fila que una
-        operadora habia dado de baja, corresponde reactivar la existente en vez
-        de acumular otra copia.
+        Uniqueness of `clave_natural` is partial (only among active records),
+        so the same identity can have one current record and several
+        archived versions. The current one is returned if it exists;
+        otherwise, the most recently archived one: if the ETL reprocesses a
+        row that an operator had archived, the right move is to reactivate
+        the existing record rather than pile up another copy.
         """
         consulta = self._base_query(incluir_eliminados=incluir_eliminados).where(
             self.model.clave_natural == clave_natural
@@ -104,28 +105,29 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         orden: str = "id",
     ) -> tuple[list[ModelType], int]:
         """
-        Lista paginada mas el total de coincidencias.
+        Paginated list plus the total match count.
 
-        `orden="reciente"` devuelve primero lo ultimo tocado. Lo usa el tablero
-        de movimientos de la pantalla inicial, cuya pregunta es "que ha pasado
-        hoy" y no "cual fue el primer registro que se cargo".
+        `orden="reciente"` returns whatever was touched last, first. It's
+        used by the recent-activity board on the landing screen, whose
+        question is "what happened today", not "what was the first record
+        ever loaded".
         """
         consulta = self._base_query(incluir_eliminados=incluir_eliminados)
         if buscar:
             consulta = consulta.where(self.model.nombre.ilike(f"%{buscar}%"))
         if cliente_id is not None and hasattr(self.model, "cliente_id"):
-            # `cliente_id` existe en las cuatro tablas de tramite pero no en
-            # `clientes`, que es la raiz; de ahi la comprobacion previa y este
-            # silenciador acotado a esa linea.
+            # `cliente_id` exists on the four tramite tables but not on
+            # `clientes`, which is the root; hence the guard above and this
+            # `type: ignore` scoped to just this line.
             consulta = consulta.where(self.model.cliente_id == cliente_id)  # type: ignore[attr-defined]
 
         total = db.scalar(select(func.count()).select_from(consulta.subquery())) or 0
 
         criterio: tuple[Any, ...]
         if orden == "reciente":
-            # El id se mantiene como desempate para que el orden sea total y la
-            # paginacion no repita ni se salte filas cuando varias comparten
-            # marca de tiempo, que es lo normal tras una carga del ETL.
+            # `id` stays as the tiebreaker so the order is total and
+            # pagination doesn't repeat or skip rows when several share a
+            # timestamp, which is normal after an ETL load.
             criterio = (self.model.actualizado_en.desc(), self.model.id.desc())
         else:
             criterio = (self.model.id,)
@@ -135,16 +137,16 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         ).all()
         return list(registros), total
 
-    # -- Escritura --------------------------------------------------------
+    # -- Writes --------------------------------------------------------
 
     def _preparar(self, datos: dict[str, Any]) -> dict[str, Any]:
         """
-        Traduce un diccionario de negocio a columnas persistibles.
+        Translates a business dict into persistable columns.
 
-        Cifra el campo secreto y calcula las huellas de identidad. El hash se
-        calcula *antes* del cifrado: Fernet usa un IV aleatorio, asi que el
-        criptograma cambia en cada llamada y compararlo siempre indicaria
-        "modificado".
+        Encrypts the secret field and computes the identity fingerprints.
+        The hash is computed *before* encryption: Fernet uses a random IV, so
+        the ciphertext changes on every call, and comparing it would always
+        say "modified".
         """
         preparado = dict(datos)
         clave_natural, hash_fila = self.calcular_identidad(preparado)
@@ -160,7 +162,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return preparado
 
     def create(self, db: Session, *, obj_in: CreateSchemaType | dict[str, Any]) -> ModelType:
-        """Crea un registro nuevo con identidad y cifrado ya resueltos."""
+        """Creates a new record with identity and encryption already resolved."""
         datos = obj_in if isinstance(obj_in, dict) else obj_in.model_dump()
         registro = self.model(**self._preparar(datos))
         db.add(registro)
@@ -176,19 +178,19 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         obj_in: UpdateSchemaType | dict[str, Any],
     ) -> ModelType:
         """
-        Actualiza parcialmente un registro (semantica PATCH).
+        Partially updates a record (PATCH semantics).
 
-        `exclude_unset=True` distingue "campo ausente en la peticion" (se deja
-        como esta) de "campo enviado explicitamente como null" (se borra), que
-        son intenciones distintas y no deben confundirse.
+        `exclude_unset=True` distinguishes "field absent from the request"
+        (left as-is) from "field explicitly sent as null" (erased), which
+        are different intentions and must not be conflated.
         """
         if isinstance(obj_in, dict):
             cambios = dict(obj_in)
         else:
             cambios = obj_in.model_dump(exclude_unset=True)
 
-        # Se parte del estado actual para que las huellas reflejen la fila
-        # completa resultante y no solo el subconjunto enviado.
+        # Starts from the current state so the fingerprints reflect the
+        # resulting full row, not just the submitted subset.
         estado = self.exportar_negocio(db_obj)
         estado.update(cambios)
 
@@ -203,10 +205,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     def exportar_negocio(self, db_obj: ModelType) -> dict[str, Any]:
         """
-        Reconstruye el diccionario de negocio de un registro persistido.
+        Rebuilds the business dict of a persisted record.
 
-        El campo secreto se recupera descifrado para que un PATCH que no lo
-        incluya no invalide el hash de la fila.
+        The secret field is recovered decrypted so a PATCH that doesn't
+        include it doesn't invalidate the row hash.
         """
         datos: dict[str, Any] = {}
         for campo in self.definicion.campos_negocio:
@@ -216,15 +218,15 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
                 datos[campo] = getattr(db_obj, campo, None)
         return datos
 
-    # -- Borrado logico ---------------------------------------------------
+    # -- Soft delete ---------------------------------------------------
 
     def remove(self, db: Session, *, id: int) -> ModelType | None:
         """
-        Marca el registro como eliminado sin destruirlo.
+        Marks the record as deleted without destroying it.
 
-        Se conserva para trazabilidad: en un sistema con datos personales, un
-        borrado accidental debe poder revertirse y una baja debe poder
-        auditarse. La destruccion fisica ocurre en `purgar`.
+        Kept for traceability: in a system with personal data, an accidental
+        deletion must be reversible and an archival must be auditable.
+        Physical destruction happens in `purgar`.
         """
         registro = self.get(db, id)
         if registro is None:
@@ -236,7 +238,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return registro
 
     def restore(self, db: Session, *, id: int) -> ModelType | None:
-        """Revierte un borrado logico."""
+        """Reverts a soft delete."""
         registro = self.get(db, id, incluir_eliminados=True)
         if registro is None or registro.eliminado_en is None:
             return None
@@ -247,7 +249,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return registro
 
     def purgar(self, db: Session, *, id: int) -> ModelType | None:
-        """Destruye fisicamente un registro ya marcado como eliminado."""
+        """Physically destroys a record already marked as deleted."""
         registro = self.get(db, id, incluir_eliminados=True)
         if registro is None or registro.eliminado_en is None:
             return None
@@ -257,10 +259,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     def purgar_vencidos(self, db: Session, *, antes_de: datetime) -> int:
         """
-        Purga los registros borrados logicamente antes de una fecha de corte.
+        Purges records soft-deleted before a cutoff date.
 
-        Es el mecanismo con el que se aplica la politica de retencion.
-        Devuelve cuantas filas se destruyeron.
+        This is the mechanism that enforces the retention policy. Returns how
+        many rows were destroyed.
         """
         vencidos = db.scalars(
             select(self.model).where(
@@ -273,17 +275,17 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db.commit()
         return len(vencidos)
 
-    # -- Secreto ----------------------------------------------------------
+    # -- Secret ----------------------------------------------------------
 
     def descifrar_secreto(self, db_obj: ModelType, *, estricto: bool = True) -> str | None:
         """
-        Descifra la credencial almacenada.
+        Decrypts the stored credential.
 
-        Devuelve `None` unicamente cuando el registro no tiene criptograma. Si
-        hay criptograma pero no abre con la llave activa, lanza
-        `ErrorDeDescifrado` en modo estricto: es un fallo de infraestructura
-        (llave rotada, dato corrupto, respaldo ajeno) y debe escalar, no
-        confundirse con la ausencia de contrasena.
+        Returns `None` only when the record has no ciphertext. If there's a
+        ciphertext but it won't open with the active key, raises
+        `ErrorDeDescifrado` in strict mode: that's an infrastructure failure
+        (rotated key, corrupted data, someone else's backup) and must
+        surface, not be mistaken for the absence of a password.
         """
         if self.definicion.campo_secreto is None:
             return None
@@ -292,10 +294,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             return None
         try:
             return fernet.decrypt(criptograma.encode()).decode()
-        except Exception as exc:  # InvalidToken y errores de codificacion
+        except Exception as exc:  # InvalidToken and encoding errors
             if estricto:
                 raise ErrorDeDescifrado(
-                    f"El criptograma de {self.definicion.tabla}#{db_obj.id} no pudo "
-                    "descifrarse con la llave activa (TRAMEX_FERNET_KEY)."
+                    f"The ciphertext for {self.definicion.tabla}#{db_obj.id} could not "
+                    "be decrypted with the active key (TRAMEX_FERNET_KEY)."
                 ) from exc
             return None
