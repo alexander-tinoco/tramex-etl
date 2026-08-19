@@ -1,8 +1,8 @@
-# Stack de desarrollo.
+# Development stack.
 #
-# Levanta el ecosistema completo con recarga en caliente. Para produccion se
-# usa docker-compose.prod.yml, que consume las imagenes publicadas en GHCR y
-# no monta el codigo como volumen.
+# Brings up the full ecosystem with hot reload. Production uses
+# docker-compose.prod.yml, which consumes the images published to GHCR and
+# does not mount the code as a volume.
 #
 #   docker compose up -d
 
@@ -31,8 +31,8 @@ services:
     image: redis:7-alpine
     container_name: tramex_redis
     restart: unless-stopped
-    # Los contadores de fuerza bruta se pueden reconstruir; no hace falta
-    # persistirlos, y desactivar el volcado evita escrituras innecesarias.
+    # The brute-force counters can be rebuilt; there's no need to persist
+    # them, and disabling the dump avoids unnecessary writes.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "6379:6379"
@@ -42,9 +42,9 @@ services:
       timeout: 3s
       retries: 5
 
-  # Job de una sola ejecucion. Las migraciones NO viven en el arranque de la
-  # API: con varias replicas, todas intentarian migrar a la vez sobre la misma
-  # base. Aqui se aplican una vez y ademas se siembra el administrador inicial.
+  # One-shot job. Migrations do NOT live in the API's startup: with several
+  # replicas, they'd all try to migrate the same database at once. Here they
+  # run once and also seed the initial administrator.
   migraciones:
     build:
       context: .
@@ -54,7 +54,7 @@ services:
     command: sh -c "alembic upgrade head && python -m scripts.sembrar_admin"
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres_password@db:5432/tramex
-      TRAMEX_FERNET_KEY: ${TRAMEX_FERNET_KEY:?define TRAMEX_FERNET_KEY en un .env de la raiz}
+      TRAMEX_FERNET_KEY: ${TRAMEX_FERNET_KEY:?define TRAMEX_FERNET_KEY in a root .env file}
       API_SECRET_KEY: ${API_SECRET_KEY:-clave-de-desarrollo-no-usar-en-produccion}
       APP_ENV: development
       ADMIN_INICIAL_CORREO: ${ADMIN_INICIAL_CORREO:-admin@example.com}
@@ -75,7 +75,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres_password@db:5432/tramex
       REDIS_URL: redis://redis:6379
-      TRAMEX_FERNET_KEY: ${TRAMEX_FERNET_KEY:?define TRAMEX_FERNET_KEY en un .env de la raiz}
+      TRAMEX_FERNET_KEY: ${TRAMEX_FERNET_KEY:?define TRAMEX_FERNET_KEY in a root .env file}
       API_SECRET_KEY: ${API_SECRET_KEY:-clave-de-desarrollo-no-usar-en-produccion}
       APP_ENV: development
       ALLOWED_ORIGINS: http://localhost:4200,http://localhost:8080
@@ -83,7 +83,7 @@ services:
       LOG_LEVEL: INFO
       SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
-      # Solo el codigo; el entorno de Python vive en la imagen.
+      # Code only; the Python environment lives in the image.
       - ./backend/app:/app/app
       - ./backend/scripts:/app/scripts
       - ./shared:/app/shared
@@ -105,16 +105,16 @@ services:
     restart: unless-stopped
     volumes:
       - ./frontend/src:/app/src
-      # Los activos estaticos (logotipo, favicon) tambien se montan: sin esto,
-      # anadir una imagen obligaria a reconstruir la imagen de Docker para
-      # verla, y el navegador devolveria 404 sin explicar por que.
+      # Static assets (logo, favicon) are mounted too: without this, adding
+      # an image would require rebuilding the Docker image to see it, and the
+      # browser would return a 404 without explaining why.
       - ./frontend/public:/app/public
-      # Volumen anonimo para que node_modules de la imagen no quede tapado por
-      # el del host, que puede tener binarios de otra plataforma.
+      # Anonymous volume so the image's node_modules isn't shadowed by the
+      # host's, which may contain binaries for a different platform.
       - /app/node_modules
     environment:
-      # Dentro del contenedor `localhost` es el propio dashboard; la API
-      # responde en el nombre del servicio de la red de Docker.
+      # Inside the container `localhost` is the dashboard itself; the API
+      # answers at the Docker network's service name.
       API_PROXY_TARGET: http://backend:8000
     ports:
       - "4200:4200"
@@ -140,8 +140,8 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
-      # El panel es de solo lectura para invitados; no hay datos de clientes en
-      # las metricas, pero tampoco hace falta abrir el registro.
+      # The dashboard is read-only for guests; there's no client data in the
+      # metrics, but there's still no reason to open up sign-up.
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro

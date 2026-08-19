@@ -1,33 +1,33 @@
 ---
-name: Propuesta de funcionalidad
-about: Sugiere una mejora o una capacidad nueva
+name: Feature request
+about: Suggest an improvement or a new capability
 title: "feat: "
 labels: ["enhancement"]
 assignees: ""
 ---
 
-## Problema que resuelve
+## Problem it solves
 
-Describe la necesidad operativa concreta. Ejemplo: "la operadora no puede saber
-que citas vencen esta semana sin revisar registro por registro".
+Describe the concrete operational need. Example: "the operator has no way to
+tell which appointments expire this week without checking record by record".
 
-## Solucion propuesta
+## Proposed solution
 
-Que deberia hacer el sistema.
+What should the system do.
 
-## Modulo afectado
+## Affected module
 
 - [ ] ETL (`etl/`)
 - [ ] API / Backend (`backend/`)
 - [ ] Dashboard / Frontend (`frontend/`)
-- [ ] Infraestructura (Docker, CI/CD, observabilidad)
+- [ ] Infrastructure (Docker, CI/CD, observability)
 
-## Impacto en datos sensibles
+## Impact on sensitive data
 
-- [ ] La funcionalidad **no** accede a credenciales de clientes.
-- [ ] La funcionalidad accede a credenciales y por lo tanto requiere registro en `logs_auditoria`.
-- [ ] La funcionalidad requiere cambios en el esquema (implica migracion de Alembic y ADR).
+- [ ] The feature does **not** access client credentials.
+- [ ] The feature accesses credentials and therefore requires logging in `logs_auditoria`.
+- [ ] The feature requires schema changes (implies an Alembic migration and an ADR).
 
-## Alternativas consideradas
+## Alternatives considered
 
-Que otros enfoques evaluaste y por que los descartaste.
+What other approaches you evaluated and why you ruled them out.

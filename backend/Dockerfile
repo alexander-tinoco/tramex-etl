@@ -1,16 +1,16 @@
 # syntax=docker/dockerfile:1
 #
-# Imagen de la API de Tramex.
+# Tramex API image.
 #
-# El contexto de build es la RAIZ del repositorio, no ./backend, porque la API
-# y el pipeline ETL comparten el paquete `shared/`: las reglas de identidad de
-# registros deben ser exactamente las mismas en ambos, y copiar una copia en
-# cada imagen crearia dos fuentes de verdad que acabarian divergiendo.
+# The build context is the repository ROOT, not ./backend, because the API
+# and the ETL pipeline share the `shared/` package: record identity rules
+# must be exactly the same in both, and copying a duplicate into each image
+# would create two sources of truth that would eventually drift apart.
 #
 #   docker build -f backend/Dockerfile --target production .
 
 # ---------------------------------------------------------------------------
-# Etapa base: dependencias del sistema y de Python
+# Base stage: system and Python dependencies
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim AS base
 
@@ -21,9 +21,9 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# libpq5 es la biblioteca de PostgreSQL en tiempo de ejecucion; las
-# herramientas de compilacion solo hacen falta si pip tuviera que construir
-# alguna rueda, y se eliminan en la misma capa para no dejarlas en la imagen.
+# libpq5 is the PostgreSQL runtime library; the build tools are only needed
+# if pip has to build a wheel, and they're removed in the same layer so they
+# don't stay in the image.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libpq5 curl \
     && rm -rf /var/lib/apt/lists/*
@@ -39,7 +39,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
-# Etapa de desarrollo: codigo montado como volumen y recarga en caliente
+# Development stage: code mounted as a volume, hot reload
 # ---------------------------------------------------------------------------
 FROM base AS development
 
@@ -48,12 +48,13 @@ EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 # ---------------------------------------------------------------------------
-# Etapa de produccion
+# Production stage
 # ---------------------------------------------------------------------------
 FROM base AS production
 
-# Usuario sin privilegios: si alguien consigue ejecucion dentro del contenedor,
-# no debe encontrarse siendo root. La imagen anterior corria como root.
+# Unprivileged user: if someone manages to get execution inside the
+# container, they shouldn't find themselves as root. The previous image ran
+# as root.
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin tramex
 
 COPY --chown=tramex:tramex backend/app ./app
@@ -69,8 +70,8 @@ USER tramex
 ENV APP_ENV=production
 EXPOSE 8000
 
-# La sonda la evalua el orquestador para decidir si enviar trafico a esta
-# instancia; consulta la base, no solo el proceso.
+# The orchestrator evaluates the probe to decide whether to send traffic to
+# this instance; it queries the database, not just the process.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS http://localhost:8000/health || exit 1
 

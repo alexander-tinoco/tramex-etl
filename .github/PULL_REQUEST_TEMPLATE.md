@@ -1,48 +1,48 @@
-## Descripcion del Cambio
+## Description of the Change
 
-Resume que cambia y por que. Enlaza el issue relacionado (ej. "Cierra #12").
+Summarize what changes and why. Link the related issue (e.g. "Closes #12").
 
-## Tipo de Cambio
+## Type of Change
 
-- [ ] `feat` — nueva funcionalidad
-- [ ] `fix` — correccion de un defecto
-- [ ] `refactor` — cambio interno sin alterar el comportamiento observable
-- [ ] `docs` — solo documentacion
-- [ ] `build` / `ci` / `chore` — tooling, dependencias o pipelines
-
----
-
-## Checklist de Revision
-
-### Calidad
-- [ ] `ruff check` y `ruff format --check` pasan sobre `backend/` y `etl/`.
-- [ ] `mypy app` no reporta errores nuevos en el backend.
-- [ ] `npx tsc --noEmit` compila limpio en el frontend y `npm run lint` no arroja errores.
-
-### Pruebas
-- [ ] Los tests del backend pasan y la cobertura sigue por encima del umbral (`--cov-fail-under=85`).
-- [ ] Los tests del ETL pasan (`pytest etl/tests/`).
-- [ ] Los tests del frontend pasan (`npm test -- --watch=false --browsers=ChromeHeadless`).
-- [ ] Se agregaron pruebas para el comportamiento nuevo o para el defecto corregido.
-
-### Datos sensibles y seguridad
-- [ ] No se agregaron secretos, `.env` reales, archivos de `raw-data/` ni volcados de base de datos.
-- [ ] Los datos usados en tests, capturas y ejemplos son **sinteticos**.
-- [ ] Si el cambio lee credenciales descifradas, **escribe el evento en `logs_auditoria`**.
-- [ ] Ningun log nuevo imprime contrasenas, tokens ni cookies.
-
-### Contrato y migraciones
-- [ ] No se rompio el contrato JSON de los endpoints existentes (o el cambio esta versionado y documentado).
-- [ ] Si el esquema cambio, se agrego una migracion de Alembic reversible (`upgrade` **y** `downgrade`).
-- [ ] Si cambio el modelo de datos, la autenticacion o el contrato publico, se agrego o actualizo un ADR en `docs/decisions/`.
-
-### Infraestructura
-- [ ] `docker compose config` es valido y las imagenes compilan.
-- [ ] El `README.md` se actualizo si cambiaron endpoints, variables de entorno o el flujo de arranque.
+- [ ] `feat` — new feature
+- [ ] `fix` — bug fix
+- [ ] `refactor` — internal change with no observable behavior change
+- [ ] `docs` — documentation only
+- [ ] `build` / `ci` / `chore` — tooling, dependencies or pipelines
 
 ---
 
-## Evidencia
+## Review Checklist
 
-Adjunta capturas del antes y despues si el cambio afecta al dashboard, o la salida
-relevante de consola/logs si afecta al ETL o a la API.
+### Quality
+- [ ] `ruff check` and `ruff format --check` pass on `backend/` and `etl/`.
+- [ ] `mypy app` reports no new errors in the backend.
+- [ ] `npx tsc --noEmit` compiles clean on the frontend and `npm run lint` reports no errors.
+
+### Tests
+- [ ] Backend tests pass and coverage stays above the threshold (`--cov-fail-under=85`).
+- [ ] ETL tests pass (`pytest etl/tests/`).
+- [ ] Frontend tests pass (`npm test -- --watch=false --browsers=ChromeHeadless`).
+- [ ] Tests were added for the new behavior or the fixed bug.
+
+### Sensitive data and security
+- [ ] No secrets, real `.env` files, `raw-data/` files or database dumps were added.
+- [ ] Data used in tests, screenshots and examples is **synthetic**.
+- [ ] If the change reads decrypted credentials, **it writes the event to `logs_auditoria`**.
+- [ ] No new log prints passwords, tokens or cookies.
+
+### Contract and migrations
+- [ ] The JSON contract of existing endpoints wasn't broken (or the change is versioned and documented).
+- [ ] If the schema changed, a reversible Alembic migration was added (`upgrade` **and** `downgrade`).
+- [ ] If the data model, authentication or public contract changed, an ADR was added or updated in `docs/decisions/`.
+
+### Infrastructure
+- [ ] `docker compose config` is valid and the images build.
+- [ ] `README.md` was updated if endpoints, environment variables or the startup flow changed.
+
+---
+
+## Evidence
+
+Attach before/after screenshots if the change affects the dashboard, or the
+relevant console/log output if it affects the ETL or the API.

@@ -6,16 +6,16 @@ on:
   pull_request:
     branches: [main]
 
-# Un push nuevo sobre la misma rama cancela la ejecucion anterior: revisar un
-# commit que ya quedo obsoleto solo gasta minutos de runner.
+# A new push on the same branch cancels the previous run: reviewing a commit
+# that's already stale just burns runner minutes.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Llave Fernet valida generada exclusivamente para la CI. No cifra ningun
-  # dato real; existe porque la configuracion es fail-fast y sin ella la
-  # aplicacion no arranca ni para correr las pruebas.
+  # Valid Fernet key generated exclusively for CI. It doesn't encrypt any
+  # real data; it exists because configuration is fail-fast and without it
+  # the application won't even start to run the tests.
   TRAMEX_FERNET_KEY: "CxNCUQhBIDIRsETw8i-dfZBdmcnh6YX43VWS-9txMY4="
   API_SECRET_KEY: "clave-de-ci-sin-valor-en-produccion"
   APP_ENV: development
@@ -24,23 +24,22 @@ env:
 jobs:
   # ---------------------------------------------------------------------------
   secretos:
-    name: Escaneo de secretos
+    name: Secret scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          # Gitleaks revisa el historial completo, no solo el ultimo commit:
-          # un secreto filtrado sigue estando filtrado aunque ya se haya
-          # borrado del archivo.
+          # Gitleaks scans the full history, not just the latest commit: a
+          # leaked secret is still leaked even after it's removed from the file.
           fetch-depth: 0
 
-      # gitleaks-action detecta y usa automaticamente el `.gitleaks.toml` de la
-      # raiz del repositorio (sin variable GITLEAKS_CONFIG ni --config, es la
-      # busqueda por defecto del propio binario). Ese archivo permite dos
-      # valores de prueba fijos y reutilizados a proposito en varios lugares
-      # del repositorio (una llave Fernet de ejemplo y una contrasena de la
-      # suite del backend); ninguno cifra ni protege un dato real, y el resto
-      # de las reglas de gitleaks sigue activo sobre cualquier otro secreto.
+      # gitleaks-action automatically detects and uses the repository root's
+      # `.gitleaks.toml` (no GITLEAKS_CONFIG variable or --config needed, it's
+      # the binary's own default lookup). That file allows two fixed test
+      # values reused on purpose in several places in the repository (a sample
+      # Fernet key and a password from the backend's test suite); neither
+      # encrypts or protects real data, and the rest of gitleaks' default
+      # rules stay active against any other secret.
       - name: Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -48,7 +47,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   calidad-python:
-    name: Estilo y tipos (Python)
+    name: Style and types (Python)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,24 +57,24 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Instalar dependencias
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt -r etl/requirements.txt
           pip install -e ./shared
 
-      - name: Ruff (estilo)
+      - name: Ruff (style)
         run: ruff check backend etl shared
 
-      - name: Ruff (formato)
+      - name: Ruff (format)
         run: ruff format --check backend etl shared
 
-      - name: mypy (tipos)
+      - name: mypy (types)
         run: mypy
 
   # ---------------------------------------------------------------------------
   pruebas-python:
-    name: Pruebas y cobertura (API + ETL)
+    name: Tests and coverage (API + ETL)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -85,18 +84,18 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Instalar dependencias
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt -r etl/requirements.txt
           pip install -e ./shared
 
-      - name: Ejecutar la suite con umbral de cobertura
-        # El umbral esta en pyproject (fail_under = 85): la ejecucion falla si
-        # la cobertura baja, en lugar de limitarse a informarlo.
+      - name: Run the suite with a coverage threshold
+        # The threshold lives in pyproject (fail_under = 85): the run fails
+        # if coverage drops, instead of just reporting it.
         run: pytest --cov --cov-report=term-missing --cov-report=xml
 
-      - name: Publicar el reporte de cobertura
+      - name: Publish the coverage report
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -106,13 +105,13 @@ jobs:
 
   # ---------------------------------------------------------------------------
   integracion:
-    name: Migraciones y ETL contra PostgreSQL
+    name: Migrations and ETL against PostgreSQL
     runs-on: ubuntu-latest
 
-    # Las pruebas unitarias corren sobre SQLite. Este trabajo existe para lo que
-    # SQLite no puede verificar: que las migraciones se apliquen y se reviertan
-    # sobre PostgreSQL real, que el indice de trigramas se cree y que el ETL sea
-    # idempotente de verdad contra la base a la que se despliega.
+    # The unit tests run on SQLite. This job exists for what SQLite can't
+    # verify: that migrations apply and revert against real PostgreSQL, that
+    # the trigram index gets created, and that the ETL is genuinely idempotent
+    # against the database it's deployed against.
     services:
       postgres:
         image: postgres:16-alpine
@@ -138,47 +137,47 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Instalar dependencias
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt -r etl/requirements.txt
           pip install -e ./shared
 
-      - name: Aplicar migraciones
+      - name: Apply migrations
         working-directory: backend
         run: alembic upgrade head
 
-      - name: Verificar que las migraciones son reversibles
+      - name: Verify that migrations are reversible
         working-directory: backend
         run: |
           alembic downgrade base
           alembic upgrade head
 
-      - name: Comprobar que no hay deriva entre modelos y migraciones
+      - name: Check for drift between models and migrations
         working-directory: backend
-        # Si `autogenerate` detecta cambios, es que alguien modifico un modelo
-        # sin escribir la migracion correspondiente.
+        # If `autogenerate` detects changes, someone modified a model without
+        # writing the corresponding migration.
         run: |
           alembic revision --autogenerate -m "deteccion-de-deriva" --rev-id deriva
           if grep -qE "op\.(create|drop|add|alter)_" alembic/versions/deriva_*.py; then
-            echo "::error::Los modelos y las migraciones no coinciden. Genera la migracion que falta."
+            echo "::error::Models and migrations don't match. Generate the missing migration."
             cat alembic/versions/deriva_*.py
             exit 1
           fi
           rm alembic/versions/deriva_*.py
 
-      - name: Sembrar el administrador inicial
+      - name: Seed the initial administrator
         working-directory: backend
         env:
           ADMIN_INICIAL_CONTRASENA: contrasena-de-integracion-1234
         run: python -m scripts.sembrar_admin
 
-      - name: Generar un archivo de prueba y verificar la idempotencia del ETL
+      - name: Generate a test file and verify ETL idempotency
         run: python .github/scripts/verificar_etl.py
 
   # ---------------------------------------------------------------------------
   frontend:
-    name: Estilo, tipos, pruebas y build (Angular)
+    name: Style, types, tests and build (Angular)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -193,33 +192,33 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Instalar dependencias
+      - name: Install dependencies
         run: npm ci
 
       - name: ESLint
         run: npm run lint
 
-      - name: Comprobacion de tipos
+      - name: Type check
         run: npm run typecheck
 
-      - name: Pruebas
+      - name: Tests
         run: npm test
 
-      - name: Build de produccion
+      - name: Production build
         run: npm run build
 
   # ---------------------------------------------------------------------------
   imagenes:
-    name: Compilar imagenes Docker
+    name: Build Docker images
     runs-on: ubuntu-latest
-    # Compilar en cada PR detecta un Dockerfile roto antes de intentar publicar.
-    # No se sube nada: eso es responsabilidad del pipeline de entrega.
+    # Building on every PR catches a broken Dockerfile before attempting to
+    # publish. Nothing gets pushed: that's the delivery pipeline's job.
     steps:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Imagen de la API
+      - name: API image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -229,7 +228,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Imagen del dashboard
+      - name: Dashboard image
         uses: docker/build-push-action@v6
         with:
           context: ./frontend

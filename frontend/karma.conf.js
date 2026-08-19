@@ -1,10 +1,11 @@
-// Configuracion de Karma.
+// Karma configuration.
 //
-// Angular no genera este archivo por defecto; existe aqui para resolver el
-// binario de Chrome. En CI el runner de GitHub trae Chrome instalado, pero en
-// una maquina de desarrollo lo habitual es tenerlo solo dentro de la cache de
-// Puppeteer (por ejemplo, instalado por otra herramienta), y sin esta busqueda
-// `ng test` falla con "No binary for ChromeHeadless browser on your platform".
+// Angular doesn't generate this file by default; it exists here to resolve
+// the Chrome binary. In CI the GitHub runner ships with Chrome installed,
+// but on a development machine it's typically only available inside
+// Puppeteer's cache (for example, installed by another tool), and without
+// this lookup `ng test` fails with "No binary for ChromeHeadless browser on
+// your platform".
 
 const { execFileSync } = require('child_process');
 const fs = require('fs');
@@ -12,12 +13,12 @@ const os = require('os');
 const path = require('path');
 
 /**
- * Comprueba que un binario de Chrome arranca de verdad.
+ * Checks that a Chrome binary actually launches.
  *
- * No basta con que el archivo exista ni con quedarse con la versión más nueva:
- * una descarga incompleta o una versión rota en la caché revienta al arrancar
- * con un volcado de pila que no dice nada útil. Un arranque real en modo
- * headless es la única prueba fiable, y cuesta menos de un segundo.
+ * It's not enough that the file exists, nor to just pick the newest version:
+ * an incomplete download or a broken cached version blows up on launch with
+ * a stack dump that says nothing useful. A real headless launch is the only
+ * reliable test, and it costs less than a second.
  */
 function arranca(ruta) {
   try {
@@ -31,7 +32,7 @@ function arranca(ruta) {
   }
 }
 
-/** Busca un ejecutable de Chrome utilizable entre las ubicaciones habituales. */
+/** Looks for a usable Chrome executable among the common locations. */
 function localizarChrome() {
   if (process.env.CHROME_BIN && fs.existsSync(process.env.CHROME_BIN)) {
     return process.env.CHROME_BIN;
@@ -47,7 +48,7 @@ function localizarChrome() {
 
   const cachePuppeteer = path.join(os.homedir(), '.cache', 'puppeteer', 'chrome');
   if (fs.existsSync(cachePuppeteer)) {
-    // Se toma la version mas reciente disponible.
+    // The most recent available version is tried first.
     for (const version of fs.readdirSync(cachePuppeteer).sort().reverse()) {
       candidatos.push(path.join(cachePuppeteer, version, 'chrome-linux64', 'chrome'));
       candidatos.push(
@@ -57,8 +58,8 @@ function localizarChrome() {
     }
   }
 
-  // Se prueba cada candidato hasta encontrar uno que arranque, en lugar de
-  // quedarse con el primero que exista.
+  // Every candidate is tried until one actually launches, instead of
+  // settling for the first one that exists.
   return candidatos.find((ruta) => fs.existsSync(ruta) && arranca(ruta));
 }
 
@@ -90,8 +91,8 @@ module.exports = function (config) {
     },
     browsers: ['ChromeHeadlessSinSandbox'],
     customLaunchers: {
-      // Sin sandbox porque en contenedores de CI el proceso corre sin los
-      // privilegios que Chrome necesita para aislarse.
+      // No sandbox because in CI containers the process runs without the
+      // privileges Chrome needs to sandbox itself.
       ChromeHeadlessSinSandbox: {
         base: 'ChromeHeadless',
         flags: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],

@@ -1,8 +1,8 @@
-# Stack de produccion.
+# Production stack.
 #
-# Consume las imagenes publicadas en GHCR por el pipeline de CD en lugar de
-# compilar, no monta el codigo como volumen y no publica al exterior ningun
-# puerto de infraestructura: solo el del proxy.
+# Consumes the images published to GHCR by the CD pipeline instead of
+# building, does not mount the code as a volume, and does not expose any
+# infrastructure port externally: only the proxy's.
 #
 #   docker compose -f docker-compose.prod.yml up -d
 
@@ -13,8 +13,8 @@ services:
     image: postgres:16-alpine
     restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?falta POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:?missing POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-tramex}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -23,7 +23,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    # La base no publica puerto: solo se alcanza desde la red interna.
+    # The database publishes no port: it's only reachable from the internal network.
     expose:
       - "5432"
 
@@ -44,14 +44,14 @@ services:
     entrypoint: ["sh", "-c"]
     command: ["alembic upgrade head && python -m scripts.sembrar_admin"]
     environment:
-      DATABASE_URL: ${DATABASE_URL:?falta DATABASE_URL}
-      TRAMEX_FERNET_KEY: ${TRAMEX_FERNET_KEY:?falta TRAMEX_FERNET_KEY}
-      API_SECRET_KEY: ${API_SECRET_KEY:?falta API_SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
+      TRAMEX_FERNET_KEY: ${TRAMEX_FERNET_KEY:?missing TRAMEX_FERNET_KEY}
+      API_SECRET_KEY: ${API_SECRET_KEY:?missing API_SECRET_KEY}
       APP_ENV: production
       COOKIE_SECURE: "true"
       REDIS_URL: redis://redis:6379
-      ADMIN_INICIAL_CORREO: ${ADMIN_INICIAL_CORREO:?falta ADMIN_INICIAL_CORREO}
-      ADMIN_INICIAL_CONTRASENA: ${ADMIN_INICIAL_CONTRASENA:?falta ADMIN_INICIAL_CONTRASENA}
+      ADMIN_INICIAL_CORREO: ${ADMIN_INICIAL_CORREO:?missing ADMIN_INICIAL_CORREO}
+      ADMIN_INICIAL_CONTRASENA: ${ADMIN_INICIAL_CONTRASENA:?missing ADMIN_INICIAL_CONTRASENA}
     depends_on:
       db:
         condition: service_healthy
@@ -61,12 +61,12 @@ services:
     image: ghcr.io/alexander-tinoco/tramex-etl-backend:${TAG:-latest}
     restart: always
     environment:
-      DATABASE_URL: ${DATABASE_URL:?falta DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:?missing DATABASE_URL}
       REDIS_URL: redis://redis:6379
-      TRAMEX_FERNET_KEY: ${TRAMEX_FERNET_KEY:?falta TRAMEX_FERNET_KEY}
-      API_SECRET_KEY: ${API_SECRET_KEY:?falta API_SECRET_KEY}
+      TRAMEX_FERNET_KEY: ${TRAMEX_FERNET_KEY:?missing TRAMEX_FERNET_KEY}
+      API_SECRET_KEY: ${API_SECRET_KEY:?missing API_SECRET_KEY}
       APP_ENV: production
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?falta ALLOWED_ORIGINS}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?missing ALLOWED_ORIGINS}
       COOKIE_SECURE: "true"
       COOKIE_SAMESITE: strict
       SENTRY_DSN: ${SENTRY_DSN:-}
@@ -81,14 +81,14 @@ services:
       migraciones:
         condition: service_completed_successfully
     deploy:
-      # La API no tiene estado en memoria (los contadores viven en Redis), asi
-      # que escala horizontalmente sin coordinacion.
+      # The API keeps no in-memory state (the counters live in Redis), so it
+      # scales horizontally without coordination.
       replicas: 2
 
   frontend:
     image: ghcr.io/alexander-tinoco/tramex-etl-frontend:${TAG:-latest}
     restart: always
-    # Unico puerto publicado. Delante deberia ir un terminador TLS.
+    # The only published port. A TLS terminator should sit in front of it.
     ports:
       - "${PUERTO_PUBLICO:-8080}:8080"
     depends_on:
@@ -107,8 +107,8 @@ services:
     image: grafana/grafana-oss:11.5.1
     restart: always
     environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:?falta GRAFANA_USER}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?falta GRAFANA_PASSWORD}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:?missing GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?missing GRAFANA_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro

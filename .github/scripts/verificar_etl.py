@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-Verificacion de extremo a extremo del pipeline ETL en la integracion continua.
+End-to-end verification of the ETL pipeline in continuous integration.
 
-Las pruebas unitarias del ETL corren sobre SQLite y con DataFrames construidos a
-mano. Este script comprueba lo que aquellas no pueden: que el pipeline completo
-funcione contra PostgreSQL real, leyendo un archivo Excel de verdad, y que
-reprocesarlo **no duplique nada**, que es la propiedad que motivo su reescritura.
+The ETL's unit tests run against SQLite with hand-built DataFrames. This
+script checks what those can't: that the full pipeline works against real
+PostgreSQL, reading an actual Excel file, and that reprocessing it **doesn't
+duplicate anything** — the property that motivated its rewrite in the first
+place.
 
-Los datos son sinteticos. El archivo real contiene informacion personal de
-clientes y nunca debe entrar al repositorio ni a un runner.
+The data is synthetic. The real file contains personal client information and
+must never enter the repository or a runner.
 """
 
 from __future__ import annotations
@@ -27,12 +28,12 @@ FILAS_MASTER = 120
 FILAS_GLOBAL = 40
 FILAS_PASAPORTES = 60
 FILAS_CANADA = 30
-#: Personas distintas esperadas: todas las hojas describen a la misma gente.
+#: Expected distinct people: all sheets describe the same set of people.
 CLIENTES_ESPERADOS = FILAS_MASTER
 
 
 def construir_excel(destino: Path) -> None:
-    """Genera un libro con la estructura y las rarezas del archivo real."""
+    """Generates a workbook with the structure and quirks of the real file."""
     master = pd.DataFrame(
         {
             "NOMBRE": [f"Persona Sintetica {i:03d}" for i in range(1, FILAS_MASTER + 1)],
@@ -45,8 +46,8 @@ def construir_excel(destino: Path) -> None:
             "CONTRASEÑA": [f"clave-{i:03d}" for i in range(1, FILAS_MASTER + 1)],
         }
     )
-    # Rarezas reales del archivo: filas de relleno sin nombre y una captura
-    # duplicada de la misma persona con distinto espaciado y capitalizacion.
+    # Real quirks of the file: nameless filler rows and a duplicate capture
+    # of the same person with different spacing and capitalization.
     master.loc[len(master)] = [None] * 8
     master.loc[len(master)] = ["  persona   sintetica 001 ", "SOL00001", "(440) 11001-0001",
                                "g000001", "VISA B1/B2", "Pendiente",
@@ -68,7 +69,7 @@ def construir_excel(destino: Path) -> None:
             "Apellido ": [f"Sintetica {i:03d}" for i in range(1, FILAS_PASAPORTES + 1)],
             "Teléfono": [f"55{i:08d}" for i in range(1, FILAS_PASAPORTES + 1)],
             "Lugar de la cita": ["CDMX"] * FILAS_PASAPORTES,
-            # Mezcla de fechas validas y texto libre, como el archivo real.
+            # Mix of valid dates and free text, like the real file.
             "Fecha Cita": [
                 "15/08/2026" if i % 2 == 0 else "MARZO" for i in range(1, FILAS_PASAPORTES + 1)
             ],
@@ -86,8 +87,8 @@ def construir_excel(destino: Path) -> None:
     )
 
     with pd.ExcelWriter(destino, engine="openpyxl") as escritor:
-        # startrow=4 reproduce las cuatro filas de titulos que preceden al
-        # encabezado real en la hoja principal.
+        # startrow=4 reproduces the four title rows that precede the real
+        # header on the main sheet.
         master.to_excel(escritor, sheet_name="Master Tramex", index=False, startrow=4)
         global_entry.to_excel(escritor, sheet_name="Global entry", index=False)
         pasaportes.to_excel(escritor, sheet_name="Pasaportes", index=False)
@@ -95,7 +96,7 @@ def construir_excel(destino: Path) -> None:
 
 
 def ejecutar_etl(archivo: Path, *extra: str) -> str:
-    """Corre el pipeline y devuelve su salida, abortando si falla."""
+    """Runs the pipeline and returns its output, aborting on failure."""
     resultado = subprocess.run(
         [sys.executable, "-m", "etl.etl_tramex", str(archivo), *extra],
         cwd=RAIZ,
@@ -106,7 +107,7 @@ def ejecutar_etl(archivo: Path, *extra: str) -> str:
     print(resultado.stdout)
     print(resultado.stderr, file=sys.stderr)
     if resultado.returncode != 0:
-        sys.exit(f"El ETL termino con codigo {resultado.returncode}")
+        sys.exit(f"The ETL exited with code {resultado.returncode}")
     return resultado.stdout
 
 
@@ -131,42 +132,42 @@ def main() -> int:
         archivo = Path(temporal) / "TRAMEX_sintetico.xlsx"
         construir_excel(archivo)
 
-        print("\n=== Simulacion: no debe escribir nada ===")
+        print("\n=== Dry run: should write nothing ===")
         ejecutar_etl(archivo, "--simulacion")
-        afirmar(contar(motor, "master_tramex") == 0, "la simulacion no escribio ninguna fila")
+        afirmar(contar(motor, "master_tramex") == 0, "the dry run wrote no rows")
 
-        print("\n=== Primera carga ===")
+        print("\n=== First load ===")
         ejecutar_etl(archivo)
         conteos = {
             tabla: contar(motor, tabla)
             for tabla in ("clientes", "master_tramex", "global_entry", "pasaportes", "canada")
         }
-        print(f"  conteos: {conteos}")
+        print(f"  counts: {conteos}")
 
         afirmar(
             conteos["master_tramex"] == FILAS_MASTER,
-            f"se cargaron {FILAS_MASTER} filas y se descartaron las de relleno y la duplicada",
+            f"{FILAS_MASTER} rows were loaded, and the filler and duplicate rows were discarded",
         )
         afirmar(
             conteos["clientes"] == CLIENTES_ESPERADOS,
-            f"las cuatro hojas se resolvieron en {CLIENTES_ESPERADOS} personas distintas",
+            f"the four sheets resolved into {CLIENTES_ESPERADOS} distinct people",
         )
 
-        print("\n=== Segunda carga del mismo archivo ===")
+        print("\n=== Second load of the same file ===")
         salida = ejecutar_etl(archivo)
         conteos_finales = {tabla: contar(motor, tabla) for tabla in conteos}
-        print(f"  conteos: {conteos_finales}")
+        print(f"  counts: {conteos_finales}")
 
         afirmar(
             conteos_finales == conteos,
-            "reprocesar el mismo archivo no cambio ningun conteo (idempotencia)",
+            "reprocessing the same file did not change any count (idempotency)",
         )
         afirmar(
             "Sin novedades" in salida,
-            "el pipeline reporto que el archivo ya estaba conciliado",
+            "the pipeline reported that the file was already reconciled",
         )
 
-        print("\n=== Integridad referencial ===")
+        print("\n=== Referential integrity ===")
         with motor.connect() as conexion:
             huerfanos = conexion.execute(
                 text(
@@ -181,11 +182,11 @@ def main() -> int:
                 text("SELECT count(*) FROM pasaportes WHERE fecha_cita_original = 'MARZO'")
             ).scalar_one()
 
-        afirmar(huerfanos == 0, "ningun tramite quedo sin cliente")
-        afirmar(sin_cifrar == 0, "ninguna credencial quedo en texto plano")
-        afirmar(texto_libre > 0, "las fechas en texto libre se preservaron en vez de descartarse")
+        afirmar(huerfanos == 0, "no tramite was left without a client")
+        afirmar(sin_cifrar == 0, "no credential was left in plain text")
+        afirmar(texto_libre > 0, "free-text dates were preserved instead of being discarded")
 
-    print("\nVerificacion del pipeline completada.")
+    print("\nPipeline verification complete.")
     return 0
 
 

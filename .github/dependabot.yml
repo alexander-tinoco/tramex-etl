@@ -1,41 +1,41 @@
 version: 2
 updates:
-  # Dependencias de la API (Python / pip)
+  # API dependencies (Python / pip)
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 2
-    labels: ["dependencias", "backend"]
+    labels: ["dependencies", "backend"]
     commit-message:
       prefix: "chore(deps)"
     groups:
       backend-dependencies:
         patterns: ["*"]
 
-  # Dependencias del pipeline ETL (Python / pip)
+  # ETL pipeline dependencies (Python / pip)
   - package-ecosystem: "pip"
     directory: "/etl"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 1
-    labels: ["dependencias", "etl"]
+    labels: ["dependencies", "etl"]
     commit-message:
       prefix: "chore(deps)"
     groups:
       etl-dependencies:
         patterns: ["*"]
 
-  # Dependencias del dashboard (Node / npm)
+  # Dashboard dependencies (Node / npm)
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 2
-    labels: ["dependencias", "frontend"]
+    labels: ["dependencies", "frontend"]
     commit-message:
       prefix: "chore(deps)"
     groups:
@@ -45,34 +45,34 @@ updates:
         patterns: ["*"]
         exclude-patterns: ["@angular*", "zone.js", "rxjs"]
 
-  # Herramientas de gobernanza en la raiz (Node / npm)
+  # Governance tooling at the root (Node / npm)
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 1
-    labels: ["dependencias", "tooling"]
+    labels: ["dependencies", "tooling"]
     commit-message:
       prefix: "chore(deps)"
 
-  # Acciones de GitHub usadas por los pipelines
+  # GitHub Actions used by the pipelines
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 1
-    labels: ["dependencias", "ci"]
+    labels: ["dependencies", "ci"]
     commit-message:
       prefix: "ci(deps)"
 
-  # Imagenes base de los Dockerfile
+  # Dockerfile base images
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
       interval: "monthly"
-    labels: ["dependencias", "docker"]
+    labels: ["dependencies", "docker"]
   - package-ecosystem: "docker"
     directory: "/frontend"
     schedule:
       interval: "monthly"
-    labels: ["dependencias", "docker"]
+    labels: ["dependencies", "docker"]
