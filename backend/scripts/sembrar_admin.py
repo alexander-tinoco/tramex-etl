@@ -60,7 +60,7 @@ def sembrar() -> int:
             db,
             datos=UsuarioCreate(
                 correo_electronico=correo,
-                nombre="Administrador",
+                nombre="Administrator",
                 contrasena=contrasena,
                 rol="admin",
             ),

@@ -2,16 +2,16 @@
   <main class="recinto recinto-pleno">
     <header class="cabecera">
       <div>
-        <h1>Bitácora de auditoría</h1>
+        <h1>Audit Log</h1>
         <p class="subtitulo prosa">
-          Cada consulta de una credencial de cliente deja un asiento. Lo que se registra es
-          qué se consultó, nunca qué se obtuvo.
+          Every client-credential lookup leaves an entry. What gets recorded is what was
+          viewed, never what was obtained.
         </p>
       </div>
       <div class="cabecera-acciones">
         <a class="boton secundario" routerLink="/dashboard">
           <app-picto nombre="volver" [tamano]="16" />
-          <span>Volver a la sala</span>
+          <span>Back to the floor</span>
         </a>
       </div>
     </header>
@@ -19,7 +19,7 @@
     <div class="vista">
       <div class="barra-acciones">
         <label class="interruptor" style="gap: 0.75rem">
-          <span>Filtrar por acción</span>
+          <span>Filter by action</span>
           <select [value]="filtro()" (change)="cambiarFiltro($event)" style="min-width: 16rem">
             @for (accion of acciones; track accion.valor) {
               <option [value]="accion.valor">{{ accion.etiqueta }}</option>
@@ -28,7 +28,7 @@
         </label>
         <button type="button" class="boton secundario" (click)="cargar()">
           <app-picto nombre="actualizar" [tamano]="16" />
-          <span>Actualizar</span>
+          <span>Refresh</span>
         </button>
       </div>
 
@@ -43,46 +43,46 @@
         <table>
           <thead>
             <tr>
-              <th scope="col">Fecha</th>
-              <th scope="col">Nivel</th>
-              <th scope="col">Acción</th>
-              <th scope="col">Usuario</th>
-              <th scope="col">Recurso</th>
-              <th scope="col">Registro</th>
-              <th scope="col">Origen</th>
-              <th scope="col">Detalle</th>
+              <th scope="col">Date</th>
+              <th scope="col">Level</th>
+              <th scope="col">Action</th>
+              <th scope="col">User</th>
+              <th scope="col">Resource</th>
+              <th scope="col">Record</th>
+              <th scope="col">Origin</th>
+              <th scope="col">Detail</th>
             </tr>
           </thead>
           <tbody>
             @if (cargando()) {
               <tr>
-                <td colspan="8" class="vacio">Cargando bitácora…</td>
+                <td colspan="8" class="vacio">Loading audit log…</td>
               </tr>
             } @else if (asientos().length === 0) {
               <tr>
-                <td colspan="8" class="vacio">No hay asientos que mostrar.</td>
+                <td colspan="8" class="vacio">No entries to show.</td>
               </tr>
             } @else {
               @for (asiento of asientos(); track asiento.id) {
                 <tr>
-                  <td class="dato" data-etiqueta="Fecha">
+                  <td class="dato" data-etiqueta="Date">
                     {{ formatearFechaHora(asiento.ocurrido_en) }}
                   </td>
-                  <td data-etiqueta="Nivel">
+                  <td data-etiqueta="Level">
                     <span class="distintivo" [class]="claseNivel(asiento.nivel)">
-                      {{ asiento.nivel }}
+                      {{ etiquetaNivel(asiento.nivel) }}
                     </span>
                   </td>
-                  <td data-etiqueta="Acción">{{ asiento.accion }}</td>
-                  <td data-etiqueta="Usuario">{{ formatearTexto(asiento.usuario_correo) }}</td>
-                  <td data-etiqueta="Recurso">{{ formatearTexto(asiento.recurso) }}</td>
-                  <td class="dato" data-etiqueta="Registro">
+                  <td data-etiqueta="Action">{{ etiquetaAccion(asiento.accion) }}</td>
+                  <td data-etiqueta="User">{{ formatearTexto(asiento.usuario_correo) }}</td>
+                  <td data-etiqueta="Resource">{{ formatearTexto(asiento.recurso) }}</td>
+                  <td class="dato" data-etiqueta="Record">
                     {{ formatearTexto(asiento.registro_id) }}
                   </td>
-                  <td class="dato" data-etiqueta="Origen">
+                  <td class="dato" data-etiqueta="Origin">
                     {{ formatearTexto(asiento.direccion_ip) }}
                   </td>
-                  <td class="dato" data-etiqueta="Detalle">
+                  <td class="dato" data-etiqueta="Detail">
                     {{ formatearTexto(asiento.detalle) }}
                   </td>
                 </tr>
@@ -94,8 +94,8 @@
 
       <div class="paginacion">
         <span>
-          <span class="cifra">{{ total() }}</span> asiento(s) ·
-          página <span class="cifra">{{ pagina() + 1 }}</span> de
+          <span class="cifra">{{ total() }}</span> {{ total() === 1 ? 'entry' : 'entries' }} ·
+          page <span class="cifra">{{ pagina() + 1 }}</span> of
           <span class="cifra">{{ totalPaginas() }}</span>
         </span>
         <div class="paginacion-controles">
@@ -106,7 +106,7 @@
             [disabled]="pagina() === 0"
           >
             <app-picto nombre="anterior" [tamano]="14" />
-            <span>Anterior</span>
+            <span>Previous</span>
           </button>
           <button
             type="button"
@@ -114,7 +114,7 @@
             (click)="paginaSiguiente()"
             [disabled]="!hayPaginaSiguiente()"
           >
-            <span>Siguiente</span>
+            <span>Next</span>
             <app-picto nombre="siguiente" [tamano]="14" />
           </button>
         </div>

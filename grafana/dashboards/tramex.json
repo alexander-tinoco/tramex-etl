@@ -2,7 +2,7 @@
   "annotations": { "list": [] },
   "editable": true,
   "graphTooltip": 1,
-  "title": "Tramex — API y acceso a datos sensibles",
+  "title": "Tramex — API and sensitive-data access",
   "uid": "tramex-api",
   "tags": ["tramex"],
   "timezone": "browser",
@@ -12,13 +12,13 @@
   "panels": [
     {
       "type": "row",
-      "title": "Trafico y salud",
+      "title": "Traffic and health",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
     },
     {
       "type": "timeseries",
-      "title": "Peticiones por segundo, por ruta",
-      "description": "Ritmo de peticiones agrupado por plantilla de ruta.",
+      "title": "Requests per second, by route",
+      "description": "Request rate grouped by route template.",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
       "fieldConfig": {
         "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 10 } },
@@ -34,8 +34,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Latencia (percentiles 50, 95 y 99)",
-      "description": "Percentiles calculados sobre el histograma de duracion.",
+      "title": "Latency (50th, 95th and 99th percentiles)",
+      "description": "Percentiles computed over the duration histogram.",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
       "fieldConfig": {
         "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 0 } },
@@ -61,8 +61,8 @@
     },
     {
       "type": "stat",
-      "title": "Tasa de error (5xx)",
-      "description": "Proporcion de respuestas 5xx sobre el total.",
+      "title": "Error rate (5xx)",
+      "description": "Share of 5xx responses out of the total.",
       "gridPos": { "h": 5, "w": 6, "x": 0, "y": 9 },
       "fieldConfig": {
         "defaults": {
@@ -87,7 +87,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Respuestas por codigo de estado",
+      "title": "Responses by status code",
       "gridPos": { "h": 5, "w": 18, "x": 6, "y": 9 },
       "fieldConfig": {
         "defaults": { "custom": { "lineWidth": 1, "fillOpacity": 25, "stacking": { "mode": "normal" } } },
@@ -103,13 +103,13 @@
     },
     {
       "type": "row",
-      "title": "Seguridad y datos sensibles",
+      "title": "Security and sensitive data",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }
     },
     {
       "type": "timeseries",
-      "title": "Credenciales de clientes descifradas",
-      "description": "Cada punto corresponde a un asiento en logs_auditoria. Un pico sostenido merece revisarse en la bitacora.",
+      "title": "Client credentials decrypted",
+      "description": "Each point corresponds to an entry in logs_auditoria. A sustained spike is worth reviewing in the audit log.",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
       "fieldConfig": {
         "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 20 } },
@@ -125,8 +125,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Intentos de inicio de sesion",
-      "description": "Una subida de 'fallido' o cualquier 'cuenta_bloqueada' indica un intento de fuerza bruta.",
+      "title": "Sign-in attempts",
+      "description": "A rise in 'failed' or any 'account_locked' points to a brute-force attempt.",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
       "fieldConfig": {
         "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 20 } },
@@ -142,7 +142,7 @@
     },
     {
       "type": "stat",
-      "title": "Credenciales descifradas (24 h)",
+      "title": "Credentials decrypted (24 h)",
       "gridPos": { "h": 5, "w": 8, "x": 0, "y": 23 },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
@@ -151,7 +151,7 @@
     },
     {
       "type": "stat",
-      "title": "Logins fallidos (1 h)",
+      "title": "Failed logins (1 h)",
       "gridPos": { "h": 5, "w": 8, "x": 8, "y": 23 },
       "fieldConfig": {
         "defaults": {
@@ -169,15 +169,15 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(tramex_intentos_login_total{resultado=\"fallido\"}[1h]))",
+          "expr": "sum(increase(tramex_intentos_login_total{resultado=\"failed\"}[1h]))",
           "refId": "A"
         }
       ]
     },
     {
       "type": "stat",
-      "title": "Cuentas bloqueadas (24 h)",
-      "description": "Cualquier valor distinto de cero merece una mirada a la bitacora.",
+      "title": "Locked accounts (24 h)",
+      "description": "Any value other than zero is worth a look at the audit log.",
       "gridPos": { "h": 5, "w": 8, "x": 16, "y": 23 },
       "fieldConfig": {
         "defaults": {
@@ -194,7 +194,7 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(tramex_intentos_login_total{resultado=~\"cuenta_bloqueada|bloqueado_por_ip\"}[24h]))",
+          "expr": "sum(increase(tramex_intentos_login_total{resultado=~\"account_locked|blocked_by_ip\"}[24h]))",
           "refId": "A"
         }
       ]

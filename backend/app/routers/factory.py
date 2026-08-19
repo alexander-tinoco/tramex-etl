@@ -148,7 +148,7 @@ def crear_router_tramite(
             request=request,
             # Logs the names of the fields touched, never their values: one
             # of them can be the client's credential.
-            detalle={"campos": ",".join(campos)},
+            detalle={"fields": ",".join(campos)},
         )
         return actualizado
 
@@ -260,7 +260,9 @@ def crear_router_tramite(
                     nivel=NivelAuditoria.ALERTA,
                     request=request,
                 )
-                metricas.credenciales_consultadas.labels(recurso=tabla, resultado="ilegible").inc()
+                metricas.credenciales_consultadas.labels(
+                    recurso=tabla, resultado="unreadable"
+                ).inc()
                 logger.error("Decryption failure", exc_info=exc)
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -273,7 +275,7 @@ def crear_router_tramite(
                 ) from exc
 
             metricas.credenciales_consultadas.labels(
-                recurso=tabla, resultado="ok" if contrasena else "sin_credencial"
+                recurso=tabla, resultado="ok" if contrasena else "no_credential"
             ).inc()
 
             asiento = auditoria.registrar(
@@ -285,7 +287,7 @@ def crear_router_tramite(
                 cliente_id=getattr(registro, "cliente_id", None),
                 nivel=NivelAuditoria.ADVERTENCIA,
                 request=request,
-                detalle={"tenia_credencial": contrasena is not None},
+                detalle={"had_credential": contrasena is not None},
             )
 
             return ContrasenaResponse(

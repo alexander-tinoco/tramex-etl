@@ -69,8 +69,8 @@ class TestMetricas:
         )
 
         cuerpo = client_anonimo.get("/metrics").text
-        assert 'tramex_intentos_login_total{resultado="fallido"}' in cuerpo
-        assert 'tramex_intentos_login_total{resultado="exitoso"}' in cuerpo
+        assert 'tramex_intentos_login_total{resultado="failed"}' in cuerpo
+        assert 'tramex_intentos_login_total{resultado="successful"}' in cuerpo
 
     def test_las_metricas_no_revelan_datos_de_clientes(self, client):
         """They're aggregates: they must not contain names or identifiers."""
