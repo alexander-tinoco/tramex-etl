@@ -1,91 +1,90 @@
-# Tramex · Sistema de gestión de trámites migratorios
+# Tramex · Immigration Tramite Management System
 
-Una agencia de trámites migratorios operaba sobre **una hoja de cálculo compartida**.
-En ella convivían los expedientes de sus clientes y —en celdas de texto plano, junto
-al nombre y al número de pasaporte— **las contraseñas de las cuentas consulares de
-esas personas**, porque la agencia necesita entrar a esas cuentas para gestionar los
-trámites en su nombre.
+An immigration paperwork agency ran on **a shared spreadsheet**. It held clients'
+records and, in plain-text cells right next to their name and passport number,
+**the passwords for those people's consular accounts** — because the agency needs
+to log into those accounts to manage the tramites on their behalf.
 
-Este repositorio es la sustitución de esa hoja: un pipeline ETL que la ingiere, una
-API que la reemplaza como sistema de registro y un panel desde el que se opera, con
-las credenciales cifradas y cada acceso a ellas registrado en una bitácora.
+This repository replaces that spreadsheet: an ETL pipeline that ingests it, an API
+that replaces it as the system of record, and a dashboard to operate from, with
+credentials encrypted and every access to them logged.
 
 ---
 
-## Estado del proyecto
+## Project status
 
-| Indicador | Estado |
+| Indicator | Status |
 |---|---|
-| **Integración continua** | [![CI](https://github.com/alexander-tinoco/tramex-etl/actions/workflows/ci.yml/badge.svg)](https://github.com/alexander-tinoco/tramex-etl/actions/workflows/ci.yml) |
-| **Entrega continua** | [![CD](https://github.com/alexander-tinoco/tramex-etl/actions/workflows/cd.yml/badge.svg)](https://github.com/alexander-tinoco/tramex-etl/actions/workflows/cd.yml) |
-| **Licencia** | [![MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) |
-| **Documentación de la API** | [![OpenAPI](https://img.shields.io/badge/OpenAPI-Swagger-green.svg)](http://localhost:8000/docs) · 44 operaciones sobre 27 rutas |
-| **Pruebas** | **184** en Python (API + ETL) · **61** en el dashboard |
-| **Cobertura** | **90.4 %**, con umbral que rompe la ejecución por debajo de 85 % |
-| **Tipado** | `mypy` sobre API, ETL y paquete compartido · `tsc` estricto sin `any` |
-| **Gobernanza** | Conventional Commits (Husky + commitlint) · [ADRs](docs/decisions/) · Dependabot · Gitleaks |
+| **Continuous integration** | [![CI](https://github.com/alexander-tinoco/tramex-etl/actions/workflows/ci.yml/badge.svg)](https://github.com/alexander-tinoco/tramex-etl/actions/workflows/ci.yml) |
+| **Continuous delivery** | [![CD](https://github.com/alexander-tinoco/tramex-etl/actions/workflows/cd.yml/badge.svg)](https://github.com/alexander-tinoco/tramex-etl/actions/workflows/cd.yml) |
+| **License** | [![MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) |
+| **API documentation** | [![OpenAPI](https://img.shields.io/badge/OpenAPI-Swagger-green.svg)](http://localhost:8000/docs) · 44 operations across 27 routes |
+| **Tests** | **184** in Python (API + ETL) · **61** in the dashboard |
+| **Coverage** | **90.4%**, with a threshold that breaks the build below 85% |
+| **Typing** | `mypy` across the API, ETL, and shared package · strict `tsc` with no `any` |
+| **Governance** | Conventional Commits (Husky + commitlint) · [ADRs](docs/decisions/) · Dependabot · Gitleaks |
 
 ---
 
-## El problema, en concreto
+## The problem, concretely
 
-Lo que hacía la hoja de cálculo y lo que hace el sistema:
+What the spreadsheet did, and what the system does instead:
 
-| | Antes (Excel compartido) | Ahora |
+| | Before (shared Excel) | Now |
 |---|---|---|
-| **Credenciales de clientes** | Texto plano en una celda | Cifradas con Fernet; solo se descifran bajo petición explícita |
-| **Quién consultó una credencial** | No se sabía | Asiento en `logs_auditoria` con usuario, fecha, IP y registro |
-| **La misma persona en varias hojas** | Cuatro filas sin relación entre sí | Un cliente con sus trámites enlazados por clave foránea |
-| **Recargar el archivo** | Duplicaba los registros | Idempotente: conciliar el mismo archivo no cambia nada |
-| **Fechas escritas a mano** (`"MARZO"`) | Se perdían al normalizar | Se preservan como texto original junto al campo de fecha |
-| **Control de acceso** | Quien tuviera el enlace | Usuarios con rol, sesión en cookie `httpOnly`, bloqueo por fuerza bruta |
-| **Borrar un registro** | Irreversible y sin rastro | Baja lógica reversible y auditada; destrucción solo por retención |
+| **Client credentials** | Plain text in a cell | Encrypted with Fernet; only decrypted on explicit request |
+| **Who looked up a credential** | Unknown | Logged in `logs_auditoria` with user, date, IP, and record |
+| **The same person across sheets** | Four unrelated rows | One client with tramites linked by foreign key |
+| **Reloading the file** | Duplicated records | Idempotent: reconciling the same file changes nothing |
+| **Dates written by hand** (`"MARZO"`) | Lost during normalization | Preserved as original text alongside the date field |
+| **Access control** | Whoever had the link | Users with roles, `httpOnly` cookie session, brute-force lockout |
+| **Deleting a record** | Irreversible, no trace | Reversible, audited soft delete; destruction only via retention |
 
-Sobre el archivo de demostración incluido, el pipeline resuelve **315 filas de
-trámite repartidas en cuatro hojas en 161 personas distintas**, en menos de un
-segundo, y una segunda ejecución del mismo archivo reporta cero cambios.
+Against the included demo file, the pipeline resolves **315 tramite rows spread
+across four sheets into 161 distinct people**, in under a second, and a second run
+of the same file reports zero changes.
 
 ---
 
-## Arquitectura
+## Architecture
 
 ```mermaid
 graph TB
-    subgraph Origen["Origen de datos"]
-        XLS[["TRAMEX.xlsx<br/>4 hojas heterogéneas"]]
+    subgraph Origen["Data source"]
+        XLS[["TRAMEX.xlsx<br/>4 heterogeneous sheets"]]
     end
 
-    subgraph Ingesta["Pipeline ETL · Python"]
-        EX[extract<br/>lectura por hoja]
-        TR[transform<br/>funciones puras]
-        LO[load<br/>upsert transaccional]
+    subgraph Ingesta["ETL pipeline · Python"]
+        EX[extract<br/>per-sheet reading]
+        TR[transform<br/>pure functions]
+        LO[load<br/>transactional upsert]
         EX --> TR --> LO
     end
 
-    subgraph Compartido["Paquete compartido"]
-        ID[["tramex_shared<br/>reglas de identidad"]]
+    subgraph Compartido["Shared package"]
+        ID[["tramex_shared<br/>identity rules"]]
     end
 
     subgraph Servidor["API · FastAPI"]
-        RT[Routers<br/>fábrica CRUD]
-        CR[Repositorios<br/>CRUDBase]
-        SV[Servicios<br/>auditoría · limitador · métricas]
+        RT[Routers<br/>CRUD factory]
+        CR[Repositories<br/>CRUDBase]
+        SV[Services<br/>audit · rate limiter · metrics]
         RT --> CR
         RT --> SV
     end
 
-    subgraph Datos["Persistencia"]
+    subgraph Datos["Persistence"]
         PG[("PostgreSQL 16<br/>+ pg_trgm")]
-        RD[("Redis 7<br/>contadores de intentos")]
+        RD[("Redis 7<br/>attempt counters")]
     end
 
     subgraph Cliente["Dashboard · Angular"]
-        UI[Componentes standalone<br/>con signals]
-        NG[Nginx<br/>proxy inverso]
+        UI[Standalone components<br/>with signals]
+        NG[Nginx<br/>reverse proxy]
         UI --- NG
     end
 
-    subgraph Observabilidad
+    subgraph Observabilidad["Observability"]
         PR[(Prometheus)]
         GF[Grafana]
         SE[Sentry]
@@ -93,40 +92,40 @@ graph TB
 
     XLS --> EX
     LO -->|"INSERT ... ON CONFLICT"| PG
-    ID -.->|clave natural| LO
-    ID -.->|clave natural| CR
-    NG -->|"/api · misma cookie"| RT
+    ID -.->|natural key| LO
+    ID -.->|natural key| CR
+    NG -->|"/api · same cookie"| RT
     CR --> PG
     SV --> RD
     RT -->|"/metrics"| PR
     PR --> GF
-    RT -.->|excepciones| SE
-    LO -.->|migraciones| AL[Alembic]
+    RT -.->|exceptions| SE
+    LO -.->|migrations| AL[Alembic]
     AL --> PG
 ```
 
-El **paquete compartido** es la pieza que evita el fallo silencioso más probable de
-este diseño: el ETL y la API escriben en las mismas tablas, y si cada uno derivara la
-identidad de una fila a su manera, un cliente dado de alta a mano y el mismo cliente
-presente en el Excel acabarían duplicados sin que nada rompiera
+The **shared package** is what prevents this design's most likely silent failure:
+the ETL and the API write to the same tables, and if each one derived a row's
+identity its own way, a client entered by hand and that same client present in the
+Excel file would end up duplicated without anything breaking
 ([ADR 0006](docs/decisions/0006-paquete-compartido-entre-etl-y-api.md)).
 
 ---
 
-## Modelo de datos
+## Data model
 
-El Excel tenía cuatro pestañas planas sin ninguna relación. El modelo relacional gira
-alrededor de `clientes`: una persona puede tener a la vez un trámite de pasaporte, uno
-de Global Entry y uno de Canadá, y ahora eso es una consulta y no una búsqueda manual
-por nombre en cuatro hojas.
+The Excel file had four flat tabs with no relationship between them. The relational
+model revolves around `clientes`: a person can have a passport tramite, a Global
+Entry tramite, and a Canada tramite all at once, and now that's a single query
+instead of a manual name search across four sheets.
 
 ```mermaid
 erDiagram
-    clientes ||--o{ master_tramex : "solicita"
-    clientes ||--o{ global_entry  : "solicita"
-    clientes ||--o{ pasaportes    : "solicita"
-    clientes ||--o{ canada        : "solicita"
-    usuarios ||--o{ logs_auditoria : "genera"
+    clientes ||--o{ master_tramex : "files"
+    clientes ||--o{ global_entry  : "files"
+    clientes ||--o{ pasaportes    : "files"
+    clientes ||--o{ canada        : "files"
+    usuarios ||--o{ logs_auditoria : "generates"
 
     clientes {
         int id PK
@@ -135,11 +134,11 @@ erDiagram
         text correo_electronico
         text telefono
         text numero_pasaporte
-        text clave_natural UK "huella de identidad"
-        text hash_fila "huella de contenido"
+        text clave_natural UK "identity fingerprint"
+        text hash_fila "content fingerprint"
         timestamp cargado_en
         timestamp actualizado_en
-        timestamp eliminado_en "baja lógica"
+        timestamp eliminado_en "soft delete"
     }
 
     master_tramex {
@@ -178,7 +177,7 @@ erDiagram
         text telefono
         text lugar_cita
         date fecha_cita
-        text fecha_cita_original "texto libre preservado"
+        text fecha_cita_original "preserved free text"
         text clave_natural UK
         timestamp eliminado_en
     }
@@ -216,153 +215,155 @@ erDiagram
         int cliente_id
         enum nivel "INFO | ADVERTENCIA | ALERTA"
         text direccion_ip
-        text detalle "nunca contiene credenciales"
+        text detalle "never contains credentials"
     }
 ```
 
-**`clave_natural` es única solo entre registros activos** (índice parcial). Así conviven
-un registro vigente y sus versiones archivadas, y el `ON CONFLICT` del ETL puede apuntar
-a ese índice ([ADR 0004](docs/decisions/0004-borrado-logico-y-retencion.md)).
+**`clave_natural` is unique only among active records** (partial index). That way a
+current record and its archived versions coexist, and the ETL's `ON CONFLICT` can
+target that index ([ADR 0004](docs/decisions/0004-borrado-logico-y-retencion.md)).
 
 ---
 
-## Seguridad y datos sensibles
+## Security and sensitive data
 
-Es lo que define el proyecto: el sistema custodia contraseñas de cuentas
-gubernamentales de terceros.
+This is what defines the project: the system holds passwords for third parties'
+government accounts.
 
-### Por qué las credenciales se cifran y no se hashean
+### Why credentials are encrypted, not hashed
 
-La reacción instintiva ante «hay que guardar contraseñas» es hashearlas con bcrypt.
-Aquí sería un error de categoría, porque hash y cifrado responden preguntas distintas:
+The instinctive reaction to "we need to store passwords" is to hash them with
+bcrypt. Here that would be a category error, because hashing and encryption answer
+different questions:
 
-|  | Hash (bcrypt) | Cifrado (Fernet) |
+|  | Hash (bcrypt) | Encryption (Fernet) |
 |---|---|---|
-| Responde | «¿es esta la contraseña correcta?» | «¿cuál era la contraseña?» |
-| Se usa para | **verificar** a quien entra | **custodiar** un secreto ajeno |
-| En este sistema | contraseñas de las **operadoras** | credenciales de las **cuentas de los clientes** |
+| Answers | "is this the correct password?" | "what was the password?" |
+| Used to | **verify** whoever is logging in | **custody** someone else's secret |
+| In this system | **operators'** passwords | **client account** credentials |
 
-La agencia no necesita *verificar* la contraseña del cliente: necesita *recuperarla*
-para teclearla en el portal consular. Un hash la haría inservible. Por eso conviven
-los dos mecanismos, y no es una contradicción
+The agency doesn't need to *verify* the client's password: it needs to *recover*
+it to type into the consular portal. A hash would make it useless. That's why both
+mechanisms coexist, and it isn't a contradiction
 ([ADR 0001](docs/decisions/0001-cifrado-reversible-de-credenciales.md)).
 
-Como el dato es recuperable, el control no puede ser criptográfico y tiene que ser de
-acceso. De ahí todo lo demás:
+Because the data is recoverable, the control can't be cryptographic and has to be
+access-based. That drives everything else:
 
-- **Autenticación real.** Tabla de usuarios con hash bcrypt, no un par de variables de
-  entorno compartidas por todo el equipo. Un usuario por persona es lo que hace que
-  «¿quién consultó esa credencial?» tenga respuesta.
-- **Sesión en cookie `httpOnly`.** Invisible para JavaScript: un XSS ya no basta para
-  robar la sesión. Se acepta también `Authorization: Bearer` para Swagger y scripts.
-- **Dos roles.** `operador` gestiona trámites y consulta credenciales; `admin` además
-  administra usuarios, lee la bitácora y ejecuta la retención.
-- **Bitácora de auditoría.** Cada descifrado deja asiento con usuario, fecha, IP y
-  registro. La respuesta del endpoint devuelve el número de asiento, y la interfaz lo
-  muestra: quien consulta ve que ha quedado registrado. **Se registra qué se consultó,
-  nunca qué se obtuvo.**
-- **Fuerza bruta.** Bloqueo por cuenta (resiste rotación de IP) más límite por origen,
-  con contadores en Redis para que varias réplicas compartan estado.
-- **Comparación en tiempo constante** y hash señuelo cuando el correo no existe, para
-  que el tiempo de respuesta no permita enumerar cuentas válidas.
-- **Borrado lógico** reversible y auditado; la destrucción solo ocurre al aplicar la
-  política de retención, que exige confirmación explícita.
+- **Real authentication.** A users table with bcrypt hashing, not a pair of
+  environment variables shared by the whole team. One user per person is what
+  makes "who looked up that credential?" answerable.
+- **`httpOnly` cookie session.** Invisible to JavaScript: an XSS alone is no longer
+  enough to steal the session. `Authorization: Bearer` is also accepted for
+  Swagger and scripts.
+- **Two roles.** `operador` handles tramites and looks up credentials; `admin`
+  additionally manages users, reads the audit log, and runs retention.
+- **Audit log.** Every decryption is logged with user, date, IP, and record. The
+  endpoint's response returns the entry number, and the interface shows it:
+  whoever looks something up sees that it was logged. **What was looked up is
+  logged, never what was obtained.**
+- **Brute force.** Account lockout (resists IP rotation) plus a per-origin limit,
+  with counters in Redis so multiple replicas share state.
+- **Constant-time comparison** and a decoy hash when the email doesn't exist, so
+  response timing can't be used to enumerate valid accounts.
+- **Soft delete**, reversible and audited; destruction only happens when the
+  retention policy runs, which requires explicit confirmation.
 
-> **La llave Fernet es el activo crítico.** Quien tenga `TRAMEX_FERNET_KEY` y un volcado
-> de la base tiene todas las credenciales. En producción debe vivir en un gestor de
-> secretos, nunca junto al respaldo.
+> **The Fernet key is the critical asset.** Whoever has `TRAMEX_FERNET_KEY` and a
+> database dump has every credential. In production it must live in a secrets
+> manager, never alongside the backup.
 
 ---
 
-## Estructura del repositorio
+## Repository layout
 
 ```text
 tramex-etl/
-├── docker-compose.yml          → Stack de desarrollo completo
-├── docker-compose.prod.yml     → Stack de producción (imágenes de GHCR)
-├── prometheus.yml              → Configuración de raspado de métricas
-├── Makefile                    → Las mismas órdenes que ejecuta la CI
-├── pyproject.toml              → Configuración de ruff, mypy, pytest y cobertura
+├── docker-compose.yml          → Full development stack
+├── docker-compose.prod.yml     → Production stack (GHCR images)
+├── prometheus.yml              → Metrics scrape configuration
+├── Makefile                    → The same commands CI runs
+├── pyproject.toml              → ruff, mypy, pytest and coverage configuration
 │
-├── shared/tramex_shared/       → PAQUETE COMPARTIDO
-│   ├── identidad.py            → Normalización y cálculo de las huellas
-│   └── esquema.py              → Definición declarativa de las entidades
+├── shared/tramex_shared/       → SHARED PACKAGE
+│   ├── identidad.py            → Normalization and fingerprint computation
+│   └── esquema.py              → Declarative definition of the entities
 │
 ├── etl/                        → PIPELINE (Python)
-│   ├── etl_tramex.py           → Orquestación y CLI (argparse)
+│   ├── etl_tramex.py           → Orchestration and CLI (argparse)
 │   ├── helpers/
-│   │   ├── limpieza.py         → Funciones puras sobre celdas
-│   │   ├── extract.py          → Lectura de hojas y validación de estructura
-│   │   ├── transform.py        → DataFrame → registros, sin efectos
-│   │   ├── load.py             → Upsert transaccional e idempotente
-│   │   └── config.py           → Entorno, cifrador y conexión
-│   └── tests/                  → 88 pruebas
+│   │   ├── limpieza.py         → Pure functions over cells
+│   │   ├── extract.py          → Sheet reading and structure validation
+│   │   ├── transform.py        → DataFrame → records, side-effect free
+│   │   ├── load.py             → Transactional, idempotent upsert
+│   │   └── config.py           → Environment, cipher, and connection
+│   └── tests/                  → 88 tests
 │
 ├── backend/                    → API (FastAPI)
-│   ├── alembic/versions/       → 3 migraciones versionadas y reversibles
+│   ├── alembic/versions/       → 3 versioned, reversible migrations
 │   ├── app/
-│   │   ├── models.py           → ORM: RegistroBase, clientes, trámites, usuarios
-│   │   ├── schemas.py          → Contratos Pydantic v2
-│   │   ├── config.py           → Configuración fail-fast
-│   │   ├── security.py         → bcrypt, JWT, roles, dependencias
-│   │   ├── crud/               → Repositorios (base genérica + cliente + trámites)
-│   │   ├── routers/            → Fábrica CRUD, auth, clientes, administración
-│   │   └── services/           → Auditoría, limitador, métricas
-│   ├── scripts/                → Siembra del administrador inicial
-│   └── tests/                  → 96 pruebas
+│   │   ├── models.py           → ORM: RegistroBase, clients, tramites, users
+│   │   ├── schemas.py          → Pydantic v2 contracts
+│   │   ├── config.py           → Fail-fast configuration
+│   │   ├── security.py         → bcrypt, JWT, roles, dependencies
+│   │   ├── crud/                → Repositories (generic base + client + tramites)
+│   │   ├── routers/            → CRUD factory, auth, clients, admin
+│   │   └── services/            → Audit, rate limiter, metrics
+│   ├── scripts/                → Initial admin seeding
+│   └── tests/                  → 96 tests
 │
 ├── frontend/                   → DASHBOARD (Angular 18)
 │   └── src/app/
-│       ├── models/             → Contratos de la API y configuración de recursos
-│       ├── core/               → Servicios de sesión y HTTP, interceptor, guards
-│       ├── features/           → login · dashboard · trámites · auditoría
-│       └── shared/             → Diálogo de confirmación y formateadores
+│       ├── models/              → API contracts and resource configuration
+│       ├── core/                → Session and HTTP services, interceptor, guards
+│       ├── features/            → login · dashboard · tramites · audit log
+│       └── shared/              → Confirmation dialog and formatters
 │
-├── grafana/                    → Fuente de datos y panel aprovisionados
+├── grafana/                    → Provisioned data source and dashboard
 ├── docs/
-│   ├── decisions/              → Architecture Decision Records
-│   ├── images/                 → Capturas de la interfaz
-│   └── generar_datos_demo.py   → Generador de datos sintéticos
+│   ├── decisions/               → Architecture Decision Records
+│   ├── images/                  → Interface screenshots
+│   └── generar_datos_demo.py   → Synthetic data generator
 └── .github/
-    ├── workflows/ci.yml        → Secretos, estilo, tipos, pruebas, integración
-    ├── workflows/cd.yml        → Publicación en GHCR + escaneo de imágenes
-    └── scripts/verificar_etl.py → Verificación end-to-end del pipeline
+    ├── workflows/ci.yml        → Secrets, style, types, tests, integration
+    ├── workflows/cd.yml        → GHCR publishing + image scanning
+    └── scripts/verificar_etl.py → End-to-end pipeline verification
 ```
 
-### Capas del backend
+### Backend layers
 
 ```mermaid
 classDiagram
     direction LR
 
-    class FabricaDeRouters {
+    class RouterFactory {
         +crear_router_tramite(crud, esquemas, nombre)
     }
     class CRUDBase {
-        <<genérico sobre modelo y esquemas>>
+        <<generic over model and schemas>>
         +get(db, id)
         +get_multi(db, filtros)
         +create(db, obj_in)
         +update(db, db_obj, obj_in)
-        +remove(db, id) "baja lógica"
+        +remove(db, id) "soft delete"
         +restore(db, id)
         +purgar_vencidos(db, antes_de)
         +descifrar_secreto(db_obj)
-        #_preparar(datos) "cifra y calcula huellas"
+        #_preparar(datos) "encrypts and computes fingerprints"
     }
     class CRUDTramite {
-        +create(db, obj_in) "resuelve el cliente"
+        +create(db, obj_in) "resolves the client"
     }
     class CRUDCliente {
         +resolver_o_crear(db, datos)
         +buscar_por_nombre_canonico(db, datos)
     }
-    class ServicioAuditoria {
+    class AuditService {
         +registrar(db, accion, usuario, ...)
         +consultar(db, filtros)
         +purgar_anteriores_a(db, dias)
     }
-    class ServicioLimitador {
+    class RateLimiterService {
         +estado_de_cuenta(correo)
         +registrar_fallo(correo, ip)
     }
@@ -372,81 +373,81 @@ classDiagram
         +calcular_hash_fila()
     }
 
-    FabricaDeRouters --> CRUDTramite : delega
-    FabricaDeRouters --> ServicioAuditoria : asienta cada acceso
+    RouterFactory --> CRUDTramite : delegates to
+    RouterFactory --> AuditService : logs every access
     CRUDTramite --|> CRUDBase
     CRUDCliente --|> CRUDBase
-    CRUDTramite --> CRUDCliente : resuelve la persona
-    CRUDBase ..> TramexShared : deriva identidad
-    ServicioLimitador --> Redis
-    ServicioAuditoria --> PostgreSQL
+    CRUDTramite --> CRUDCliente : resolves the person
+    CRUDBase ..> TramexShared : derives identity
+    RateLimiterService --> Redis
+    AuditService --> PostgreSQL
     CRUDBase --> PostgreSQL
 ```
 
-Los cuatro recursos de trámite **se generan desde una sola fábrica**. Antes eran cuatro
-archivos con el mismo bloque de endpoints copiado, y el cifrado estaba repetido en tres
-repositorios; cualquier cambio de contrato exigía tocar los cuatro y era cuestión de
-tiempo que uno se quedara atrás.
+The four tramite resources **are generated from a single factory**. They used to
+be four files with the same block of endpoints copy-pasted, and encryption was
+duplicated across three repositories; any contract change meant touching all four,
+and it was only a matter of time before one fell behind.
 
 ---
 
-## El pipeline ETL
+## The ETL pipeline
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Op as Operadora (CLI)
+    actor Op as Operator (CLI)
     participant ETL as etl_tramex
     participant XLS as TRAMEX.xlsx
     participant SH as tramex_shared
     participant DB as PostgreSQL
 
-    Op->>ETL: python -m etl.etl_tramex archivo.xlsx [--simulacion]
+    Op->>ETL: python -m etl.etl_tramex file.xlsx [--simulacion]
     activate ETL
 
-    ETL->>XLS: leer hojas (encabezado por hoja)
+    ETL->>XLS: read sheets (per-sheet header)
     XLS-->>ETL: 4 DataFrames
-    Note over ETL: Falla si falta una columna:<br/>mejor detenerse que cargar<br/>miles de filas sin un campo
+    Note over ETL: Fails if a column is missing:<br/>better to stop than to load<br/>thousands of rows without a field
 
-    Note over ETL,SH: Transformación (funciones puras)<br/>· limpiar texto, teléfonos y correos<br/>· separar fecha válida de texto libre<br/>· descartar filas de relleno sin nombre
-    ETL->>SH: calcular clave_natural y hash_fila
-    SH-->>ETL: huellas sobre texto plano
-    Note over ETL: El hash se calcula ANTES de cifrar:<br/>Fernet usa IV aleatorio y comparar<br/>criptogramas siempre diría "cambió"
+    Note over ETL,SH: Transformation (pure functions)<br/>· clean text, phone numbers and emails<br/>· split valid dates from free text<br/>· discard unnamed filler rows
+    ETL->>SH: compute clave_natural and hash_fila
+    SH-->>ETL: fingerprints over plain text
+    Note over ETL: The hash is computed BEFORE encrypting:<br/>Fernet uses a random IV, and comparing<br/>ciphertexts would always say "changed"
 
-    ETL->>DB: BEGIN (una sola transacción)
+    ETL->>DB: BEGIN (a single transaction)
     activate DB
 
-    ETL->>DB: leer clientes activos
-    Note over ETL: Resolución de identidad en dos pasadas:<br/>1ª con pasaporte o correo<br/>2ª por nombre, solo si es inequívoco
-    ETL->>DB: upsert de clientes
+    ETL->>DB: read active clients
+    Note over ETL: Two-pass identity resolution:<br/>1st with passport or email<br/>2nd by name, only if unambiguous
+    ETL->>DB: upsert clients
 
-    loop por cada hoja, en lotes
-        ETL->>DB: consultar hash_fila previo
-        DB-->>ETL: estado actual
-        Note over ETL: clasifica: nuevo · modificado · igual
+    loop for each sheet, in batches
+        ETL->>DB: query previous hash_fila
+        DB-->>ETL: current state
+        Note over ETL: classifies: new · modified · unchanged
         ETL->>DB: INSERT ... ON CONFLICT (clave_natural)<br/>DO UPDATE WHERE hash_fila IS DISTINCT
     end
 
     alt --simulacion
         ETL->>DB: ROLLBACK
-        DB-->>ETL: nada se escribió
-    else carga normal
+        DB-->>ETL: nothing was written
+    else normal load
         ETL->>DB: COMMIT
-        DB-->>ETL: confirmado
+        DB-->>ETL: confirmed
     end
     deactivate DB
 
-    ETL-->>Op: resumen por tabla:<br/>nuevos · actualizados · sin cambios
+    ETL-->>Op: per-table summary:<br/>new · updated · unchanged
     deactivate ETL
 ```
 
-Ejemplo real de la segunda ejecución sobre el mismo archivo:
+Real example of a second run over the same file:
 
 ```text
 ==================================================================
- CARGA COMPLETADA
+ LOAD COMPLETE
 ==================================================================
- tabla                 nuevos   actualizados    sin cambios
+ table                  new       updated      unchanged
 ------------------------------------------------------------------
  clientes                   0              0              0
  master_tramex              0              0            140
@@ -454,19 +455,19 @@ Ejemplo real de la segunda ejecución sobre el mismo archivo:
  pasaportes                 0              0             77
  canada                     0              0             42
 ------------------------------------------------------------------
- Duracion: 0.117 s
- Sin novedades: el archivo ya estaba conciliado con la base.
+ Duration: 0.117 s
+ Nothing new: the file was already reconciled with the database.
 ==================================================================
 ```
 
 ---
 
-## Cómo ejecutarlo
+## Running it
 
-### Con Docker (recomendado)
+### With Docker (recommended)
 
 ```bash
-# 1. Variables mínimas
+# 1. Minimum required variables
 cat > .env <<'EOF'
 TRAMEX_FERNET_KEY=CxNCUQhBIDIRsETw8i-dfZBdmcnh6YX43VWS-9txMY4=
 API_SECRET_KEY=clave-de-desarrollo-no-usar-en-produccion
@@ -474,304 +475,308 @@ ADMIN_INICIAL_CORREO=admin@tramex.dev
 ADMIN_INICIAL_CONTRASENA=TramexAdmin2026!
 EOF
 
-# 2. Levantar todo (migra y siembra el administrador automáticamente)
+# 2. Bring everything up (migrates and seeds the admin automatically)
 docker compose up -d
 
-# 3. Poblar con datos sintéticos para ver el sistema con contenido
+# 3. Populate with synthetic data to see the system with content
 python docs/generar_datos_demo.py raw-data/TRAMEX_demo.xlsx
 make etl ARCHIVO=raw-data/TRAMEX_demo.xlsx
 ```
 
-> La llave Fernet de arriba es de ejemplo y solo cifra datos de prueba. Genera la tuya
-> con `python etl/generate_key.py`.
+> The Fernet key above is an example and only encrypts test data. Generate your
+> own with `python etl/generate_key.py`.
 
-### Servicios y credenciales
+### Services and credentials
 
-| Servicio | URL | Usuario | Contraseña |
+| Service | URL | User | Password |
 |---|---|---|---|
 | **Dashboard** | http://localhost:4200 | `admin@tramex.dev` | `TramexAdmin2026!` |
 | **API** | http://localhost:8000 | — | — |
-| **Swagger** | http://localhost:8000/docs | mismas del dashboard | mismas |
-| **Métricas** | http://localhost:8000/metrics | — | — |
+| **Swagger** | http://localhost:8000/docs | same as dashboard | same |
+| **Metrics** | http://localhost:8000/metrics | — | — |
 | **Grafana** | http://localhost:3001 | `admin` | `admin` |
 | **Prometheus** | http://localhost:9090 | — | — |
 | **pgAdmin** | http://localhost:5051 | `admin@example.com` | `admin_password` |
 | **PostgreSQL** | `localhost:5434` | `postgres` | `postgres_password` |
 | **Redis** | `localhost:6379` | — | — |
 
-> Son credenciales **de desarrollo**, fijadas para no tener que buscarlas. El stack de
-> producción (`docker-compose.prod.yml`) no tiene valores por defecto: exige cada
-> secreto por variable de entorno y se niega a arrancar sin ellos.
+> These are **development** credentials, fixed so you don't have to hunt for them.
+> The production stack (`docker-compose.prod.yml`) has no default values: it
+> requires every secret via an environment variable and refuses to start without them.
 
-### En local, sin contenedores
+### Locally, without containers
 
 ```bash
-make instalar                       # venv, dependencias, paquete compartido y hooks
-docker compose up -d db redis       # solo la infraestructura
-make migrar && make sembrar         # esquema y administrador inicial
+make instalar                       # venv, dependencies, shared package and hooks
+docker compose up -d db redis       # infrastructure only
+make migrar && make sembrar         # schema and initial admin
 make etl ARCHIVO=raw-data/TRAMEX_demo.xlsx
 
-cd backend && .venv/bin/uvicorn app.main:app --reload   # API en :8000
-cd frontend && npm start                                # dashboard en :4200
+cd backend && .venv/bin/uvicorn app.main:app --reload   # API on :8000
+cd frontend && npm start                                # dashboard on :4200
 ```
 
-`make ayuda` lista todas las órdenes disponibles.
+`make ayuda` lists every available command.
 
 ---
 
-## La interfaz
+## The interface
 
-| Inicio de sesión | Credenciales incorrectas |
+| Sign-in | Incorrect credentials |
 | :---: | :---: |
-| ![Login](docs/images/01-login.png) | ![Credenciales inválidas](docs/images/02-login-credenciales-invalidas.png) |
+| ![Login](docs/images/01-login.png) | ![Invalid credentials](docs/images/02-login-credenciales-invalidas.png) |
 
-El mensaje no distingue «no existe» de «contraseña incorrecta», para no permitir
-enumerar cuentas válidas; sí distingue en cambio una cuenta bloqueada por intentos
-fallidos, porque si no la persona seguiría probando contraseñas sin entender qué pasa.
+The message doesn't distinguish "doesn't exist" from "wrong password", so valid
+accounts can't be enumerated; it does distinguish an account locked from failed
+attempts, though, because otherwise the person would keep trying passwords without
+understanding what's happening.
 
-| Resumen del sistema | Listado con búsqueda y paginación |
+| System summary | Listing with search and pagination |
 | :---: | :---: |
-| ![Resumen](docs/images/03-resumen.png) | ![Tabla](docs/images/04-tabla-master-tramex.png) |
+| ![Summary](docs/images/03-resumen.png) | ![Table](docs/images/04-tabla-master-tramex.png) |
 
-| Búsqueda por nombre | Alta y edición |
+| Search by name | Create and edit |
 | :---: | :---: |
-| ![Búsqueda](docs/images/05-busqueda.png) | ![Formulario](docs/images/06-formulario.png) |
+| ![Search](docs/images/05-busqueda.png) | ![Form](docs/images/06-formulario.png) |
 
-La búsqueda agrupa las pulsaciones en una sola petición y se apoya en un índice GIN de
-trigramas, porque `ILIKE '%texto%'` no puede usar un índice B-tree. En el formulario,
-**un campo de contraseña vacío significa «no la cambies»**, nunca «bórrala».
+Search groups keystrokes into a single request and relies on a GIN trigram index,
+since `ILIKE '%text%'` can't use a B-tree index. In the form, **an empty password
+field means "don't change it"**, never "erase it".
 
-### Consulta de una credencial
+### Looking up a credential
 
-![Credencial auditada](docs/images/07-credencial-auditada.png)
+![Audited credential](docs/images/07-credencial-auditada.png)
 
-La operación más sensible del sistema. La credencial llega oculta, se revela solo bajo
-petición explícita y el diálogo indica **el número de asiento que la consulta acaba de
-dejar en la bitácora**: quien la hace ve que ha quedado registrada.
+The system's most sensitive operation. The credential arrives hidden, is revealed
+only on explicit request, and the dialog shows **the entry number the lookup just
+wrote to the audit log**: whoever performs it sees that it was logged.
 
-### Bitácora de auditoría
+### Audit log
 
-![Bitácora](docs/images/09-auditoria.png)
+![Audit log](docs/images/09-auditoria.png)
 
-Accesible solo con rol `admin`. Registra logins exitosos, fallidos y bloqueados, altas,
-modificaciones, bajas, restauraciones, purgas y cada descifrado de credencial, con su
-nivel de severidad. Ningún asiento contiene contraseñas, tokens ni cookies.
+Accessible only with the `admin` role. Records successful, failed, and locked-out
+logins, creations, edits, archiving, restores, purges, and every credential
+decryption, with its severity level. No entry ever contains passwords, tokens, or
+cookies.
 
-### Fechas en texto libre
+### Free-text dates
 
-![Pasaportes](docs/images/08-pasaportes-texto-libre.png)
+![Passports](docs/images/08-pasaportes-texto-libre.png)
 
-La hoja de origen mezcla fechas reales con texto escrito a mano (`"MARZO"`,
-`"pendiente"`). El pipeline las preserva en `fecha_cita_original` en lugar de
-descartarlas: es información que la operadora sí sabe interpretar.
+The source sheet mixes real dates with handwritten text (`"MARZO"`, `"pendiente"`).
+The pipeline preserves them in `fecha_cita_original` instead of discarding them:
+it's information the operator does know how to interpret.
 
 ---
 
 ## API
 
-Documentación interactiva en `/docs`, generada desde el código:
+Interactive documentation at `/docs`, generated from the code:
 
 ![Swagger](docs/images/10-swagger.png)
 
-### Rutas principales
+### Main routes
 
-**Públicas**
+**Public**
 
-| Método | Ruta | Descripción |
+| Method | Route | Description |
 |---|---|---|
-| `GET` | `/health` | Sonda de disponibilidad; verifica la base y devuelve 503 si no responde |
-| `GET` | `/metrics` | Métricas en formato Prometheus |
-| `POST` | `/api/v1/auth/token` | Inicia sesión; deja la cookie `httpOnly` y devuelve el token |
+| `GET` | `/health` | Availability probe; checks the database and returns 503 if it doesn't respond |
+| `GET` | `/metrics` | Metrics in Prometheus format |
+| `POST` | `/api/v1/auth/token` | Signs in; sets the `httpOnly` cookie and returns the token |
 
-**Sesión iniciada (cualquier rol)**
+**Signed in (any role)**
 
-| Método | Ruta | Descripción |
+| Method | Route | Description |
 |---|---|---|
-| `GET` | `/api/v1/auth/me` | Usuario de la sesión actual |
-| `POST` | `/api/v1/auth/logout` | Cierra la sesión |
-| `POST` | `/api/v1/auth/cambiar-contrasena` | Exige la contraseña vigente |
-| `GET` | `/api/v1/clientes/` | Listado paginado de personas |
-| `GET` | `/api/v1/clientes/{id}` | Cliente con el conteo de sus trámites por tipo |
-| `GET` `POST` | `/api/v1/{recurso}/` | Listar (con `buscar`, `cliente_id`, `incluir_eliminados`) y crear |
-| `GET` `PATCH` `DELETE` | `/api/v1/{recurso}/{id}` | Obtener, actualizar parcialmente y dar de baja |
-| `POST` | `/api/v1/{recurso}/{id}/restaurar` | Reactivar un registro dado de baja |
-| `GET` | `/api/v1/{recurso}/{id}/password` | **Descifra la credencial. Queda auditado.** |
+| `GET` | `/api/v1/auth/me` | Current session's user |
+| `POST` | `/api/v1/auth/logout` | Signs out |
+| `POST` | `/api/v1/auth/cambiar-contrasena` | Requires the current password |
+| `GET` | `/api/v1/clientes/` | Paginated listing of people |
+| `GET` | `/api/v1/clientes/{id}` | Client with a count of their tramites by type |
+| `GET` `POST` | `/api/v1/{recurso}/` | List (with `buscar`, `cliente_id`, `incluir_eliminados`) and create |
+| `GET` `PATCH` `DELETE` | `/api/v1/{recurso}/{id}` | Get, partially update, and archive |
+| `POST` | `/api/v1/{recurso}/{id}/restaurar` | Reactivate an archived record |
+| `GET` | `/api/v1/{recurso}/{id}/password` | **Decrypts the credential. Gets logged.** |
 
-Donde `{recurso}` es `master-tramex`, `global-entry`, `pasaportes` o `canada`.
-`pasaportes` no expone `/password` porque no custodia credenciales.
+Where `{recurso}` is `master-tramex`, `global-entry`, `pasaportes`, or `canada`.
+`pasaportes` doesn't expose `/password` because it doesn't hold any credentials.
 
-**Rol `admin`**
+**`admin` role**
 
-| Método | Ruta | Descripción |
+| Method | Route | Description |
 |---|---|---|
-| `GET` `POST` | `/api/v1/admin/usuarios` | Listar y dar de alta usuarios |
-| `PATCH` `DELETE` | `/api/v1/admin/usuarios/{id}` | Actualizar y dar de baja |
-| `GET` | `/api/v1/admin/auditoria` | Bitácora, filtrable por acción, usuario, nivel y fecha |
-| `POST` | `/api/v1/admin/retencion/ejecutar` | Purga definitiva; exige `confirmar=true` |
+| `GET` `POST` | `/api/v1/admin/usuarios` | List and create users |
+| `PATCH` `DELETE` | `/api/v1/admin/usuarios/{id}` | Update and deactivate |
+| `GET` | `/api/v1/admin/auditoria` | Audit log, filterable by action, user, level, and date |
+| `POST` | `/api/v1/admin/retencion/ejecutar` | Permanent purge; requires `confirmar=true` |
 
-El sistema impide degradar o dar de baja al último administrador activo: recuperarse de
-eso exigiría editar la base a mano.
+The system prevents demoting or deactivating the last active administrator:
+recovering from that would require editing the database by hand.
 
 ---
 
-## Observabilidad
+## Observability
 
 ![Grafana](docs/images/11-grafana.png)
 
-Grafana viene aprovisionado con el panel y la fuente de datos. Además del tráfico, la
-latencia por percentiles y la tasa de error, mide lo que importa en este dominio:
-**credenciales de clientes descifradas** e **intentos de inicio de sesión por
-resultado**. La bitácora guarda el detalle asiento por asiento; la serie temporal
-permite ver la tendencia y alertar si el volumen se dispara.
+Grafana comes provisioned with the dashboard and data source. Beyond traffic,
+percentile latency, and error rate, it measures what matters in this domain:
+**client credentials decrypted** and **sign-in attempts by outcome**. The audit log
+holds the entry-by-entry detail; the time series shows the trend and can alert if
+volume spikes.
 
-La etiqueta de ruta usa la plantilla (`/api/v1/canada/{registro_id}`) y no la URL
-concreta: si no, cada registro generaría su propia serie y tumbaría el Prometheus por
-cardinalidad. Hay una prueba que verifica que las métricas no contienen nombres de
-clientes ni credenciales.
+The route label uses the template (`/api/v1/canada/{registro_id}`) rather than the
+literal URL: otherwise every record would generate its own series and blow up
+Prometheus through cardinality. A test verifies that the metrics contain no client
+names or credentials.
 
-El backend emite además **logs estructurados en JSON** y reporta excepciones a
-**Sentry** si se configura `SENTRY_DSN`.
+The backend also emits **structured JSON logs** and reports exceptions to
+**Sentry** if `SENTRY_DSN` is configured.
 
 ---
 
-## Variables de entorno
+## Environment variables
 
 ### API (`backend/.env`)
 
-| Variable | Descripción | Por defecto |
+| Variable | Description | Default |
 |---|---|---|
-| `APP_ENV` | `development`, `staging` o `production` | `development` |
-| `DATABASE_URL` | Conexión a PostgreSQL | `postgresql+psycopg2://…@localhost:5434/tramex` |
-| `TRAMEX_FERNET_KEY` | **Llave de cifrado de credenciales.** Sin ella la API no arranca | *(obligatoria)* |
-| `API_SECRET_KEY` | Firma de los JWT de sesión | `dev-secret-change-in-production` |
-| `TOKEN_EXPIRA_MINUTOS` | Duración de la sesión | `480` |
-| `COOKIE_SECURE` / `COOKIE_SAMESITE` | Política de la cookie de sesión | `false` / `lax` |
-| `BCRYPT_RONDAS` | Coste del hash de contraseñas | `12` |
-| `ALLOWED_ORIGINS` | Orígenes CORS, separados por comas | `http://localhost:4200,…:8080` |
-| `INTENTOS_MAXIMOS_LOGIN` / `VENTANA_BLOQUEO_MINUTOS` | Umbral y ventana de bloqueo | `5` / `15` |
-| `REDIS_URL` | Contadores compartidos entre réplicas | *(sin valor)* |
-| `DIAS_RETENCION` | Días antes de poder purgar lo archivado | `365` |
-| `ADMIN_INICIAL_CORREO` / `ADMIN_INICIAL_CONTRASENA` | Siembra del primer administrador | `admin@example.com` / *(generada)* |
-| `SENTRY_DSN` / `SENTRY_TRACES_SAMPLE_RATE` | Reporte de excepciones | *(vacío)* / `0.1` |
-| `LOG_LEVEL` | Nivel del logger | `INFO` |
+| `APP_ENV` | `development`, `staging`, or `production` | `development` |
+| `DATABASE_URL` | PostgreSQL connection | `postgresql+psycopg2://…@localhost:5434/tramex` |
+| `TRAMEX_FERNET_KEY` | **Credential encryption key.** Without it the API won't start | *(required)* |
+| `API_SECRET_KEY` | Signs the session JWTs | `dev-secret-change-in-production` |
+| `TOKEN_EXPIRA_MINUTOS` | Session duration | `480` |
+| `COOKIE_SECURE` / `COOKIE_SAMESITE` | Session cookie policy | `false` / `lax` |
+| `BCRYPT_RONDAS` | Password hashing cost | `12` |
+| `ALLOWED_ORIGINS` | CORS origins, comma-separated | `http://localhost:4200,…:8080` |
+| `INTENTOS_MAXIMOS_LOGIN` / `VENTANA_BLOQUEO_MINUTOS` | Lockout threshold and window | `5` / `15` |
+| `REDIS_URL` | Counters shared across replicas | *(unset)* |
+| `DIAS_RETENCION` | Days before archived data can be purged | `365` |
+| `ADMIN_INICIAL_CORREO` / `ADMIN_INICIAL_CONTRASENA` | Seeds the first administrator | `admin@example.com` / *(generated)* |
+| `SENTRY_DSN` / `SENTRY_TRACES_SAMPLE_RATE` | Exception reporting | *(empty)* / `0.1` |
+| `LOG_LEVEL` | Logger level | `INFO` |
 
-**En `production` la aplicación se niega a arrancar** si `ALLOWED_ORIGINS` contiene `*`,
-si `API_SECRET_KEY` conserva el valor de ejemplo, si la base es SQLite, si la cookie no
-es `Secure`, si falta Redis o si el coste de bcrypt baja de 12. Es preferible que el
-despliegue falle de forma visible a que quede corriendo un servicio inseguro.
+**In `production` the application refuses to start** if `ALLOWED_ORIGINS` contains
+`*`, if `API_SECRET_KEY` still has its example value, if the database is SQLite, if
+the cookie isn't `Secure`, if Redis is missing, or if the bcrypt cost drops below
+12. It's better for the deployment to fail visibly than for an insecure service to
+keep running.
 
 ### ETL (`etl/.env`)
 
-| Variable | Descripción |
+| Variable | Description |
 |---|---|
-| `DATABASE_URL` | Obligatoria. **No hay respaldo silencioso a SQLite**: creer que se cargó la base real cuando se escribió un archivo local es un fallo caro y difícil de notar |
-| `TRAMEX_FERNET_KEY` | Debe ser **la misma** que usa la API, o esta no podrá descifrar lo que cargue el ETL |
+| `DATABASE_URL` | Required. **There's no silent fallback to SQLite**: believing the real database was loaded when a local file was actually written is an expensive, hard-to-notice failure |
+| `TRAMEX_FERNET_KEY` | Must be **the same** one the API uses, or it won't be able to decrypt what the ETL loads |
 
 ### Dashboard
 
-`API_PROXY_TARGET` define a dónde reenvía el servidor de desarrollo (`http://backend:8000`
-dentro de Docker). En producción no hace falta: Nginx sirve el dashboard y hace de proxy
-bajo el mismo origen, de modo que no hay dominio que configurar ni CORS que negociar.
+`API_PROXY_TARGET` defines where the dev server forwards requests
+(`http://backend:8000` inside Docker). In production it isn't needed: Nginx serves
+the dashboard and proxies under the same origin, so there's no domain to configure
+and no CORS to negotiate.
 
 ---
 
-## Calidad y gobernanza
+## Quality and governance
 
-### Integración continua
+### Continuous integration
 
-Cada push y cada pull request ejecutan:
+Every push and pull request runs:
 
-1. **Escaneo de secretos** (Gitleaks) sobre el historial completo: un secreto filtrado
-   sigue estándolo aunque después se borre del archivo.
-2. **Estilo y tipos**: `ruff check`, `ruff format --check` y `mypy` en Python; ESLint y
-   `tsc` en el frontend.
-3. **Pruebas con umbral de cobertura** que rompe la ejecución si baja de 85 %.
-4. **Integración contra PostgreSQL real**, que cubre lo que SQLite no puede:
-   - las migraciones se aplican **y se revierten**;
-   - **no hay deriva** entre los modelos y las migraciones (`alembic autogenerate` no
-     debe detectar nada pendiente);
-   - el ETL es idempotente de verdad, verificado con un Excel sintético que reproduce
-     las rarezas del archivo real.
-5. **Compilación de ambas imágenes Docker**, para detectar un Dockerfile roto antes de
-   intentar entregar.
+1. **Secret scanning** (Gitleaks) over the full history: a leaked secret stays
+   leaked even after it's later removed from the file.
+2. **Style and types**: `ruff check`, `ruff format --check`, and `mypy` in Python;
+   ESLint and `tsc` in the frontend.
+3. **Tests with a coverage threshold** that breaks the build below 85%.
+4. **Integration against a real PostgreSQL instance**, covering what SQLite can't:
+   - migrations get applied **and rolled back**;
+   - **there's no drift** between the models and the migrations
+     (`alembic autogenerate` must find nothing pending);
+   - the ETL is genuinely idempotent, verified with a synthetic Excel file that
+     reproduces the real file's quirks.
+5. **Building both Docker images**, to catch a broken Dockerfile before trying to
+   ship.
 
-La detección de deriva encontró dos inconsistencias reales nada más escribirse, y las
-dos se corrigieron.
+Drift detection found two real inconsistencies as soon as it was written, and both
+were fixed.
 
-### Entrega continua
+### Continuous delivery
 
-Solo con una etiqueta `v*` o una release publicada, nunca en cada push a `main`:
-publicar `latest` en cada commit hace imposible saber qué corre en producción. Publica
-en GHCR con etiquetas semánticas, procedencia y SBOM, y escanea las imágenes con Trivy
-subiendo el resultado al panel de seguridad.
+Only on a `v*` tag or a published release, never on every push to `main`:
+publishing `latest` on every commit makes it impossible to know what's actually
+running in production. Publishes to GHCR with semantic tags, provenance, and an
+SBOM, and scans the images with Trivy, uploading the result to the security tab.
 
-### En local
+### Locally
 
 ```bash
-make verificar      # exactamente lo que exige la CI
+make verificar      # exactly what CI requires
 make lint           # ruff + ESLint
 make tipos          # mypy + tsc
-make cobertura      # pytest con el umbral del proyecto
+make cobertura      # pytest with the project's threshold
 make test           # backend + ETL + frontend
 ```
 
-Los hooks de Husky validan el mensaje de cada commit (*Conventional Commits*) y pasan
-los linters sobre los archivos preparados.
+Husky hooks validate every commit message (*Conventional Commits*) and run the
+linters over staged files.
 
-### Pruebas
+### Tests
 
-| Suite | Cantidad | Qué cubre |
+| Suite | Count | What it covers |
 |---|---|---|
-| **Backend** (pytest) | 96 | CRUD parametrizado sobre los cuatro recursos, resolución de identidad, autenticación real (sin *mocks*), roles, auditoría, fuerza bruta, retención, métricas y cabeceras |
-| **ETL** (pytest) | 88 | Limpieza de celdas sucias, transformaciones, **idempotencia**, transaccionalidad, simulación y estructura del archivo |
-| **Dashboard** (Karma + Jasmine) | 61 | Servicios, interceptor, guards, login, tabla y formulario |
+| **Backend** (pytest) | 96 | Parametrized CRUD across the four resources, identity resolution, real authentication (no mocks), roles, auditing, brute force, retention, metrics, and headers |
+| **ETL** (pytest) | 88 | Dirty-cell cleanup, transformations, **idempotency**, transactionality, dry-run mode, and file structure |
+| **Dashboard** (Karma + Jasmine) | 61 | Services, interceptor, guards, login, table, and form |
 
-Algunas pruebas comprueban propiedades concretas del sistema más que su código: que el
-token **no** acaba en `localStorage`, que un campo de contraseña vacío no borra la
-credencial del cliente, que un fallo a mitad de carga no deja datos parciales, que dos
-homónimos sin identificador no se fusionan y que las métricas no filtran datos
-personales.
+Some tests check concrete system properties rather than just their code: that the
+token **doesn't** end up in `localStorage`, that an empty password field doesn't
+erase the client's credential, that a mid-load failure leaves no partial data, that
+two namesakes with no identifier don't get merged, and that metrics don't leak
+personal data.
 
 ---
 
-## Decisiones de arquitectura
+## Architecture decisions
 
-Las decisiones de fondo están documentadas en [`docs/decisions/`](docs/decisions/), con
-su contexto, sus consecuencias y las alternativas descartadas:
+The underlying decisions are documented in [`docs/decisions/`](docs/decisions/),
+with their context, consequences, and the alternatives that were discarded:
 
-| # | Decisión |
+| # | Decision |
 |---|---|
-| [0001](docs/decisions/0001-cifrado-reversible-de-credenciales.md) | Cifrado reversible y no hash para las credenciales de clientes |
-| [0002](docs/decisions/0002-identidad-reproducible-y-carga-idempotente.md) | Identidad reproducible de filas y carga idempotente |
-| [0003](docs/decisions/0003-resolucion-de-identidad-en-dos-pasadas.md) | Resolución de identidad de personas en dos pasadas |
-| [0004](docs/decisions/0004-borrado-logico-y-retencion.md) | Borrado lógico, unicidad parcial y política de retención |
-| [0005](docs/decisions/0005-autenticacion-roles-y-auditoria.md) | Autenticación con sesión en cookie, roles y bitácora |
-| [0006](docs/decisions/0006-paquete-compartido-entre-etl-y-api.md) | Un paquete compartido entre el ETL y la API |
+| [0001](docs/decisions/0001-cifrado-reversible-de-credenciales.md) | Reversible encryption instead of hashing for client credentials |
+| [0002](docs/decisions/0002-identidad-reproducible-y-carga-idempotente.md) | Reproducible row identity and idempotent loading |
+| [0003](docs/decisions/0003-resolucion-de-identidad-en-dos-pasadas.md) | Two-pass identity resolution for people |
+| [0004](docs/decisions/0004-borrado-logico-y-retencion.md) | Soft delete, partial uniqueness, and retention policy |
+| [0005](docs/decisions/0005-autenticacion-roles-y-auditoria.md) | Cookie session authentication, roles, and audit log |
+| [0006](docs/decisions/0006-paquete-compartido-entre-etl-y-api.md) | A package shared between the ETL and the API |
 
 ---
 
-## Limitaciones conocidas
+## Known limitations
 
-Lo que el sistema **no** hace hoy, dicho explícitamente:
+What the system explicitly does **not** do today:
 
-- **Rotar la llave Fernet exige re-cifrar la base.** No basta con cambiar la variable;
-  falta automatizar el proceso.
-- **Las personas sin pasaporte ni correo pueden fragmentarse** en varios clientes. Es
-  deliberado —ante homónimos ambiguos se prefiere separar a fusionar por error— pero
-  falta una herramienta de fusión asistida desde la interfaz.
-- **La purga por retención es manual.** Lo natural es un job programado.
-- **No hay MFA**, ni rotación automática de secretos, ni recuperación de contraseña por
-  correo. Son necesarios si el sistema se expone a internet abierto; hoy está pensado
-  para la red de la agencia detrás de HTTPS.
-- **Sin despliegue público.** El stack de producción está definido y las imágenes se
-  publican en GHCR, pero no hay entorno alojado.
+- **Rotating the Fernet key requires re-encrypting the database.** Changing the
+  variable alone isn't enough; automating the process is still pending.
+- **People with no passport or email can get split** into several clients. This is
+  deliberate — given ambiguous namesakes, splitting is preferred over a wrong
+  merge — but an assisted-merge tool in the interface is still missing.
+- **Retention purging is manual.** A scheduled job is the natural next step.
+- **No MFA**, no automatic secret rotation, no email-based password recovery.
+  These become necessary if the system is exposed to the open internet; today it's
+  designed for the agency's own network behind HTTPS.
+- **No public deployment.** The production stack is defined and images are
+  published to GHCR, but there's no hosted environment.
 
 ---
 
-## Licencia
+## License
 
 [MIT](LICENSE) · Alexander Tinoco
 
-Los datos reales de la agencia nunca forman parte de este repositorio. Todo lo que
-aparece en capturas, pruebas y ejemplos es sintético y se genera con
-[`docs/generar_datos_demo.py`](docs/generar_datos_demo.py).
+The agency's real data never becomes part of this repository. Everything that
+appears in screenshots, tests, and documentation examples is synthetic and
+generated with [`docs/generar_datos_demo.py`](docs/generar_datos_demo.py).

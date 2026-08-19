@@ -1,110 +1,113 @@
-# 0005 · Autenticación con sesión en cookie, roles y bitácora de auditoría
+# 0005 · Cookie session authentication, roles, and an audit log
 
-## Estado
+## Status
 
-Aceptado · 2026-07-13 · Reemplaza el esquema de credenciales por variables de entorno
+Accepted · 2026-07-13 · Replaces the environment-variable credential scheme
 
-## Contexto
+## Context
 
-La autenticación original era:
+The original authentication was:
 
 ```python
 if form_data.username != API_USERNAME or form_data.password != API_PASSWORD:
     raise HTTPException(status_code=401, ...)
 ```
 
-Cuatro problemas en cuatro líneas:
+Four problems in four lines:
 
-1. **Una sola cuenta compartida.** Imposible saber *quién* hizo qué. En un
-   sistema que guarda credenciales de cuentas gubernamentales de terceros, es
-   justamente la pregunta que hay que poder responder.
-2. **Contraseña en texto plano** en el entorno del proceso.
-3. **Comparación con `!=`**, que devuelve en tiempo variable y filtra
-   información por temporización.
-4. **Sin límite de intentos.** El endpoint era público y se podían probar
-   contraseñas indefinidamente.
+1. **A single shared account.** Impossible to know *who* did what. In a
+   system that stores credentials for third parties' government accounts,
+   that's exactly the question that needs to be answerable.
+2. **Plain-text password** in the process environment.
+3. **Comparison with `!=`**, which returns in variable time and leaks
+   information through timing.
+4. **No attempt limit.** The endpoint was public and passwords could be
+   tried indefinitely.
 
-Además, el token viajaba al navegador y se guardaba en `localStorage`, accesible
-desde cualquier script de la página.
+On top of that, the token traveled to the browser and was stored in
+`localStorage`, accessible from any script on the page.
 
-## Decisión
+## Decision
 
-### Usuarios con hash bcrypt
+### Users with bcrypt hashing
 
-Tabla `usuarios` con hash bcrypt (coste 12, configurable; las pruebas lo bajan a
-4 porque ahí se ejercita el flujo, no el coste). La contraseña se normaliza con
-SHA-256 y base64 antes de bcrypt, porque **bcrypt trunca en 72 bytes en
-silencio**: sin ese paso, dos contraseñas largas con el mismo prefijo serían
-intercambiables.
+A `usuarios` table with bcrypt hashing (cost 12, configurable; tests lower
+it to 4 since what's being exercised there is the flow, not the cost). The
+password is normalized with SHA-256 and base64 before bcrypt, because
+**bcrypt silently truncates at 72 bytes**: without that step, two long
+passwords sharing the same prefix would be interchangeable.
 
-Nótese el contraste con [0001](./0001-cifrado-reversible-de-credenciales.md): las
-contraseñas *de los usuarios del sistema* se hashean porque solo hay que
-verificarlas; las *de las cuentas de los clientes* se cifran porque hay que
-devolverlas.
+Note the contrast with [0001](./0001-cifrado-reversible-de-credenciales.md):
+*system users'* passwords are hashed because they only ever need to be
+verified; *client account* credentials are encrypted because they need to be
+handed back.
 
-Cuando el correo no existe se verifica igualmente contra un hash señuelo, para
-que el tiempo de respuesta no permita enumerar cuentas válidas.
+When the email doesn't exist, the system still verifies against a decoy
+hash, so response timing can't be used to enumerate valid accounts.
 
-### Sesión en cookie `httpOnly`
+### `httpOnly` cookie session
 
-El JWT viaja en una cookie `httpOnly`, invisible para JavaScript: un XSS ya no
-basta para robar la sesión. Se sigue aceptando `Authorization: Bearer` porque
-Swagger, los scripts y las integraciones no usan cookies.
+The JWT travels in an `httpOnly` cookie, invisible to JavaScript: an XSS
+alone is no longer enough to steal the session. `Authorization: Bearer` is
+still accepted because Swagger, scripts, and integrations don't use cookies.
 
-La consecuencia de diseño es que **el frontend no puede leer su propia sesión**,
-y por eso pregunta a la API al arrancar (`GET /auth/me`). Es más trabajo que leer
-`localStorage`, y es el precio correcto.
+The design consequence is that **the frontend can't read its own session**,
+so it asks the API on startup (`GET /auth/me`). That's more work than
+reading `localStorage`, and it's the right price to pay.
 
-Cada petición revalida que el usuario siga existiendo y activo: un JWT sigue
-siendo criptográficamente válido después de dar de baja a alguien.
+Every request revalidates that the user still exists and is active: a JWT
+stays cryptographically valid even after someone has been deactivated.
 
-### Dos roles
+### Two roles
 
-`operador` gestiona trámites y consulta credenciales de clientes; `admin` además
-administra usuarios, lee la bitácora y ejecuta la retención. Solo dos, porque el
-equipo real son dos figuras; añadir más sin necesidad produce una matriz de
-permisos que nadie mantiene.
+`operador` handles tramites and looks up client credentials; `admin`
+additionally manages users, reads the audit log, and runs retention. Only
+two, because the real team is made up of two roles; adding more without a
+need for them produces a permissions matrix nobody maintains.
 
-El sistema impide degradar o dar de baja al último administrador activo:
-recuperarse de eso exigiría editar la base a mano.
+The system prevents demoting or deactivating the last active administrator:
+recovering from that would require editing the database by hand.
 
-### Bitácora de auditoría
+### Audit log
 
-`logs_auditoria` registra logins (exitosos, fallidos y bloqueados), altas,
-cambios, bajas, restauraciones, purgas y, sobre todo, **cada descifrado de una
-credencial de cliente**, con usuario, fecha, IP y registro consultado. La
-respuesta del endpoint devuelve el identificador del asiento que acaba de dejar,
-y la interfaz lo muestra: quien consulta ve que ha quedado registrado.
+`logs_auditoria` records logins (successful, failed, and locked out),
+creations, edits, archiving, restores, purges, and above all, **every
+decryption of a client credential**, with user, date, IP, and the record
+looked up. The endpoint's response returns the identifier of the entry it
+just wrote, and the interface shows it: whoever looked something up sees
+that it was logged.
 
-La regla es invariable: **se registra qué se consultó, nunca qué se obtuvo.** Un
-saneador descarta cualquier campo sensible que llegue por error al detalle y deja
-constancia en el log de aplicación para que se corrija el punto de llamada.
+The rule is invariable: **what was looked up is logged, never what was
+obtained.** A sanitizer strips any sensitive field that reaches the log
+detail by mistake and leaves a note in the application log so the call site
+gets fixed.
 
-### Protección contra fuerza bruta
+### Brute-force protection
 
-Bloqueo por cuenta tras N fallos en una ventana (resiste la rotación de IP) más
-límite por origen (frena el barrido de muchas cuentas). Los contadores viven en
-Redis para que varias réplicas compartan estado; sin Redis hay respaldo en
-memoria, y por eso la configuración **exige Redis en producción**.
+Account lockout after N failures in a window (resists IP rotation), plus a
+per-origin limit (slows down sweeping many accounts). Counters live in Redis
+so multiple replicas share state; without Redis there's an in-memory
+fallback, which is why the configuration **requires Redis in production**.
 
-La ventana no se prorroga con cada intento: si lo hiciera, un atacante constante
-mantendría bloqueada indefinidamente una cuenta legítima.
+The window doesn't extend with each attempt: if it did, a persistent
+attacker could keep a legitimate account locked out indefinitely.
 
-## Consecuencias
+## Consequences
 
-- **Arranque en frío.** Crear usuarios exige estar autenticado, así que hay un
-  script idempotente que siembra el primer administrador. En desarrollo genera e
-  imprime una contraseña; en producción la exige, porque una contraseña impresa
-  en los logs del contenedor es una contraseña filtrada.
-- **En desarrollo hace falta un proxy.** La cookie no viaja entre
-  `localhost:4200` y `localhost:8000`; el servidor de Angular reenvía `/api` para
-  que haya un único origen.
-- **Las pruebas no simulan la autenticación.** Los clientes de prueba inician
-  sesión de verdad contra el endpoint real; sustituirla por un *override* dejaría
-  sin cubrir la parte más delicada.
+- **Cold start.** Creating users requires being authenticated, so there's an
+  idempotent script that seeds the first administrator. In development it
+  generates and prints a password; in production it requires one, because a
+  password printed in container logs is a leaked password.
+- **A proxy is needed in development.** The cookie doesn't travel between
+  `localhost:4200` and `localhost:8000`; the Angular dev server forwards
+  `/api` so there's a single origin.
+- **Tests don't mock authentication.** Test clients actually sign in against
+  the real endpoint; replacing it with an override would leave the most
+  sensitive part uncovered.
 
-## Fuera de alcance
+## Out of scope
 
-No hay MFA, ni rotación automática de `API_SECRET_KEY`, ni caducidad de
-contraseñas, ni recuperación por correo. Son necesarios si el sistema se expone a
-internet abierto; hoy está pensado para la red de la agencia detrás de HTTPS.
+No MFA, no automatic `API_SECRET_KEY` rotation, no password expiration, no
+email-based recovery. These become necessary if the system is exposed to the
+open internet; today it's designed for the agency's own network behind
+HTTPS.

@@ -1,18 +1,19 @@
 # Architecture Decision Records
 
-Registro de las decisiones técnicas de fondo del proyecto: qué se decidió, en
-qué contexto y con qué consecuencias. El objetivo es que quien llegue después
-—o yo mismo dentro de un año— no tenga que reconstruir el razonamiento leyendo
-el código.
+A record of the project's underlying technical decisions: what was decided, in
+what context, and with what consequences. The goal is that whoever comes along
+later — or myself a year from now — doesn't have to reconstruct the reasoning
+by reading the code.
 
-Formato: **Contexto** (qué problema real había) → **Decisión** (qué se hizo) →
-**Consecuencias** (qué se ganó y qué se pagó) → **Alternativas descartadas**.
+Format: **Context** (what real problem existed) → **Decision** (what was done)
+→ **Consequences** (what was gained and what was paid) → **Alternatives
+discarded**.
 
-| # | Decisión | Resumen |
+| # | Decision | Summary |
 |---|---|---|
-| [0001](./0001-cifrado-reversible-de-credenciales.md) | Cifrado reversible y no hash para credenciales de clientes | La agencia necesita *recuperar* la contraseña del cliente, no *verificarla*: un hash haría el dato inservible |
-| [0002](./0002-identidad-reproducible-y-carga-idempotente.md) | Identidad reproducible de filas y carga idempotente | Dos huellas SHA-256 por fila permiten un upsert que no duplica ni reescribe de más |
-| [0003](./0003-resolucion-de-identidad-en-dos-pasadas.md) | Resolución de identidad de personas en dos pasadas | Ante homónimos ambiguos se prefiere separar: unir después es trivial, separar no |
-| [0004](./0004-borrado-logico-y-retencion.md) | Borrado lógico, unicidad parcial y retención | Un índice único parcial permite que convivan un registro vigente y sus versiones archivadas |
-| [0005](./0005-autenticacion-roles-y-auditoria.md) | Autenticación con cookie, roles y auditoría | Un usuario por persona es lo que hace que «¿quién consultó esa credencial?» tenga respuesta |
-| [0006](./0006-paquete-compartido-entre-etl-y-api.md) | Un paquete compartido entre el ETL y la API | Tres componentes escriben en las mismas tablas y deben derivar la identidad igual |
+| [0001](./0001-cifrado-reversible-de-credenciales.md) | Reversible encryption instead of hashing for client credentials | The agency needs to *recover* the client's password, not *verify* it: a hash would make the data useless |
+| [0002](./0002-identidad-reproducible-y-carga-idempotente.md) | Reproducible row identity and idempotent loading | Two SHA-256 fingerprints per row enable an upsert that neither duplicates nor overwrites unnecessarily |
+| [0003](./0003-resolucion-de-identidad-en-dos-pasadas.md) | Two-pass identity resolution for people | Given ambiguous namesakes, splitting is preferred: merging later is trivial, splitting isn't |
+| [0004](./0004-borrado-logico-y-retencion.md) | Soft delete, partial uniqueness, and retention | A partial unique index lets a current record and its archived versions coexist |
+| [0005](./0005-autenticacion-roles-y-auditoria.md) | Cookie authentication, roles, and auditing | One user per person is what makes "who looked up that credential?" answerable |
+| [0006](./0006-paquete-compartido-entre-etl-y-api.md) | A package shared between the ETL and the API | Three components write to the same tables and must derive identity the same way |

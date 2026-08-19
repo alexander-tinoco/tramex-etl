@@ -1,40 +1,39 @@
-# Guia de Contribucion
+# Contributing Guide
 
-Gracias por tu interes en colaborar con **Tramex**. Este documento describe el flujo de
-trabajo, las convenciones de codigo y los controles de calidad que el repositorio aplica
-de forma automatica.
+Thanks for your interest in contributing to **Tramex**. This document describes the
+workflow, code conventions, and quality gates the repository enforces automatically.
 
 ---
 
-## 1. Flujo de Trabajo
+## 1. Workflow
 
-1. **Haz un fork** del repositorio.
-2. **Crea una rama** partiendo de `main`, nombrada segun el tipo de cambio:
+1. **Fork** the repository.
+2. **Create a branch** off `main`, named after the type of change:
    ```bash
-   git checkout -b feat/auditoria-de-accesos
-   git checkout -b fix/etl-fechas-invalidas
+   git checkout -b feat/access-audit-log
+   git checkout -b fix/etl-invalid-dates
    ```
-3. **Desarrolla y verifica en local** ejecutando linters y tests del modulo que tocaste.
-4. **Haz commits limpios** siguiendo *Conventional Commits* (seccion 3).
-5. **Abre un Pull Request** contra `main` usando la plantilla del repositorio.
+3. **Develop and verify locally** by running the linters and tests for the module you touched.
+4. **Make clean commits** following *Conventional Commits* (section 3).
+5. **Open a Pull Request** against `main` using the repository's template.
 
 ---
 
-## 2. Convenciones de Codigo
+## 2. Code Conventions
 
-### ETL y Backend (Python)
+### ETL and Backend (Python)
 
-- Sigue **PEP 8** con un ancho maximo de 100 columnas; `ruff format` es la fuente de verdad.
-- Las transformaciones del ETL deben ser **funciones puras** sin efectos secundarios, para
-  que sean testeables sin base de datos ni archivos.
-- Usa **anotaciones de tipo** en toda firma publica. `mypy` corre en CI en modo no estricto
-  pero con `--warn-unused-ignores`.
-- Respeta la separacion de capas del backend:
-  **Router** (mapeo HTTP) -> **CRUD/Repositorio** (acceso a datos) -> **Modelo** (ORM).
-  La logica de negocio no vive en los routers.
-- Nunca registres credenciales, tokens ni contrasenas descifradas en los logs.
+- Follow **PEP 8** with a maximum line width of 100 columns; `ruff format` is the source of truth.
+- ETL transformations must be **pure functions** with no side effects, so they can
+  be tested without a database or files.
+- Use **type annotations** on every public signature. `mypy` runs in CI in non-strict
+  mode but with `--warn-unused-ignores`.
+- Respect the backend's layer separation:
+  **Router** (HTTP mapping) -> **CRUD/Repository** (data access) -> **Model** (ORM).
+  Business logic does not live in the routers.
+- Never log credentials, tokens, or decrypted passwords.
 
-Antes de commitear:
+Before committing:
 
 ```bash
 cd backend
@@ -46,14 +45,14 @@ cd backend
 
 ### Frontend (Angular / TypeScript)
 
-- **TypeScript estricto.** El uso de `any` esta prohibido por ESLint; modela la respuesta
-  del backend en `src/app/models/`.
-- Los componentes son **standalone** y usan **signals** para el estado local.
-  Evita `BehaviorSubject` para estado sincrono de UI.
-- Un componente que supere ~200 lineas debe dividirse. La logica compartida vive en
-  servicios (`src/app/services/`), no duplicada entre componentes.
+- **Strict TypeScript.** Using `any` is forbidden by ESLint; model the backend's
+  response shape in `src/app/models/`.
+- Components are **standalone** and use **signals** for local state.
+  Avoid `BehaviorSubject` for synchronous UI state.
+- A component that grows past ~200 lines should be split. Shared logic lives in
+  services (`src/app/services/`), not duplicated across components.
 
-Antes de commitear:
+Before committing:
 
 ```bash
 cd frontend
@@ -64,24 +63,24 @@ npm test -- --watch=false --browsers=ChromeHeadless
 
 ---
 
-## 3. Convenciones de Commits
+## 3. Commit Conventions
 
-Seguimos [Conventional Commits](https://www.conventionalcommits.org/es/). `commitlint`
-valida cada mensaje mediante el hook `commit-msg` de Husky.
+We follow [Conventional Commits](https://www.conventionalcommits.org/). `commitlint`
+validates every message via Husky's `commit-msg` hook.
 
 ```text
-<tipo>(<alcance>): <descripcion corta en minusculas, imperativo>
+<type>(<scope>): <short description, lowercase, imperative>
 
-[cuerpo opcional]
+[optional body]
 ```
 
-**Tipos permitidos:** `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`,
+**Allowed types:** `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`,
 `chore`, `style`, `revert`.
 
-**Alcances permitidos:** `etl`, `backend`, `frontend`, `db`, `api`, `auth`, `security`,
+**Allowed scopes:** `etl`, `backend`, `frontend`, `db`, `api`, `auth`, `security`,
 `infra`, `docker`, `ci`, `docs`, `deps`, `release`.
 
-Ejemplos validos:
+Valid examples:
 
 ```text
 feat(etl): make loading idempotent with natural key upsert
@@ -91,20 +90,20 @@ docs: rewrite readme with architecture and er diagrams
 
 ---
 
-## 4. Controles Automaticos
+## 4. Automated Checks
 
-| Control | Herramienta | Cuando corre |
+| Check | Tool | When it runs |
 |---|---|---|
-| Formato del mensaje de commit | `commitlint` | Hook `commit-msg` |
-| Lint y formato de archivos staged | `lint-staged` + `ruff` + `eslint` | Hook `pre-commit` |
-| Escaneo de secretos | `gitleaks` | CI, en cada push y PR |
-| Tests del ETL | `pytest` | CI |
-| Tests y cobertura del backend | `pytest --cov-fail-under=85` | CI |
-| Lint, tipos y tests del frontend | `eslint`, `tsc`, `karma` | CI |
-| Build de imagenes Docker | `docker/build-push-action` | CD, en tags `v*` |
-| Actualizacion de dependencias | `dependabot` | Semanal |
+| Commit message format | `commitlint` | `commit-msg` hook |
+| Lint and format of staged files | `lint-staged` + `ruff` + `eslint` | `pre-commit` hook |
+| Secret scanning | `gitleaks` | CI, on every push and PR |
+| ETL tests | `pytest` | CI |
+| Backend tests and coverage | `pytest --cov-fail-under=85` | CI |
+| Frontend lint, types, and tests | `eslint`, `tsc`, `karma` | CI |
+| Docker image build | `docker/build-push-action` | CD, on `v*` tags |
+| Dependency updates | `dependabot` | Weekly |
 
-Instala los hooks una sola vez tras clonar:
+Install the hooks once after cloning:
 
 ```bash
 npm install
@@ -112,21 +111,21 @@ npm install
 
 ---
 
-## 5. Decisiones de Arquitectura
+## 5. Architecture Decisions
 
-Cualquier cambio que altere el modelo de datos, el esquema de autenticacion o el
-contrato publico de la API debe acompanarse de un **ADR** en `docs/decisions/`,
-siguiendo el formato de los existentes (`Contexto` / `Decision` / `Consecuencias`).
-Si la nueva decision reemplaza a una previa, marca la anterior como `Reemplazada por`.
+Any change that alters the data model, the authentication scheme, or the public
+API contract must be accompanied by an **ADR** in `docs/decisions/`, following
+the format of the existing ones (`Context` / `Decision` / `Consequences`). If the
+new decision replaces a previous one, mark the previous one as `Superseded by`.
 
 ---
 
-## 6. Datos Sensibles
+## 6. Sensitive Data
 
-Este proyecto maneja datos personales reales (pasaportes, telefonos, correos y
-credenciales de cuentas de clientes). Por lo tanto:
+This project handles real personal data (passports, phone numbers, emails, and
+client account credentials). Therefore:
 
-- **Nunca** subas archivos de `raw-data/`, volcados de base de datos ni `.env` reales.
-- Usa siempre datos sinteticos en tests, capturas de pantalla y ejemplos de documentacion.
-- Toda funcionalidad nueva que lea credenciales descifradas **debe** escribir en
-  `logs_auditoria`. Un PR que acceda a datos sensibles sin auditarlos sera rechazado.
+- **Never** upload files from `raw-data/`, database dumps, or real `.env` files.
+- Always use synthetic data in tests, screenshots, and documentation examples.
+- Any new functionality that reads decrypted credentials **must** write to
+  `logs_auditoria`. A PR that accesses sensitive data without auditing it will be rejected.
