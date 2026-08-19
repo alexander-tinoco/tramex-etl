@@ -1,80 +1,82 @@
-# 0004 · Borrado lógico, unicidad parcial y política de retención
+# 0004 · Soft delete, partial uniqueness, and retention policy
 
-## Estado
+## Status
 
-Aceptado · 2026-07-12
+Accepted · 2026-07-12
 
-## Contexto
+## Context
 
-`DELETE /api/v1/{recurso}/{id}` destruía la fila. En un sistema que custodia
-datos personales —nombres, teléfonos, correos, números de pasaporte y
-credenciales de cuentas— eso tiene dos problemas: un borrado accidental es
-irreversible, y una baja no deja rastro de quién la hizo ni cuándo.
+`DELETE /api/v1/{resource}/{id}` used to destroy the row outright. In a
+system that holds personal data — names, phone numbers, emails, passport
+numbers, and account credentials — that creates two problems: an accidental
+deletion is unrecoverable, and an archive action leaves no trace of who did
+it or when.
 
-Al mismo tiempo, conservar datos personales indefinidamente tampoco es correcto.
+At the same time, keeping personal data forever isn't right either.
 
-## Decisión
+## Decision
 
-### Borrado lógico
+### Soft delete
 
-Toda tabla de negocio tiene `eliminado_en`. El `DELETE` de la API marca la fila
-en lugar de destruirla; deja de aparecer en los listados pero sigue disponible
-con `?incluir_eliminados=true` y puede reactivarse con `POST /{id}/restaurar`.
-La baja y la restauración quedan asentadas en la bitácora de auditoría.
+Every business table has `eliminado_en`. The API's `DELETE` marks the row
+instead of destroying it; it stops showing up in listings but stays
+available with `?incluir_eliminados=true` and can be reactivated with
+`POST /{id}/restaurar`. Both the archive action and the restore are logged
+in the audit trail.
 
-### Unicidad parcial
+### Partial uniqueness
 
-La consecuencia técnica interesante: si `clave_natural` fuera `UNIQUE` a secas,
-una fila archivada **seguiría ocupando su clave** e impediría volver a insertar
-la versión buena de esa misma identidad. La restricción es por tanto un índice
-único **parcial**:
+The interesting technical consequence: if `clave_natural` were plain
+`UNIQUE`, an archived row would **still occupy its key** and would block
+re-inserting the good version of that same identity. The constraint is
+therefore a **partial** unique index:
 
 ```sql
 CREATE UNIQUE INDEX uq_master_tramex_clave_natural_activa
     ON master_tramex (clave_natural) WHERE eliminado_en IS NULL;
 ```
 
-Así conviven un registro vigente y cualquier número de versiones archivadas de
-la misma identidad. El `ON CONFLICT` del ETL apunta a este índice.
+That way, one current record and any number of archived versions of the same
+identity can coexist. The ETL's `ON CONFLICT` targets this index.
 
-Esto resolvió además un problema real que apareció al migrar: la carga
-`append`-only anterior había dejado filas duplicadas en la base. La migración las
-detecta por clave natural, **conserva la más antigua y archiva las demás** en vez
-de destruirlas, y solo entonces impone la unicidad.
+This also solved a real problem that surfaced during migration: the
+previous `append`-only loading had left duplicate rows in the database. The
+migration detects them by natural key, **keeps the oldest one and archives
+the rest** instead of destroying them, and only then enforces uniqueness.
 
-### Retención
+### Retention
 
-`POST /api/v1/admin/retencion/ejecutar` destruye definitivamente lo archivado
-hace más de `DIAS_RETENCION` días (365 por defecto) y los asientos de auditoría
-fuera de ese periodo. Requiere rol `admin`, exige `confirmar=true` explícito y
-queda auditado con nivel `ALERTA`.
+`POST /api/v1/admin/retencion/ejecutar` permanently destroys anything
+archived more than `DIAS_RETENCION` days ago (365 by default) and any audit
+entries outside that window. It requires the `admin` role, requires an
+explicit `confirmar=true`, and is logged at `ALERTA` level.
 
-Es la única operación irreversible del sistema.
+It's the system's only irreversible operation.
 
-### La bitácora no admite borrado lógico
+### The audit log allows no soft delete
 
-`logs_auditoria` no tiene `eliminado_en` ni endpoint de edición a propósito: una
-bitácora que se puede corregir no sirve como bitácora. La única forma legítima de
-que desaparezca un asiento es la purga por antigüedad.
+`logs_auditoria` deliberately has no `eliminado_en` and no edit endpoint: an
+audit log that can be corrected isn't an audit log. The only legitimate way
+for an entry to disappear is age-based purging.
 
-## Consecuencias
+## Consequences
 
-- **Toda consulta filtra por `eliminado_en IS NULL`.** Está centralizado en
-  `CRUDBase`, de modo que un repositorio nuevo lo hereda; olvidarlo expondría
-  registros dados de baja.
-- **Índices compuestos `(cliente_id, eliminado_en)`** en las cuatro tablas, para
-  que el filtro no degrade las consultas por cliente.
-- **La base crece más.** Con el volumen de una agencia es irrelevante frente a la
-  trazabilidad que aporta.
-- **Dar de baja un cliente arrastra sus trámites.** Dejar trámites activos
-  colgando de un cliente archivado produciría listados inconsistentes.
-- **La purga debe ejecutarse.** Hoy es manual; lo natural es un job programado,
-  pendiente.
+- **Every query filters by `eliminado_en IS NULL`.** This is centralized in
+  `CRUDBase`, so a new repository inherits it automatically; forgetting it
+  would expose archived records.
+- **Composite indexes `(cliente_id, eliminado_en)`** on all four tables, so
+  the filter doesn't degrade per-client queries.
+- **The database grows more.** At an agency's volume that's irrelevant next
+  to the traceability it buys.
+- **Archiving a client cascades to their tramites.** Leaving active tramites
+  hanging off an archived client would produce inconsistent listings.
+- **The purge has to actually run.** Today it's manual; a scheduled job is
+  the natural next step, still pending.
 
-## Alternativas descartadas
+## Alternatives discarded
 
-- **Tabla histórica aparte.** Duplica el esquema y obliga a mantener dos
-  estructuras sincronizadas.
-- **Versionado completo** (tipo *temporal tables*). Responde «cómo era esta fila
-  en tal fecha», pregunta que nadie hace en este dominio, a cambio de bastante
-  complejidad.
+- **A separate history table.** Duplicates the schema and forces two
+  structures to be kept in sync.
+- **Full versioning** (temporal-tables style). Answers "what did this row
+  look like on such-and-such date," a question nobody asks in this domain,
+  in exchange for considerable complexity.

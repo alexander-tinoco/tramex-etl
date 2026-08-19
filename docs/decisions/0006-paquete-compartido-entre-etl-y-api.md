@@ -1,52 +1,55 @@
-# 0006 · Un paquete compartido entre el ETL y la API
+# 0006 · A package shared between the ETL and the API
 
-## Estado
+## Status
 
-Aceptado · 2026-07-14
+Accepted · 2026-07-14
 
-## Contexto
+## Context
 
-Tres componentes escriben en las mismas tablas: el pipeline ETL, la API y las
-migraciones de Alembic. Los tres necesitan derivar `clave_natural` y `hash_fila`
-exactamente igual (ver [0002](./0002-identidad-reproducible-y-carga-idempotente.md)).
+Three components write to the same tables: the ETL pipeline, the API, and
+the Alembic migrations. All three need to derive `clave_natural` and
+`hash_fila` in exactly the same way (see
+[0002](./0002-identidad-reproducible-y-carga-idempotente.md)).
 
-Si cada uno lo implementara por su cuenta, bastaría una diferencia mínima —un
-acento sin normalizar, un orden de campos distinto— para que un cliente dado de
-alta a mano por una operadora y el mismo cliente presente en el Excel acabaran
-como dos registros separados. Y sería un fallo silencioso: nada rompería, solo
-aparecerían duplicados que nadie sabría explicar.
+If each one implemented it independently, the smallest difference — an
+un-normalized accent, a different field order — would be enough for a client
+entered by hand by an operator and that same client present in the Excel
+file to end up as two separate records. And it would fail silently: nothing
+would break, duplicates would just show up that nobody could explain.
 
-## Decisión
+## Decision
 
-Un paquete `shared/tramex_shared` instalable, que contiene las reglas de
-identidad y la definición declarativa de las entidades. Lo importan el ETL, la
-API y las migraciones.
+An installable `shared/tramex_shared` package holds the identity rules and
+the declarative definition of the entities. It's imported by the ETL, the
+API, and the migrations.
 
-Consecuencias de empaquetado:
+Packaging consequences:
 
-- **La imagen de la API se construye desde la raíz del repositorio**
-  (`docker build -f backend/Dockerfile .`), no desde `backend/`, para poder
-  copiar `shared/`.
-- **No se declara en los `requirements.txt`.** Su ruta relativa cambia según
-  desde dónde se instale (la raíz en local, `/app` en la imagen), así que se
-  instala como paso aparte: `pip install -e ./shared` en desarrollo,
-  `pip install ./shared` en la imagen.
+- **The API image is built from the repository root**
+  (`docker build -f backend/Dockerfile .`), not from `backend/`, so that
+  `shared/` can be copied in.
+- **It isn't declared in `requirements.txt`.** Its relative path changes
+  depending on where it's installed from (the repo root locally, `/app` in
+  the image), so it's installed as a separate step: `pip install -e ./shared`
+  in development, `pip install ./shared` in the image.
 
-## Qué entra y qué no
+## What's in and what isn't
 
-Entra solo lo que **debe** ser idéntico en los tres puntos: normalización de
-texto, cálculo de las huellas y el catálogo de entidades con sus campos clave.
+Only what **must** be identical across all three points goes in: text
+normalization, fingerprint computation, and the entity catalog with its key
+fields.
 
-No entra el esquema de las tablas. Ese lo posee Alembic, y el ETL lo **refleja**
-desde la base viva en lugar de redefinirlo. Duplicar las definiciones de tabla
-sería exactamente la segunda fuente de verdad que este ADR trata de evitar.
+The table schema doesn't go in. Alembic owns that, and the ETL **reflects**
+it from the live database instead of redefining it. Duplicating table
+definitions would be exactly the second source of truth this ADR is trying
+to avoid.
 
-## Alternativas descartadas
+## Alternatives discarded
 
-- **Copiar el módulo en ambos componentes.** Es el problema, no la solución.
-- **Publicarlo en un índice de paquetes privado.** Correcto para equipos que
-  despliegan los componentes por separado; aquí añade infraestructura y un paso
-  de publicación para un repositorio que se versiona junto.
-- **Que el ETL importe del backend.** Acoplaría el pipeline a FastAPI, SQLAlchemy
-  y toda la configuración de la API, cuando solo necesita quince líneas de
-  funciones puras.
+- **Copying the module into both components.** That's the problem, not the solution.
+- **Publishing it to a private package index.** Right for teams that deploy
+  their components separately; here it adds infrastructure and a publishing
+  step for a repository that's versioned as a whole.
+- **Having the ETL import from the backend.** Would couple the pipeline to
+  FastAPI, SQLAlchemy, and the whole API configuration, when it only needs
+  fifteen lines of pure functions.

@@ -1,40 +1,41 @@
-# 0002 · Identidad reproducible de filas y carga idempotente
+# 0002 · Reproducible row identity and idempotent loading
 
-## Estado
+## Status
 
-Aceptado · 2026-07-11
+Accepted · 2026-07-11
 
-## Contexto
+## Context
 
-La primera versión del pipeline cargaba así:
+The pipeline's first version loaded data like this:
 
 ```python
 df.to_sql(table_name, engine, if_exists="append", index=False)
 ```
 
-Con dos consecuencias graves:
+With two serious consequences:
 
-1. **Reprocesar el mismo Excel duplicaba toda la base.** El `drop_duplicates()`
-   previo solo deduplicaba dentro del DataFrame, nunca contra lo ya cargado. Y
-   reprocesar es lo normal: la hoja se edita a diario y hay que volver a cargarla.
-2. **No había forma de saber qué había cambiado.** Cada corrida era un volcado
-   ciego.
+1. **Reprocessing the same Excel file duplicated the entire database.** The
+   preceding `drop_duplicates()` only deduplicated within the DataFrame,
+   never against what was already loaded. And reprocessing is the normal
+   case: the sheet gets edited daily and has to be reloaded.
+2. **There was no way to know what had changed.** Every run was a blind dump.
 
-Las filas del archivo no tienen identificador propio: nadie asignó nunca un ID a
-un trámite. Lo único disponible es el contenido de la propia fila.
+Rows in the file carry no identifier of their own: nobody ever assigned an ID
+to a tramite. The only thing available is the row's own content.
 
-## Decisión
+## Decision
 
-Cada fila lleva dos huellas SHA-256 calculadas a partir de su contenido, con
-propósitos distintos:
+Every row carries two SHA-256 fingerprints computed from its content, each
+serving a different purpose:
 
-**`clave_natural`** — huella de los campos que *identifican* la fila (quién es).
-Tiene índice único y es el objetivo del `ON CONFLICT` del upsert.
+**`clave_natural`** — a fingerprint of the fields that *identify* the row
+(who it is). It has a unique index and is the target of the upsert's
+`ON CONFLICT`.
 
-**`hash_fila`** — huella de *todos* los campos de negocio. Permite detectar si
-algo cambió realmente.
+**`hash_fila`** — a fingerprint of *all* the business fields. It lets the
+pipeline detect whether anything actually changed.
 
-La carga es entonces:
+Loading then becomes:
 
 ```sql
 INSERT INTO master_tramex (...) VALUES (...)
@@ -43,55 +44,58 @@ DO UPDATE SET ...
 WHERE master_tramex.hash_fila IS DISTINCT FROM excluded.hash_fila;
 ```
 
-Propiedades que se obtienen:
+Properties this gives us:
 
-- **Idempotencia.** Reprocesar el mismo archivo no duplica nada.
-- **Sin reescrituras inútiles.** Una fila cuyo contenido no cambió no se toca,
-  lo que además evita volver a cifrar credenciales intactas.
-- **Informe honesto.** El pipeline puede decir cuántas filas son nuevas, cuántas
-  cambiaron y cuántas quedaron igual.
+- **Idempotency.** Reprocessing the same file duplicates nothing.
+- **No useless rewrites.** A row whose content didn't change isn't touched,
+  which also avoids re-encrypting credentials that didn't change.
+- **Honest reporting.** The pipeline can report how many rows are new, how
+  many changed, and how many stayed the same.
 
-### Normalización antes de la huella
+### Normalization before fingerprinting
 
-Dos capturas de la misma persona deben producir la misma clave. Antes de
-digerir, cada valor se normaliza: se quitan acentos (NFKD y descarte de
-diacríticos), se colapsan espacios internos, se recortan extremos y se pasa a
-minúsculas. Así `"  JOSÉ  Ramírez "` y `"jose ramirez"` convergen.
+Two entries for the same person must produce the same key. Before hashing,
+every value is normalized: accents are stripped (NFKD with diacritics
+dropped), internal whitespace is collapsed, edges are trimmed, and the text
+is lowercased. That way `"  JOSÉ  Ramírez "` and `"jose ramirez"` converge.
 
-Los campos se concatenan con un separador de control (`\x1f`) para que la
-concatenación sea inyectiva: sin él, `("ab", "c")` y `("a", "bc")` producirían
-la misma clave.
+Fields are concatenated with a control separator (`\x1f`) so the
+concatenation is injective: without it, `("ab", "c")` and `("a", "bc")` would
+produce the same key.
 
-### El hash se calcula sobre texto plano, nunca sobre el criptograma
+### The hash is computed over plain text, never over the ciphertext
 
-Fernet usa IV aleatorio, así que cifrar dos veces el mismo texto da resultados
-distintos. Si `hash_fila` incluyera el criptograma, **toda fila con credencial
-parecería modificada en cada corrida** y se reescribiría siempre. Por eso el
-hash se calcula antes de cifrar. La contraseña en claro entra al hash pero no se
-puede recuperar de él: SHA-256 no es reversible.
+Fernet uses a random IV, so encrypting the same text twice produces different
+results. If `hash_fila` included the ciphertext, **every row with a
+credential would look modified on every run** and would be rewritten every
+time. That's why the hash is computed before encryption. The plaintext
+password enters the hash but can't be recovered from it: SHA-256 isn't
+reversible.
 
-### Una sola fuente de verdad
+### A single source of truth
 
-El cálculo vive en el paquete `shared/tramex_shared`, que importan el ETL, la
-API y las migraciones. Si cada capa derivara la clave a su manera, un cliente
-dado de alta a mano por una operadora y el mismo cliente presente en el Excel
-terminarían como dos registros distintos.
+The computation lives in the `shared/tramex_shared` package, imported by the
+ETL, the API, and the migrations. If each layer derived the key its own way,
+a client entered by hand by an operator and that same client present in the
+Excel file would end up as two separate records.
 
-## Consecuencias
+## Consequences
 
-- **Cambiar `campos_clave` es una migración de datos.** Altera todas las claves
-  naturales existentes; hay que recalcularlas.
-- **El upsert requiere PostgreSQL o SQLite.** El pipeline rechaza explícitamente
-  cualquier otro dialecto en vez de degradar a un `append` silencioso.
-- **Hay un coste por lote:** antes de escribir se consulta el estado previo de
-  las claves del lote para poder clasificar. Es una consulta indexada más por
-  lote, a cambio de un informe fiable.
+- **Changing `campos_clave` is a data migration.** It alters every existing
+  natural key; they all have to be recomputed.
+- **The upsert requires PostgreSQL or SQLite.** The pipeline explicitly
+  rejects any other dialect rather than silently degrading to a plain
+  `append`.
+- **There's a per-batch cost:** before writing, the previous state of the
+  batch's keys is queried to classify them. That's one extra indexed query
+  per batch, in exchange for a reliable report.
 
-## Alternativas descartadas
+## Alternatives discarded
 
-- **`TRUNCATE` y recargar.** Destruiría las altas hechas desde la API y las
-  marcas de tiempo de carga original, y dejaría la tabla vacía durante la carga.
-- **Comparar fila a fila en Python.** Requiere traer la tabla entera a memoria y
-  no aprovecha el índice.
-- **Confiar en una clave del archivo** (`ID`, `Cuenta IRCC`). Se comprobó que se
-  repiten, se dejan vacías y se reutilizan entre trámites.
+- **`TRUNCATE` and reload.** Would destroy records created via the API and
+  the original loading timestamps, and would leave the table empty during
+  the load.
+- **Comparing rows one by one in Python.** Requires pulling the entire table
+  into memory and doesn't use the index.
+- **Trusting a key from the file itself** (`ID`, `Cuenta IRCC`). Checked and
+  found to repeat, get left blank, and get reused across tramites.

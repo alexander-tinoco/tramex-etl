@@ -1,81 +1,83 @@
-# 0001 · Cifrado reversible (Fernet) y no hash para las credenciales de clientes
+# 0001 · Reversible encryption (Fernet) instead of hashing for client credentials
 
-## Estado
+## Status
 
-Aceptado · 2026-07-10
+Accepted · 2026-07-10
 
-## Contexto
+## Context
 
-La agencia gestiona trámites migratorios en nombre de sus clientes. Para hacerlo
-necesita **entrar a las cuentas de esos clientes**: el portal consular, la cuenta
-de Global Entry, la cuenta IRCC de Canadá. Las contraseñas de esas cuentas
-estaban en celdas de un Excel compartido, en texto plano, junto al nombre y al
-número de pasaporte de la persona.
+The agency manages immigration tramites on behalf of its clients. To do that
+it needs to **log into those clients' accounts**: the consular portal, the
+Global Entry account, Canada's IRCC account. The passwords for those accounts
+were sitting in cells of a shared Excel file, in plain text, next to the
+person's name and passport number.
 
-La reacción instintiva ante «hay que guardar contraseñas» es *hashearlas con
-bcrypt*. Aquí sería un error de categoría.
+The instinctive reaction to "we need to store passwords" is *hash them with
+bcrypt*. Here that would be a category error.
 
-## Decisión
+## Decision
 
-Las credenciales de clientes se **cifran de forma reversible** con Fernet
-(AES-128 en modo CBC con HMAC-SHA256 para autenticación), no se hashean.
+Client credentials are **encrypted reversibly** with Fernet (AES-128 in CBC
+mode with HMAC-SHA256 for authentication), not hashed.
 
-El motivo es que hash y cifrado resuelven problemas distintos:
+The reason is that hashing and encryption solve different problems:
 
-| | Hash (bcrypt) | Cifrado (Fernet) |
+| | Hash (bcrypt) | Encryption (Fernet) |
 |---|---|---|
-| Pregunta que responde | «¿es esta la contraseña correcta?» | «¿cuál era la contraseña?» |
-| Reversible | No, por diseño | Sí, con la llave |
-| Caso de uso | **Verificar** a quien se autentica | **Custodiar** un secreto ajeno |
+| Question it answers | "is this the correct password?" | "what was the password?" |
+| Reversible | No, by design | Yes, with the key |
+| Use case | **Verifying** whoever authenticates | **Custodying** someone else's secret |
 
-La agencia no necesita *verificar* la contraseña del cliente: necesita
-*recuperarla* para teclearla en el portal correspondiente. Un hash es
-irreversible por definición, así que haría el dato inservible.
+The agency doesn't need to *verify* the client's password: it needs to
+*recover* it to type into the corresponding portal. A hash is irreversible by
+definition, so it would make the data useless.
 
-Por eso conviven los dos mecanismos en el mismo sistema, y es importante no
-confundirlos:
+That's why both mechanisms coexist in the same system, and it's important not
+to confuse them:
 
-- **Contraseñas de los usuarios del sistema** (operadoras y administradores):
-  hash bcrypt. El sistema solo necesita verificarlas. Ver [0005](./0005-autenticacion-roles-y-auditoria.md).
-- **Credenciales de las cuentas de los clientes**: cifrado Fernet. El sistema
-  necesita devolverlas.
+- **System users' passwords** (operators and administrators): bcrypt hash.
+  The system only ever needs to verify them. See [0005](./0005-autenticacion-roles-y-auditoria.md).
+- **Client account credentials**: Fernet encryption. The system needs to
+  hand them back.
 
-### Consecuencias operativas
+### Operational consequences
 
-1. **La llave es el activo crítico.** Quien tenga `TRAMEX_FERNET_KEY` y un
-   volcado de la base tiene todas las credenciales. La llave debe vivir en un
-   gestor de secretos, nunca junto al respaldo de la base.
-2. **Rotar la llave exige re-cifrar.** No basta con cambiar la variable: hay que
-   descifrar con la vieja y volver a cifrar con la nueva. Está pendiente
-   automatizarlo.
-3. **Todo descifrado se audita.** Como el dato es recuperable, el control no
-   puede ser criptográfico y tiene que ser de acceso: cada consulta deja asiento
-   en `logs_auditoria` con usuario, fecha, IP y registro.
-4. **Un fallo al descifrar escala.** Si hay criptograma pero no abre con la llave
-   activa, se lanza `ErrorDeDescifrado` y la API responde 500. La versión
-   anterior devolvía `None`, indistinguible de «este registro no tiene
-   contraseña»: se perdían credenciales de clientes en silencio.
+1. **The key is the critical asset.** Whoever has `TRAMEX_FERNET_KEY` and a
+   database dump has every credential. The key must live in a secrets
+   manager, never alongside the database backup.
+2. **Rotating the key requires re-encrypting.** Changing the variable alone
+   isn't enough: everything has to be decrypted with the old key and
+   re-encrypted with the new one. Automating this is still pending.
+3. **Every decryption is audited.** Because the data is recoverable, the
+   control can't be cryptographic and has to be access-based: every lookup
+   is logged in `logs_auditoria` with user, date, IP, and record.
+4. **A decryption failure surfaces loudly.** If a ciphertext exists but
+   doesn't open with the active key, `ErrorDeDescifrado` is raised and the
+   API responds with a 500. The previous version returned `None`,
+   indistinguishable from "this record has no password": client credentials
+   were being lost silently.
 
-### Por qué Fernet y no AES a mano
+### Why Fernet instead of hand-rolled AES
 
-Fernet trae por defecto lo que es fácil equivocar implementando AES
-directamente: IV aleatorio por mensaje, autenticación con HMAC (protege contra
-manipulación del criptograma) y marca temporal. Es una construcción cerrada,
-sin parámetros que configurar mal.
+Fernet defaults to everything that's easy to get wrong implementing AES
+directly: a random IV per message, HMAC authentication (protects against
+tampering with the ciphertext), and a timestamp. It's a closed construction,
+with no parameters to misconfigure.
 
-Su naturaleza no determinista tiene una consecuencia en el pipeline: cifrar dos
-veces el mismo texto produce criptogramas distintos, así que **no se pueden
-comparar criptogramas para detectar cambios**. Por eso `hash_fila` se calcula
-sobre el texto plano normalizado y nunca sobre el cifrado. Ver
+Its non-deterministic nature has one consequence for the pipeline: encrypting
+the same text twice produces different ciphertexts, so **ciphertexts can't be
+compared to detect changes**. That's why `hash_fila` is computed over the
+normalized plain text and never over the ciphertext. See
 [0002](./0002-identidad-reproducible-y-carga-idempotente.md).
 
-## Alternativas descartadas
+## Alternatives discarded
 
-- **Hash bcrypt.** Haría el dato irrecuperable e inútil para la operación.
-- **Un gestor de contraseñas externo** (Bitwarden, 1Password) con la API
-  guardando solo referencias. Es lo correcto a mayor escala y elimina la
-  custodia del secreto, pero añade una dependencia externa de pago y un punto de
-  fallo para una agencia pequeña. Es la evolución natural si el sistema crece.
-- **Cifrado a nivel de columna en PostgreSQL** (`pgcrypto`). Traslada la llave a
-  la base de datos, que es justo de donde conviene sacarla: un volcado
-  comprometido incluiría entonces todo lo necesario para descifrar.
+- **bcrypt hash.** Would make the data unrecoverable and useless for the operation.
+- **An external password manager** (Bitwarden, 1Password) with the API only
+  storing references. That's the right call at larger scale, and it removes
+  the custody of the secret altogether, but it adds a paid external
+  dependency and a point of failure for a small agency. It's the natural
+  next step if the system grows.
+- **Column-level encryption in PostgreSQL** (`pgcrypto`). Moves the key into
+  the database, which is exactly where it shouldn't be: a compromised dump
+  would then include everything needed to decrypt.
