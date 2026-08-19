@@ -9,6 +9,11 @@ versioning adheres to [Semantic Versioning](https://semver.org/). From version
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-08-19
+
+### Fixed
+- The vulnerability scan still failed after authenticating: `docker/metadata-action`'s `semver` tag strips the leading `v` when publishing (`v2.0.3` → `2.0.3`), but the scan job pulled by `github.ref_name`, which keeps it — a tag that was never published. The scan now resolves the same tag the publish job actually pushed.
+
 ## [2.0.3] - 2026-08-19
 
 ### Fixed
